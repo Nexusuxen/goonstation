@@ -2072,6 +2072,14 @@
 					else
 						P.name = "paper- 'Printout'"
 
+					// NEW CODE HERE. THESE COMMENTS SHOULD BE DELETED BEFORE A PR IS MADE. IF YOU ARE READING THIS, PLEASE YELL AT ME. THANK YOU.
+					// Regex shit will go here and modify print_text to become formatted similarly to written paper
+					// Formatting should be done identically to how written paper formatting is done (e.g **bold** and _italic_)
+					// EXCEPT, ++Heading++ & --Subheading--
+					// DO NOT FORGET [____] FOR EDITABLE FIELDS FOR FUCK'S SAKE
+
+
+
 					P.info = print_text
 
 					var/formStartPoint = 1
