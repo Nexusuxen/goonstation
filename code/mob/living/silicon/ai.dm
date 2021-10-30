@@ -77,6 +77,7 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 	var/obj/item/device/radio/radio2 = null
 	var/obj/item/device/radio/radio3 = null
 	var/obj/item/device/pda2/internal_pda = null
+	var/obj/machinery/computer3/terminal/network/internal_term = null
 	var/obj/item/organ/brain/brain = null
 	var/moustache_mode = 0
 	var/status_message = null
@@ -196,6 +197,7 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 	src.radio2 = new /obj/item/device/radio(src)
 	src.radio3 = new /obj/item/device/radio/headset/command/ai(src)
 	src.internal_pda = new /obj/item/device/pda2/ai(src)
+	src.internal_term = new /obj/machinery/computer3/terminal/network(src)
 
 	src.tracker = new /datum/ai_camera_tracker(src)
 	update_appearance()
@@ -233,17 +235,21 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 		if (src.brain && src.key)
 			src.brain.name = "neural net processor"
 			src.brain.owner = src.mind
+		src.internal_term.pnet_name = "MAINFRAME_AI"
+
 
 	SPAWN_DBG(0.6 SECONDS)
 		src.net_id = format_net_id("\ref[src]")
 
-		if(!src.link)
+		// the code block here used to connect the ai to its data terminal until i Fucked It Up. it'll probably
+		// be deleted but keep it here (and replace it with the normal block) for possible testing ig
+		/*if(!src.adapter.link)
 			var/turf/T = get_turf(src)
 			var/obj/machinery/power/data_terminal/test_link = locate() in T
 			if(test_link && !DATA_TERMINAL_IS_VALID_MASTER(test_link, test_link.master))
-				src.link = test_link
-				src.link.master = src
-
+				src.internal_term.link = test_link
+				src.internal_term.link.master = src.internal_term
+		*/
 		for (var/mob/living/silicon/hivebot/eyebot/E in mobs)
 			if (!(E in available_ai_shells))
 				available_ai_shells += E

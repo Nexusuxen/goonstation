@@ -417,8 +417,24 @@
 		//Otherwise, ff they aren't addressing us, ignore them
 		if(signal.data["address_1"] != src.net_id)
 			if((signal.data["address_1"] == "ping") && ((signal.data["net"] == null) || ("[signal.data["net"]]" == "[src.net_number]")) && signal.data["sender"])
-				var/datum/signal/pingsignal = get_free_signal()
-				pingsignal.data["device"] = "PNET_ADAPTER"
+				var/deviceName
+				if(isnull(host.pnet_name))
+					deviceName = "PNET_ADAPTER"
+				else
+					deviceName = host.pnet_name /*
+BIG NOTE TO SELF (if you're reading this, yell at nex for being dumb and not removing notes. that or stop poking through my repos, nerd)
+Maybe create a modified version of TermOS that can handle multiple connections, for use with an internal AI terminal
+Maybe use "term_target" to select which connected device you want your messages to send to
+THIS WILL BE HILARIOUSLY DIFFICULT TO DO BY THE WAY
+I need to fundamentally alter how TermOS handles connections which is likely gonna be really fucking hard
+Especially with my lack of knowledge and experience with coding, especially with how network computer stuff is coded
+At least I'm a packet nerd...
+
+This project will be a significant personal undertaking that I don't think I'm ready for so if you're reading this, expect to never have this see the light of day
+Or maybe it will... gotta be optimistic :))))))))))))))))))))))))))
+
+*/				var/datum/signal/pingsignal = get_free_signal()
+				pingsignal.data["device"] = "[deviceName]" // rework this line a little to instead try to draw some variable "device_name" from the device it's installed in. if null or whatever, defaults to this
 				pingsignal.data["netid"] = src.net_id
 				pingsignal.data["address_1"] = signal.data["sender"]
 				pingsignal.data["command"] = "ping_reply"

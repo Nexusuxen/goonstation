@@ -19,6 +19,7 @@
 	var/list/peripherals = list()
 	var/restarting = 0 //Are we currently restarting the system?
 	var/datum/light/light
+	var/pnet_name = null
 
 	//Does it spawn with a card scanner? (It should, the main os needs one of these now.)
 	var/setup_idscan_path = null
