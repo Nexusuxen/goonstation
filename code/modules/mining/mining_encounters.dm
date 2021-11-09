@@ -129,7 +129,7 @@
 			area_restriction = null
 
 		var/size = rand(mining_controls.min_magnet_spawn_size, mining_controls.max_magnet_spawn_size)
-		Turfspawn_Wreckage(magnetic_center, size, 0, area_restriction)
+		Turfspawn_Wreckage(magnetic_center, size, 0, area_restriction) // should i call this or make a new one for prefab wreckage?
 
 /datum/mining_encounter/geode
 	name = "Geode"
@@ -845,6 +845,23 @@
 
 
 	return generated_turfs
+
+/* NOTES
+IF YOU ARE READING THIS PLEASE YELL AT NEX FOR FORGETTING TO ERASE NOTES unless you are nex ig
+make this SIMPLE TO USE for mappers not that familiar with code
+
+*/
+/proc/PrefabSpawn_Wreckage(var/turf/space/center) // For spawning mineral magnet prefabs
+
+ABSTRACT_TYPE(/datum/mining_encounter/wreckagePrefab)
+/datum/mining_encounter/wreckagePrefab
+
+	var/prefab = null // What file is the .dmm we wanna load?
+	var/sizeX = null // What is the X-axis length of the prefab?
+	var/sizeY = null // What is the Y-axis height of the prefab?
+	var/doLoot = FALSE // Want to automatically spawn crates randomly?
+	var/doArtifacts = FALSE // Want to automatically spawn artifacts randomly?
+
 
 // Modifiers
 
