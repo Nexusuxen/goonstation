@@ -515,6 +515,12 @@
 		desc = "A small lighting fixture."
 		light_type = /obj/item/light/bulb
 
+/obj/machinery/light/broken // this one starts out smashed, and is in tubular form, unlike the bulbous one
+	name = "shattered light tube"
+
+	New()
+		..()
+		current_lamp.light_status = LIGHT_BROKEN
 
 // create a new lighting fixture
 /obj/machinery/light/New()

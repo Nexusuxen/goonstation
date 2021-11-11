@@ -3172,6 +3172,10 @@ ABSTRACT_TYPE(/area/station/catwalk)
 		name = "Research Outpost Pathology"
 		icon_state = "pink"
 
+/area/research_outpost/chemistry
+		name = "Research Outpost Chemistry"
+		icon_state = "chem"
+
 // end station areas //
 
 /// Nukeops listening post
