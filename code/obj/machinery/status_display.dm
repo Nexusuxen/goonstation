@@ -261,6 +261,7 @@
 	name = "\improper AI display"
 	anchored = 1
 	density = 0
+	open_to_sound = 1
 	mats = list("MET-1"=2, "CON-1"=6, "CRY-1"=6)
 	deconstruct_flags = DECON_SCREWDRIVER | DECON_WRENCH | DECON_CROWBAR | DECON_WELDER | DECON_MULTITOOL
 
@@ -279,6 +280,9 @@
 
 	var/datum/light/screen_glow
 
+	var/has_radio = TRUE // for if you want a radio-less display for whatever reason
+	var/obj/item/device/radio/intercom/aiDisplay/internal_radio // intercom/aiDisplay should be located after/beneath /ai_status_display
+
 	New()
 		..()
 		face_image = image('icons/obj/status_display.dmi', icon_state = "", layer = FLOAT_LAYER)
@@ -296,6 +300,9 @@
 		screen_glow.set_brightness(0.45)
 		screen_glow.set_height(0.75)
 		screen_glow.attach(src)
+
+		internal_radio = new /obj/item/device/radio/intercom/aiDisplay
+		internal_radio.set_loc(src)
 
 	disposing()
 		if (screen_glow)
@@ -355,10 +362,21 @@
 		if (isAIeye(user))
 			var/mob/dead/aieye/AE = user
 			A = AE.mainframe
-		if (owner == A) //no free updates for you
+		if (owner == A) // lets open up the display's intercom!
+			var/mob/message_mob = A.get_message_mob()
+			internal_radio.ui_interact(message_mob)
 			return
 		boutput(user, "<span class='notice'>You tune the display to your core.</span>")
 		owner = A
 		is_on = TRUE
 		if (!(status & NOPOWER))
 			update()
+
+obj/item/device/radio/intercom/aiDisplay
+	name = "AI Display Radio"
+	desc = "If you're reading this, something has gone terribly wrong and you should file a bug report if you know how this somehow ended up being visible!"
+	frequency = R_FREQ_INTERCOM_AI
+	set_loc(newloc) // should only ever be inside a display
+		if (!istype(newloc, /obj/machinery/ai_status_display))
+			qdel(src)
+		else ..()
