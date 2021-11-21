@@ -1794,10 +1794,10 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 	ticker.centralized_ai_laws.show_laws(connected_robots)
 
 /mob/living/silicon/ai/proc/switchCamera(var/obj/machinery/camera/C)
-	if (!C)
+	if (!C || C.qdeled)
 		src.set_eye(null)
 		return 0
-	if (isdead(src) || C.network != src.network) return 0
+	if (isdead(src) || (C.network != src.network && C.network != "AI")) return 0
 
 	// ok, we're alive, camera is acceptable and in our network...
 	camera_overlay_check(C) //Add static if the camera is disabled

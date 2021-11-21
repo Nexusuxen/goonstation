@@ -259,6 +259,7 @@
 	icon = 'icons/obj/status_display.dmi'
 	icon_state = "ai_frame"
 	name = "\improper AI display"
+	desc = "This AI Display is equipped with a camera and intercom for interfacing with the on-board AI."
 	anchored = 1
 	density = 0
 	open_to_sound = 1
@@ -280,8 +281,12 @@
 
 	var/datum/light/screen_glow
 
+	var/canRequestPresence = TRUE // anti-spam measures
+
 	var/has_radio = TRUE // for if you want a radio-less display for whatever reason
 	var/obj/item/device/radio/intercom/aiDisplay/internal_radio // intercom/aiDisplay should be located after/beneath /ai_status_display
+	var/has_camera = TRUE // that face is looking back at you :)
+	var/obj/machinery/camera/ai/internal_camera // gotta keep track of our camera, too
 
 	New()
 		..()
@@ -303,6 +308,9 @@
 
 		internal_radio = new /obj/item/device/radio/intercom/aiDisplay
 		internal_radio.set_loc(src)
+
+		internal_camera = new /obj/machinery/camera/ai
+		internal_camera.set_loc(src)
 
 	disposing()
 		if (screen_glow)
@@ -346,6 +354,50 @@
 		message = owner.status_message
 		name = initial(name) + " ([owner.name])"
 
+	proc/accessIntercom() // handles opening UI, BE SURE TO FIX THIS WITH THE TGUI ITERATION THANK YOU
+		if (internal_radio)
+			internal_radio.ui_interact(owner.get_message_mob()) // get_message_mob to find the mainframe or eye the player is in
+// it's like this since i plan to implement tgui visible to both humans and AIs so I might have to do weird complex stuff that I wanna have just in 1 place
+
+	proc/requestPresence(mob/user as mob) // someone wants to ask for the AI to talk to them!
+		// note: this is to be used AFTER we've already confirmed user is human and able to interact with the display and such
+
+		// temp note: include a href so the ai can jump to the turf that the display is on
+		// include a cooldown & have the display say it's on cooldown and for how much longer
+
+		if(!src.owner || !src.canRequestPresence) // who you gonna call?! no one.
+			return
+		// NOTE: WHEN TERMOS PR GETS MERGED, USE TEXT_TO_AI AND SOUND_TO_AI OR WHATEVER THEY WERE CALLED AND REPLACE THE FOLLOWING CODE WITH IT THANK U
+		// need both an internal camera to jump to by default, and a backup thing to find an active camera in view if our internal camera is disabled
+		var/mob/target_mob = owner.get_message_mob() // get the mainframe or eye that the player is currently in
+
+		var/obj/machinery/camera/nearest_camera // not actually nearest, just whatever the below loop finds first in nearby visible cameras
+		var/href_camera // what's the text to render for the href camera link??
+		if (internal_camera.camera_status) // do we have an active camera??
+			nearest_camera = internal_camera
+		else
+			for (var/obj/machinery/camera/nearby_camera in view(src))
+				if (!nearby_camera.camera_status)
+					continue
+				if (!(nearby_camera.network == "SS13" || nearby_camera.network == "Zeta" || nearby_camera.network == "Robots" || nearby_camera.network == "AI"))
+					continue // if we can see through cameras that are none of the above then uh... someone fix that??
+				nearest_camera = nearby_camera
+				break
+
+		if (!nearest_camera) // no cameras :(
+			href_camera = "<i>No cameras in view of display!</i>"
+		else
+			href_camera = "<a href='byond://?src=\ref[owner];switchcamera=\ref[nearest_camera]'><u>Jump to nearby camera</u></a>"
+
+		var/href_intercom // what's the text to render for the href intercom ui shortcut?
+		if (internal_radio)
+			href_intercom = "<a href='byond://?src=\ref[src];accessIntercom=\ref[owner]'><u>Access intercom</u>"
+
+		var/href = "[href_camera] | [href_intercom]"
+		boutput(target_mob, "--- Alert: [user.name] is requesting your attention via status display intercom!<br>- [href]")
+		canRequestPresence = FALSE
+		SPAWN_DBG(60 SECONDS) // should be set to a var for ease of adjustability
+			canRequestPresence = TRUE
 
 	get_desc()
 		..()
@@ -363,8 +415,7 @@
 			var/mob/dead/aieye/AE = user
 			A = AE.mainframe
 		if (owner == A) // lets open up the display's intercom!
-			var/mob/message_mob = A.get_message_mob()
-			internal_radio.ui_interact(message_mob)
+			src.accessIntercom(A)
 			return
 		boutput(user, "<span class='notice'>You tune the display to your core.</span>")
 		owner = A
@@ -372,7 +423,16 @@
 		if (!(status & NOPOWER))
 			update()
 
-obj/item/device/radio/intercom/aiDisplay
+	Topic(href, href_list)
+		..()
+		if(isdead(src))
+			boutput(src, "You cannot access the intercom because you are dead!")
+				return
+		if((locate(href_list["accessIntercom"]) == src.owner) && isAI(usr)) // accessIntercom href should set "accessIntercom" = owner
+			src.accessIntercom(usr)
+
+
+/obj/item/device/radio/intercom/aiDisplay
 	name = "AI Display Radio"
 	desc = "If you're reading this, something has gone terribly wrong and you should file a bug report if you know how this somehow ended up being visible!"
 	frequency = R_FREQ_INTERCOM_AI
@@ -380,3 +440,8 @@ obj/item/device/radio/intercom/aiDisplay
 		if (!istype(newloc, /obj/machinery/ai_status_display))
 			qdel(src)
 		else ..()
+	speech_bubble() // /radio proc override, we want the speech bubble on top of the display so we can actually see it
+		if ((src.listening && src.wires & WIRE_RECEIVE))
+			src.loc.UpdateOverlays(speech_bubble, "speech_bubble")
+			SPAWN_DBG(1.5 SECONDS)
+				src.loc.UpdateOverlays(null, "speech_bubble")

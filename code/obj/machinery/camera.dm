@@ -38,6 +38,11 @@
 		color = "#AAFF99"
 		c_tag = "autotag"
 
+	ai
+		network = "AI"
+		name = "ai camera"
+		desc = "A small, high quality camera with thermal, light-amplification, and diffused laser imaging to see through walls. It is networked exclusively to the on-board AI, allowing it to view the world through it."
+
 /obj/machinery/camera/process()
 	.=..()
 	if(!isturf(src.loc)) //This will end up removing coverage if camera is inside a thing.
