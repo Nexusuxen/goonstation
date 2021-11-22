@@ -264,7 +264,7 @@
 	density = 0
 	open_to_sound = 1
 	mats = list("MET-1"=2, "CON-1"=6, "CRY-1"=6)
-	deconstruct_flags = DECON_SCREWDRIVER | DECON_WRENCH | DECON_CROWBAR | DECON_WELDER | DECON_MULTITOOL
+	deconstruct_flags = DECON_SCREWDRIVER | DECON_WRENCH | DECON_CROWBAR | DECON_WELDER | DECON_MULTITOOL | DECON_DESTRUCT
 
 	machine_registry_idx = MACHINES_STATUSDISPLAYS
 	var/is_on = FALSE //Distinct from being powered
@@ -287,6 +287,12 @@
 	var/obj/item/device/radio/intercom/aiDisplay/internal_radio // intercom/aiDisplay should be located after/beneath /ai_status_display
 	var/has_camera = TRUE // that face is looking back at you :)
 	var/obj/machinery/camera/ai/internal_camera // gotta keep track of our camera, too
+
+	_health = 100
+	_max_health = 100
+	var/repairStep = 0 // 7 steps (not including 0) to fix, detailed in repairProcess()
+	var/repairHint = "unscrew the broken screen from the casing" // we wanna let the user know what they should do next to continue repairs. starts at first step
+	var/lastAlert = 0 // when did we last tell the ai that we got hurt??
 
 	New()
 		..()
@@ -312,17 +318,32 @@
 		internal_camera = new /obj/machinery/camera/ai
 		internal_camera.set_loc(src)
 
+		_health = _max_health // for if you want to set max health in a map editor. for some reason.
+
 	disposing()
 		if (screen_glow)
 			screen_glow.dispose()
 		..()
 
+	qdel()
+		if (internal_radio)
+			qdel(internal_radio)
+		if (internal_camera)
+			qdel(internal_camera)
+		..()
+
 	process()
-		if (status & NOPOWER || !is_on || !owner)
+		if (status & NOPOWER || status & BROKEN || !is_on || !owner)
 			UpdateOverlays(null, "emotion_img")
 			UpdateOverlays(null, "back_img")
 			UpdateOverlays(null, "glow_img")
 			screen_glow.disable()
+			if (internal_camera)
+				src.internal_camera.camera_status = 0
+				src.internal_camera.updateCoverage()
+			if (internal_radio)
+				src.internal_radio.broadcasting = FALSE
+				src.internal_radio.listening = FALSE
 			return
 		update()
 		use_power(200)
@@ -350,12 +371,15 @@
 			UpdateOverlays(face_image, "emotion_img")
 			UpdateOverlays(back_image, "back_img")
 			UpdateOverlays(owner.faceEmotion != "ai-tetris" ? glow_image : null, "glow_img")
-
+			if (internal_camera)
+				src.internal_camera.camera_status = 1
+				src.internal_camera.updateCoverage()
+			// we don't turn the radio back on, gotta do it manually
 		message = owner.status_message
 		name = initial(name) + " ([owner.name])"
 
 	proc/accessIntercom() // handles opening UI, BE SURE TO FIX THIS WITH THE TGUI ITERATION THANK YOU
-		if (internal_radio)
+		if (internal_radio.loc)
 			internal_radio.ui_interact(owner.get_message_mob()) // get_message_mob to find the mainframe or eye the player is in
 // it's like this since i plan to implement tgui visible to both humans and AIs so I might have to do weird complex stuff that I wanna have just in 1 place
 
@@ -365,25 +389,16 @@
 		// temp note: include a href so the ai can jump to the turf that the display is on
 		// include a cooldown & have the display say it's on cooldown and for how much longer
 
-		if(!src.owner || !src.canRequestPresence) // who you gonna call?! no one.
-			return
+		if(!src.owner) // who you gonna call?! no one.
+			return 0
+		if(!src.canRequestPresence)
+			return 1
 		// NOTE: WHEN TERMOS PR GETS MERGED, USE TEXT_TO_AI AND SOUND_TO_AI OR WHATEVER THEY WERE CALLED AND REPLACE THE FOLLOWING CODE WITH IT THANK U
 		// need both an internal camera to jump to by default, and a backup thing to find an active camera in view if our internal camera is disabled
 		var/mob/target_mob = owner.get_message_mob() // get the mainframe or eye that the player is currently in
 
-		var/obj/machinery/camera/nearest_camera // not actually nearest, just whatever the below loop finds first in nearby visible cameras
+		var/nearest_camera = src.getNearestCamera() // not actually nearest, just whatever the below loop finds first in nearby visible cameras
 		var/href_camera // what's the text to render for the href camera link??
-		if (internal_camera.camera_status) // do we have an active camera??
-			nearest_camera = internal_camera
-		else
-			for (var/obj/machinery/camera/nearby_camera in view(src))
-				if (!nearby_camera.camera_status)
-					continue
-				if (!(nearby_camera.network == "SS13" || nearby_camera.network == "Zeta" || nearby_camera.network == "Robots" || nearby_camera.network == "AI"))
-					continue // if we can see through cameras that are none of the above then uh... someone fix that??
-				nearest_camera = nearby_camera
-				break
-
 		if (!nearest_camera) // no cameras :(
 			href_camera = "<i>No cameras in view of display!</i>"
 		else
@@ -394,40 +409,222 @@
 			href_intercom = "<a href='byond://?src=\ref[src];accessIntercom=\ref[owner]'><u>Access intercom</u>"
 
 		var/href = "[href_camera] | [href_intercom]"
-		boutput(target_mob, "--- Alert: [user.name] is requesting your attention via status display intercom!<br>- [href]")
+		boutput(target_mob, "--- Notice: [user.name] is requesting your attention via status display intercom!<br>- [href]")
 		canRequestPresence = FALSE
 		SPAWN_DBG(60 SECONDS) // should be set to a var for ease of adjustability
 			canRequestPresence = TRUE
+		return 2
+
+	proc/getNearestCamera()
+		var/obj/machinery/camera/nearest_camera = null
+		if (internal_camera.camera_status) // do we have an active camera??
+			nearest_camera = internal_camera
+		else
+			for (var/obj/machinery/camera/nearby_camera in view(src))
+				if (!nearby_camera.camera_status)
+					continue
+				if (!(nearby_camera.network == "SS13" || nearby_camera.network == "Zeta" || nearby_camera.network == "Robots" || nearby_camera.network == "AI"))
+					continue // if we can see through cameras that are none of the above then uh... someone fix that??
+				nearest_camera = nearby_camera
+				break
+		return nearest_camera
+
+	// ripped from manufacturer code because good god why dont we have some universal handling for this
+	proc/take_damage(var/damage_amount = 0)
+		if (!damage_amount || (src.status & BROKEN)) // can only trigger it breaking if it's not already broken
+			return
+		src._health -= damage_amount
+		src._health = max(0,min(src._health,src._max_health))
+		playsound(src.loc, 'sound/impact_sounds/Metal_Hit_Light_1.ogg', 50, 2)
+
+		if (src._health == 0)
+			src.visible_message("<span class='alert'><b>[src.name] breaks!</b></span>")
+			playsound(src.loc, 'sound/impact_sounds/Machinery_Break_1.ogg', 50, 2)
+			elecflash(src, radius=1, power=3, exclude_center = 0)
+			src.status |= BROKEN
+			src.owner = null
+			name = "\improper broken [initial(name)]"
+			return // no alerts for when we die :(
+		else // displays can get concussions and memory loss too, so we better see if it'll forget its owner
+			if ((src._health <= 70) && prob(damage_amount * 2) && owner) // coefficient of 2 is so that 5 damage has a 10% chance to trigger reset and 50 damage has a 100% chance
+				src.owner = null
+				src.visible_message("<span class='alert'><i>[src.name] loudly buzzes as its memory is reset!</i></span>")
+				playsound(src.loc, 'sound/machines/buzz-sigh.ogg', 50, 2)
+				name = initial(name)
+				return // we forgot our owner, we don't know who to alert! lets just return.
+				// process() will handle things from here to disable intercom & camera & etc
+
+		if((src.lastAlert + 100 < world.time) && owner) // ow! lets check to see if we can tell our owner (if we have one) we got hurt!
+			var/mob/target_mob = owner.get_message_mob()
+			src.lastAlert = world.time + 100
+			var/nearest_camera = getNearestCamera()
+			var/href
+			if (nearest_camera)
+				href = "<a href='byond://?src=\ref[owner];switchcamera=\ref[nearest_camera]'><u>Jump to nearby camera</u></a>"
+			else
+				href = "<i>No cameras in view of display!</i>"
+			boutput(target_mob, "- Alert: A Status Display in [get_area(src)] is taking damage.<b>[href]")
+
+	proc/repairProcess(obj/item/W as obj, mob/user as mob)
+		// oh boy a billion if statements, sorry
+		if (src.repairStep == 0 && isscrewingtool(W))
+			src.repairStep ++
+			playsound(src.loc, "sound/items/Screwdriver.ogg", 50, 1)
+			boutput(user, "<span class='notice'>You unscrew the broken screen.</span>")
+			src.repairHint = "pry out the broken glass"
+			return
+		if (src.repairStep == 1 && ispryingtool(W))
+			src.repairStep ++
+			playsound(src.loc, "sound/items/Crowbar.ogg", 50, 1)
+			boutput(user, "<span class='notice'>You pry the broken glass from the screen.</span>")
+			src.repairHint = "cut out the burnt wires"
+			var/obj/item/raw_material/shard/glass/G = new /obj/item/raw_material/shard/glass
+			G.set_loc(src.loc)
+			return
+		if (src.repairStep == 2 && issnippingtool(W))
+			src.repairStep ++
+			playsound(src.loc, "sound/items/Wirecutter.ogg", 50, 1)
+			boutput(user, "<span class='notice'>You cut and remove the burnt up wires from the display.</span>")
+			src.repairHint = "replace the burnt wires"
+			return
+		if (src.repairStep == 3 && istype(W, /obj/item/cable_coil))
+			if (!(W.amount >= 5))
+				boutput(user, "<span class='notice'>You need at least 5 lengths of coil to repair the wires!</span>")
+				return
+			src.repairStep ++
+			W.change_stack_amount(-5)
+			playsound(src.loc, "sound/items/Deconstruct.ogg", 50, 1)
+			boutput(user, "<span class='notice'>You replace the missing wires.</span>")
+			src.repairHint = "replace the missing glass"
+			return
+		if (src.repairStep == 4 && istype(W, /obj/item/sheet))
+			if (!(W.material.material_flags & MATERIAL_CRYSTAL))
+				boutput(user, "<span class='notice'>You need some kind of glass or crystal sheet to replace the screen!</span>")
+				return
+			// only need 1 sheet, no check if we have enough
+			src.repairStep ++
+			W.change_stack_amount(-1)
+			playsound(src.loc, "sound/items/Deconstruct.ogg", 50, 1)
+			boutput(user, "<span class='notice'>You replace the missing screen.</span>")
+			src.repairHint = "screw the screen back into the display"
+			return
+		if (src.repairStep == 5 && isscrewingtool(W))
+			src.repairStep = 0
+			src.repairHint = "unscrew the broken screen from the casing"
+			src.status = 0 // no idea how bit stuff works please yell at nex if this is stupid thank u
+			src._health = 100
+			playsound(src.loc, "sound/items/Screwdriver.ogg", 50, 1)
+			boutput(user, "<span class='notice'>You secure the screen back into the display, fully repairing it!</span>")
+			return
+		boutput(user, "<span class='notice'>You're not sure how to use [W] right now; it looks like you need to [repairHint].</span>")
+
+	ex_act(severity)
+		switch(severity)
+			if(1.0)
+				src.take_damage(rand(100,120))
+			if(2.0)
+				src.take_damage(rand(40,80))
+			if(3.0)
+				src.take_damage(rand(20,40))
+		return
+
+	blob_act(var/power)
+		src.take_damage(rand(power * 0.5, power * 1.5))
+
+	meteorhit()
+		src.take_damage(rand(15,45))
+
+	emp_act()
+		src.take_damage(rand(5,10))
+		//if (internal_radio)
+		//	src.internal_radio.emp_act()
+		//if (internal_camera && internal_camera.camera_status)
+		//	src.internal_camera.emp_act()
+		//see if emp goes through into the display's children; if not, we'll have to emp_act() the things ourselves
 
 	get_desc()
 		..()
 		if (status & NOPOWER)
 			return
-		if (src.message)
+		if (src.message && !(src.status & BROKEN))
 			. += "<br>[owner.name] says: \"[src.message]\""
+		else if (src.status & BROKEN)
+			. += "<br>[src.name] is broken! It looks like you'll need to [repairHint]."
 
-	attack_ai(mob/user as mob) //Captain said it's my turn on the status display
+	attack_hand(mob/user as mob)
+		if(!isdead(user) && !isAI(user))
+			switch(requestPresence(user))
+				if(0)
+					boutput(user, "<span class='alert'>Error: No connected AI detected.</span>")
+				if(1)
+					boutput(user, "<span class='alert'>Unable to request attention; system on cooldown.</span>")
+				if(2)
+					boutput(user, "<span class='alert'>[src.owner] has been notified of your request for their attention.</span>")
+			return
+		boutput(user, "<span class='alert'>You're dead, knock that off!</span>")
+
+	attack_ai(mob/user as mob)
 		if (!isAI(user))
-			boutput(user, "<span class='alert'>Only an AI can claim this.</span>")
 			return
 		var/mob/living/silicon/ai/A = user
 		if (isAIeye(user))
 			var/mob/dead/aieye/AE = user
 			A = AE.mainframe
+		if (src.status & BROKEN)
+			boutput(user, "<span class='alert'><i>You can't tune a broken display to yourself!</i></span>")
+			return
 		if (owner == A) // lets open up the display's intercom!
 			src.accessIntercom(A)
 			return
-		boutput(user, "<span class='notice'>You tune the display to your core.</span>")
+		boutput(user, "<span class='notice'>You tune the display to your core.</span>") //Captain said it's my turn on the status display
 		owner = A
 		is_on = TRUE
 		if (!(status & NOPOWER))
 			update()
 
+/* NOTES
+STEPS2FIX SCREEN:
+1) Screwdriver
+2) Crowbar
+3) Wirecutters
+4) Wires
+5) Glass
+6) Screwdriver
+*/
+
+	attackby(obj/item/W as obj, mob/user as mob)
+		if (isdead(user))
+			return ..()
+		if (src.status & BROKEN && (isscrewingtool(W) || ispryingtool(W) || issnippingtool(W) || istype(W, /obj/item/sheet) || istype(W, /obj/item/cable_coil)))
+			repairProcess(W, user)
+			return
+		if (istype(W,/obj/item/electronics/scanner) || istype(W,/obj/item/deconstructor))
+			return
+		..() // also shamelessly ripped from manufacturer code
+		user.lastattacked = src
+		attack_particle(user,src)
+		hit_twitch(src)
+		playsound(src.loc, 'sound/impact_sounds/Generic_Hit_1.ogg', 50, 1)
+		if (W.force)
+			var/damage = W.force
+			if (user.is_hulk())
+				damage *= 3
+			if (iscarbon(user))
+				var/mob/living/carbon/C = user
+				if (C.bioHolder && C.bioHolder.HasEffect("strong"))
+					damage *= 1.5
+			if (damage >= 5)
+				src.take_damage(damage)
+
+
+	updateHealth()
+		return // this would call onDestroy(), we already have our own 0-health handling of things!!
+
 	Topic(href, href_list)
 		..()
-		if(isdead(src))
+		if(isdead(usr))
 			boutput(src, "You cannot access the intercom because you are dead!")
-				return
+			return
 		if((locate(href_list["accessIntercom"]) == src.owner) && isAI(usr)) // accessIntercom href should set "accessIntercom" = owner
 			src.accessIntercom(usr)
 
