@@ -281,12 +281,19 @@
 
 	var/datum/light/screen_glow
 
-	var/canRequestPresence = TRUE // anti-spam measures
+	var/lastPresenceRequest = -600 // anti-spam measures
+
+	#define ON 1 // for legibility regarding toggling mic/radio
+	#define OFF 0
+
+	#define FIXED 0 // BROKEN is already defined, USE IT WHEN CALLING setBrokenState() to set it to BROKEN
 
 	var/has_radio = TRUE // for if you want a radio-less display for whatever reason
 	var/obj/item/device/radio/intercom/aiDisplay/internal_radio // intercom/aiDisplay should be located after/beneath /ai_status_display
 	var/has_camera = TRUE // that face is looking back at you :)
 	var/obj/machinery/camera/ai/internal_camera // gotta keep track of our camera, too
+
+	var/equipmentState // is our equipment online??
 
 	_health = 100
 	_max_health = 100
@@ -312,11 +319,8 @@
 		screen_glow.set_height(0.75)
 		screen_glow.attach(src)
 
-		internal_radio = new /obj/item/device/radio/intercom/aiDisplay
-		internal_radio.set_loc(src)
-
-		internal_camera = new /obj/machinery/camera/ai
-		internal_camera.set_loc(src)
+		internal_radio = new(src.loc)
+		internal_camera = new(src.loc)
 
 		_health = _max_health // for if you want to set max health in a map editor. for some reason.
 
@@ -338,12 +342,8 @@
 			UpdateOverlays(null, "back_img")
 			UpdateOverlays(null, "glow_img")
 			screen_glow.disable()
-			if (internal_camera)
-				src.internal_camera.camera_status = 0
-				src.internal_camera.updateCoverage()
-			if (internal_radio)
-				src.internal_radio.broadcasting = FALSE
-				src.internal_radio.listening = FALSE
+			if(equipmentState)
+				setEquipmentState(OFF)
 			return
 		update()
 		use_power(200)
@@ -378,6 +378,30 @@
 		message = owner.status_message
 		name = initial(name) + " ([owner.name])"
 
+	/// Call with ON or OFF to set radio/mic to the specified state
+	proc/setEquipmentState(var/newState)
+		equipmentState = newState
+		if (internal_radio)
+			internal_radio.listening = newState
+			internal_radio.broadcasting = newState
+		if (internal_camera)
+			internal_camera.camera_status = newState
+			internal_camera.updateCoverage()
+
+
+	/// Call with FIXED to set the display to be fixed; call with BROKEN to set it to be broken
+	proc/setBrokenState(var/newState)
+
+		if (newState & BROKEN)
+			owner = null
+			status |= BROKEN
+			setEquipmentState(OFF)
+		else if (newState == 0) // not null, if it's being called with null something's gone fucky wucky
+			status = newState
+			// we don't set equipment on, we were repaired, not rebooted and claimed by an AI yet!
+		else return "HEY DUMBASS I'M RETURNING AS A STRING TO LET YOU KNOW SOMETHING BROKE MAYBE"
+		// validation to make bugfixing easier i guess idk
+
 	proc/accessIntercom() // handles opening UI, BE SURE TO FIX THIS WITH THE TGUI ITERATION THANK YOU
 		if (internal_radio.loc)
 			internal_radio.ui_interact(owner.get_message_mob()) // get_message_mob to find the mainframe or eye the player is in
@@ -386,12 +410,11 @@
 	proc/requestPresence(mob/user as mob) // someone wants to ask for the AI to talk to them!
 		// note: this is to be used AFTER we've already confirmed user is human and able to interact with the display and such
 
-		// temp note: include a href so the ai can jump to the turf that the display is on
 		// include a cooldown & have the display say it's on cooldown and for how much longer
 
 		if(!src.owner) // who you gonna call?! no one.
 			return 0
-		if(!src.canRequestPresence)
+		if((src.lastPresenceRequest + 600) > world.time)
 			return 1
 		// NOTE: WHEN TERMOS PR GETS MERGED, USE TEXT_TO_AI AND SOUND_TO_AI OR WHATEVER THEY WERE CALLED AND REPLACE THE FOLLOWING CODE WITH IT THANK U
 		// need both an internal camera to jump to by default, and a backup thing to find an active camera in view if our internal camera is disabled
@@ -410,9 +433,7 @@
 
 		var/href = "[href_camera] | [href_intercom]"
 		boutput(target_mob, "--- Notice: [user.name] is requesting your attention via status display intercom!<br>- [href]")
-		canRequestPresence = FALSE
-		SPAWN_DBG(60 SECONDS) // should be set to a var for ease of adjustability
-			canRequestPresence = TRUE
+		src.lastPresenceRequest = world.time
 		return 2
 
 	proc/getNearestCamera()
@@ -435,21 +456,23 @@
 			return
 		src._health -= damage_amount
 		src._health = max(0,min(src._health,src._max_health))
-		playsound(src.loc, 'sound/impact_sounds/Metal_Hit_Light_1.ogg', 50, 2)
+		playsound(src.loc, 'sound/impact_sounds/Glass_Hit_1.ogg', 50, 2)
 
 		if (src._health == 0)
 			src.visible_message("<span class='alert'><b>[src.name] breaks!</b></span>")
+			playsound(src.loc, 'sound/impact_sounds/Crystal_Shatter_1.ogg', 50, 2)
 			playsound(src.loc, 'sound/impact_sounds/Machinery_Break_1.ogg', 50, 2)
 			elecflash(src, radius=1, power=3, exclude_center = 0)
-			src.status |= BROKEN
-			src.owner = null
+			src.setBrokenState(BROKEN)
 			name = "\improper broken [initial(name)]"
 			return // no alerts for when we die :(
 		else // displays can get concussions and memory loss too, so we better see if it'll forget its owner
 			if ((src._health <= 70) && prob(damage_amount * 2) && owner) // coefficient of 2 is so that 5 damage has a 10% chance to trigger reset and 50 damage has a 100% chance
 				src.owner = null
+				face_image.icon_state = "ai-static" // will automatically reset to blank when process() recognizes there's no owner
+				src.UpdateOverlays(face_image, "emotion_img") // just a momentary static is all we want to add to audiovisual feedback
 				src.visible_message("<span class='alert'><i>[src.name] loudly buzzes as its memory is reset!</i></span>")
-				playsound(src.loc, 'sound/machines/buzz-sigh.ogg', 50, 2)
+				playsound(src.loc, 'sound/machines/glitch4.ogg', 50, 2)
 				name = initial(name)
 				return // we forgot our owner, we don't know who to alert! lets just return.
 				// process() will handle things from here to disable intercom & camera & etc
@@ -467,6 +490,14 @@
 
 	proc/repairProcess(obj/item/W as obj, mob/user as mob)
 		// oh boy a billion if statements, sorry
+
+		if (isweldingtool(W))
+			src._health += 10
+			max(0,min(src._health,src._max_health))
+			playsound(src.loc, "sound/items/Welder.ogg", 50, 1)
+			boutput(user, "<span class='notice'>You weld some of the cracks in the screen together.</span>")
+			return
+
 		if (src.repairStep == 0 && isscrewingtool(W))
 			src.repairStep ++
 			playsound(src.loc, "sound/items/Screwdriver.ogg", 50, 1)
@@ -511,7 +542,7 @@
 		if (src.repairStep == 5 && isscrewingtool(W))
 			src.repairStep = 0
 			src.repairHint = "unscrew the broken screen from the casing"
-			src.status = 0 // no idea how bit stuff works please yell at nex if this is stupid thank u
+			src.setBrokenState(FIXED)
 			src._health = 100
 			playsound(src.loc, "sound/items/Screwdriver.ogg", 50, 1)
 			boutput(user, "<span class='notice'>You secure the screen back into the display, fully repairing it!</span>")
@@ -557,7 +588,8 @@
 				if(0)
 					boutput(user, "<span class='alert'>Error: No connected AI detected.</span>")
 				if(1)
-					boutput(user, "<span class='alert'>Unable to request attention; system on cooldown.</span>")
+					var/countdown = ceil((world.time - lastPresenceRequest) / 10)
+					boutput(user, "<span class='alert'>Unable to request attention; system on cooldown for [countdown] seconds!</span>")
 				if(2)
 					boutput(user, "<span class='alert'>[src.owner] has been notified of your request for their attention.</span>")
 			return
@@ -576,6 +608,8 @@
 		if (owner == A) // lets open up the display's intercom!
 			src.accessIntercom(A)
 			return
+		if (!owner) // nobody owns this and we're about to claim it, lets turn its equipment on!
+			src.setEquipmentState(ON)
 		boutput(user, "<span class='notice'>You tune the display to your core.</span>") //Captain said it's my turn on the status display
 		owner = A
 		is_on = TRUE
@@ -596,10 +630,14 @@ STEPS2FIX SCREEN:
 		if (isdead(user))
 			return ..()
 		if (src.status & BROKEN && (isscrewingtool(W) || ispryingtool(W) || issnippingtool(W) || istype(W, /obj/item/sheet) || istype(W, /obj/item/cable_coil)))
-			repairProcess(W, user)
+			repairProcess(W, user) // gotta replace everything, these are the things we need for it!
+			return
+		if (src._max_health > src._health && src._health > 0 && isweldingtool(W))
+			repairProcess(W, user) // just need to fix it up (yes we are welding glass, fuck your logic this is simpler for everyone involved)
 			return
 		if (istype(W,/obj/item/electronics/scanner) || istype(W,/obj/item/deconstructor))
 			return
+
 		..() // also shamelessly ripped from manufacturer code
 		user.lastattacked = src
 		attack_particle(user,src)
