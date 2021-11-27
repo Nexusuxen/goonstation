@@ -1273,10 +1273,9 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 	src.updateOverlaysClient(src.client) //ov1
 	if (!isdead(src))
 		for (var/obj/machinery/ai_status_display/O in machine_registry[MACHINES_STATUSDISPLAYS]) //change status
-			if (O.owner && O.owner != src)
+			if ((O.owner && O.owner != src) || HAS_FLAG(O.status, BROKEN) || HAS_FLAG(O.status, NOPOWER) || !O.equipmentState)
 				continue
-			O.owner = src
-			O.is_on = TRUE
+			O.claimDisplay(src)
 	return
 
 /mob/living/silicon/ai/Logout()
