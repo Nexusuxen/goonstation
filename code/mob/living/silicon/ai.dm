@@ -264,6 +264,18 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 		return src.eyecam
 	return src
 
+/// Returns the mob the AI player's client is in, or returns null if it can't find their client
+/mob/living/silicon/ai/proc/get_inhabited_mob()
+
+	if(src.client)
+		return src
+	if(src.eyecam?.client)
+		return src.eyecam
+	if(src.deployed_shell?.client)
+		return src.deployed_shell
+
+
+
 /mob/living/silicon/ai/show_message(msg, type, alt, alt_type, group = "", var/just_maptext, var/image/chat_maptext/assoc_maptext = null)
 	..()
 	if (deployed_to_eyecam && src.eyecam)
@@ -1273,7 +1285,7 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 	src.updateOverlaysClient(src.client) //ov1
 	if (!isdead(src))
 		for (var/obj/machinery/ai_status_display/O in machine_registry[MACHINES_STATUSDISPLAYS]) //change status
-			if ((O.owner && O.owner != src) || HAS_FLAG(O.status, BROKEN) || HAS_FLAG(O.status, NOPOWER) || !O.equipmentState)
+			if (O.glitched || (O.owner && O.owner != src) || !O.is_on)
 				continue
 			O.claimDisplay(src)
 	return
@@ -1284,11 +1296,7 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 	if (isdead(src))
 		for (var/obj/machinery/ai_status_display/O in machine_registry[MACHINES_STATUSDISPLAYS]) //change status
 			if (O.owner == src)
-				O.is_on = FALSE
-				O.owner = null
-				O.emotion = null
-				O.message = null
-				O.face_color = null
+				O.resetDisplay()
 	..()
 	return
 
