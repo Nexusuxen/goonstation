@@ -262,20 +262,24 @@
 	desc = "This AI Display is equipped with a camera and intercom for interfacing with the on-board AI."
 	anchored = 1
 	density = 0
-	open_to_sound = 1
+	open_to_sound = 1 // we (probably) have an internal radio that needs to hear the outside world!
 	mats = list("MET-1"=2, "CON-1"=6, "CRY-1"=6)
 	deconstruct_flags = DECON_SCREWDRIVER | DECON_WRENCH | DECON_CROWBAR | DECON_WELDER | DECON_MULTITOOL
 
 	machine_registry_idx = MACHINES_STATUSDISPLAYS
-	var/is_on = TRUE //Distinct from being powered
 	var/emagged = FALSE //Are we emagged, permanently disabling our equipment?
 
+	var/mob/living/silicon/ai/owner //Let's have AIs play tug-of-war with status screens
 	var/image/face_image = null //AI expression, optionally the entire screen for the red & BSOD faces
 	var/image/back_image = null //The bit that gets coloured
 	var/image/glow_image = null //glowy lines
-	var/image/damageOverlay = null // refers to the icon_state which corresponds to how much damage we've taken
-	var/mob/living/silicon/ai/owner //Let's have AIs play tug-of-war with status screens
-	var/glitched = FALSE // are we borked and require manual reset??
+
+	var/image/damageOverlay = null // will either be cracks or a shattered screen to indicate how damaged we are or what repair step we're on
+	var/image/cameraOverlay = null // blinking camera light for when the camera is active
+	var/image/speakerOverlay = null // solid green light for when the display speaker is online
+	// no, we don't let people know we're listening. the ai is always listening. :)
+
+	var/manualConnectRequired = FALSE // controls whether or not manual reconnection to display is required; set to true by EMPs and occasionally by taking damage
 
 	//Variables of our current state, these get checked against variables in the AI to check if anything needs updating
 	var/emotion = null //an icon state
@@ -284,9 +288,10 @@
 
 	var/datum/light/screen_glow
 
-	var/lastPresenceRequest = -600 // anti-spam measures
+	var/lastPresenceRequest = 0 // anti-spam measures, 1 min cooldown between presence requests.
+	var/lastDisrupted = 0 // keeps track of when the ai can reconnect to a display; used when a display glitches out from damage/EMP
 
-	#define ON 1 // for legibility regarding toggling mic/radio
+	#define ON 1 // for legibility regarding setEquipmentState
 	#define OFF 0
 
 	var/has_radio = TRUE // for if you want a radio-less display for whatever reason
@@ -297,12 +302,28 @@
 	var/has_camera = TRUE // that face is looking back at you :)
 	var/obj/machinery/camera/ai/internal_camera // gotta keep track of our camera, too
 
-	var/equipmentState = TRUE // should our radio and camera be online if we have them??
+	var/equipmentState = FALSE // should our radio and camera be online if we have them??
 
 	_health = 100
 	_max_health = 100
 	var/repairStep = 0 // 7 steps (not including 0) to fix, detailed in repairProcess()
 	var/repairHint = "unscrew the broken screen from the casing" // we wanna let the user know what they should do next to continue repairs. starts at first step
+
+/*
+Initially written for my own sanity but if you're reading this then I kept this in as documentation
+
+The following vars control the functionality of the display in different ways:
+--- equipmentStatus
+		Whether or not the radio/camera should be on or not
+--- Status (bitflag):
+	BROKEN
+		Whether or not the display has been broken; sets equipmentStatus & owner to 0/null respectively
+	NOPOWER
+		Whether or not there's any power. Sets equipmentStatus to 0 but keeps owner
+--- manualConnectRequired:
+		Set to true when a display is shut down via emp/brute force (but NOT by destroying it). Should not be true while equipmentPower or Owner
+---
+*/
 
 	New()
 		..()
@@ -310,7 +331,6 @@
 		face_image = image('icons/obj/status_display.dmi', icon_state = "", layer = FLOAT_LAYER)
 		glow_image = image('icons/obj/status_display.dmi', icon_state = "ai_glow", layer = FLOAT_LAYER - 1)
 		back_image = image('icons/obj/status_display.dmi', icon_state = "ai_white", layer = FLOAT_LAYER - 2)
-
 
 		if(pixel_y == 0 && pixel_x == 0)
 			if (map_settings.walls ==/turf/simulated/wall/auto/jen)
@@ -327,8 +347,10 @@
 			internal_radio = new(src)
 			internal_radio.broadcasting = broadcastingByDefault
 			internal_radio.listening = listeningByDefault
+			speakerOverlay = image('icons/obj/status_display.dmi', icon_state = "r_overlay", layer = FLOAT_LAYER + 1)
 		if (has_camera)
 			internal_camera = new(src)
+			cameraOverlay = image('icons/obj/status_display.dmi', icon_state = "c_overlay", layer = FLOAT_LAYER + 1)
 
 	disposing()
 		if (screen_glow)
@@ -336,14 +358,10 @@
 		..()
 
 	process()
-		if (HAS_FLAG(status, NOPOWER))
-			is_on = FALSE
-		else if (!HAS_FLAG(status, BROKEN))
-			is_on = TRUE
 		if (owner)
 			if(!owner.get_inhabited_mob())
 				resetDisplay() // we only wanna be on if our owner is in-game, it lets people know our owner is available!
-		if (!is_on || !owner)
+		if (HAS_FLAG(status, NOPOWER) || !owner) // in addendum to above, that also lets a new AI automatically connect to all the displays if the old one left the game
 			UpdateOverlays(null, "emotion_img")
 			UpdateOverlays(null, "back_img")
 			UpdateOverlays(null, "glow_img")
@@ -354,10 +372,13 @@
 		update()
 		use_power(200)
 
-	proc/update(var/justClaimed = FALSE) // call with TRUE to not have the display beep the ai's message every time this procs
-		//Update backing colour
-		if(!equipmentState && !emagged)
+	proc/update(var/justClaimed = FALSE)
+		//if (!owner)
+			//return // runtime prevention, just in case something Fucky Wucky happens. leave commented during testing.
+
+		if (!equipmentState && !emagged)
 			setEquipmentState(ON)
+		//Update backing colour
 		if (face_color != owner.faceColor)
 			face_color = owner.faceColor
 			back_image.color = face_color
@@ -385,63 +406,84 @@
 			// we don't turn the radio back on, ai's gotta do it manually
 		if (message != owner.status_message)
 			message = owner.status_message
-			if (!justClaimed)
+			if (!justClaimed) // without this check we'd say the ai's new status every time it connects; imagine the spam from 2 ais spam clicking a display
 				playsound(src.loc, 'sound/misc/talk/bottalk_1.ogg', 35, 2)
 				speech_bubble()
 				audible_message("<b>[src.name]</b> beeps, \"New message from [src.owner]!\"<br><i>'[message]'</i>")
 
 		name = initial(name) + " ([owner.name])"
 
-	proc/claimDisplay(var/mob/mainframe, var/mob/user)
-		if(user)
-			boutput(user, "<span class='notice'>You tune the display to your core.</span>")
+	/// For when a display is to be claimed. Includes checks for if this should happen or not.
+	proc/tryClaimDisplay(var/mob/mainframe, var/mob/user, var/replaceOwner = FALSE) // ai code tries to auto-connect to displays but only to unused ones
+
+		if((!replaceOwner && owner) || HAS_FLAG(status, NOPOWER) || HAS_FLAG(status, BROKEN) || (!replaceOwner && manualConnectRequired))
+			if (HAS_FLAG(src.status, BROKEN) && user && replaceOwner)
+				boutput(user, "<span class='alert'>You can't tune a broken display to yourself!</span>")
+				return
+			if (HAS_FLAG(status, NOPOWER) && user && replaceOwner)
+				boutput(user, "<span class='alert'><b>This display has no power, you can't tune it to yourself!</b></span>")
+				return
+			return // replaceOwner = TRUE is only called when manually claiming a display; being glitched requires manual reset so the passive autoconnect won't work
+
+		if(((lastDisrupted + 300) >= world.time) && user) // we wanna give people a brief window before the ai can reconnect if they emp or bash it
+			boutput(user,"<span class='alert'><b>ERROR:\\\\ System still resetting.<b> Please wait [30 - ceil((world.time - lastDisrupted) / 10)] seconds.</span>")
+			// the math here converts the decisecond times into seconds (rounding up to remove decimals) to get how much time has passed since last disrupt, and then subtracts that from 30 to get remaining time
+			return
 		owner = mainframe
-		is_on = TRUE
-		glitched = FALSE
 		update(TRUE)
+		if(!user)
+			manualConnectRequired = FALSE
+			return
+		if(!manualConnectRequired)
+			boutput(user, "<span class='notice'>You tune the display to your core.</span>")
+		else
+			boutput(user, "<span class='notice'>You reboot the display and tune it to your core.</span>")
+		manualConnectRequired = FALSE
 
 	/// Resets the display to not have an owner. Call with TRUE to cause glitch effects (buzzing noise & momentary static screen) and require manual reconnect by the AI
-	proc/resetDisplay(var/isGlitch = FALSE)
+	proc/resetDisplay(var/doGlitch = FALSE)
 		setEquipmentState(OFF)
-		if (isGlitch)
-			glitched = TRUE // now AIs have to manually claim us, we glitched out when we reset!
+		if (doGlitch)
+			manualConnectRequired = TRUE
+			lastDisrupted = world.time
 			if (owner)
 				emotion = "ai-static" // gotta set this so update() knows to fix it
 				visible_message("<span class='alert'><i>[src.name] loudly buzzes as its memory is reset!</i></span>")
 				playsound(loc, 'sound/machines/glitch4.ogg', 50, 2)
-			is_on = FALSE
 		else
 			emotion = ""
 		face_image.icon_state = emotion
 		UpdateOverlays(face_image, "emotion_img")
+		UpdateOverlays(null, "back_img")
+		UpdateOverlays(null, "glow_img")
+		face_color = null // game doesn't realize we've fucked with the ai screen's color otherwise oops
 		name = initial(name)
 		owner = null
 
-	/// Call with ON or OFF to set both radio/mic to the specified state
+	/// Call with ON or OFF to set camera/intercom (if the display has any) to specified state.
 	proc/setEquipmentState(var/newState)
 		equipmentState = newState
 		if (internal_radio && !newState) // radio has to be manually turned back on
-			internal_radio.listening = 0
-			internal_radio.broadcasting = 0
+			internal_radio.listening = FALSE
+			UpdateOverlays(null, "r_overlay")
+			internal_radio.broadcasting = FALSE
 		if (internal_camera)
 			internal_camera.camera_status = newState
 			internal_camera.updateCoverage()
+		updateStatusOverlays()
 
 
 	proc/setFixed()
 		REMOVE_FLAG(status, BROKEN)
 		_health = 100
-		icon_state = initial(icon_state)
 		name = initial(name)
+		updateDamageOverlay()
 
 	proc/setBroken()
 		ADD_FLAG(status, BROKEN)
 		resetDisplay()
-		UpdateOverlays(null, "damage_img")
-		UpdateOverlays(null, "emotion_img")
-		UpdateOverlays(null, "back_img")
-		UpdateOverlays(null, "glow_img")
-		screen_glow.disable()
+		screen_glow.disable() // we wanna have this happen immediately, not when process() gets around to it
+		_health = 0 // mainly for testing purposes but lets this be used by other things to directly break it instead of dealing damage first
 		updateDamageOverlay()
 
 	proc/destroy()
@@ -453,8 +495,9 @@
 		src.sendAlert(ownerOverride)
 		qdel(src)
 
+	// This needs to be done in multiple places so we might as well have it all in 1 place
 	proc/updateDamageOverlay()
-		// when we reach 80 health, we'll start forming cracks, which worsen every 16 damage until we reach 0 and Die
+		// when we reach 80 health, we'll start forming cracks, which worsen every 16 damage until we reach 0 and Die (there are 5 different crack types, so 80/5 = 16)
 		var/overlay
 		switch(_health)
 			if(81 to 100)
@@ -469,7 +512,7 @@
 				overlay = "cracks4"
 			if(1 to 16)
 				overlay = "cracks5"
-			if(0) // what destroyed state should we be in?
+			if(0) // we're at 0 health, so we must be destroyed!
 				switch(repairStep)
 					if(0 to 1)
 						overlay = "destroyed0"
@@ -480,18 +523,50 @@
 					if(4)
 						overlay = "destroyed3"
 					else
-						overlay = null
+						overlay = null // the last step has the screen look like normal
 		damageOverlay.icon_state = overlay
 		if (damageOverlay.icon_state)
 			src.UpdateOverlays(damageOverlay, "damage_img")
 		else
 			src.UpdateOverlays(null, "damage_img")
-		// we either set it to the new overlay, or delete the overlay so it doesn't block the others
 
-	proc/accessIntercom() // handles opening UI, BE SURE TO WORK IN THIS WITH THE CUSTOM TGUI ITERATION IF IT HAPPENS THANK YOU
-		if (internal_radio.loc)
-			internal_radio.ui_interact(owner.get_message_mob())
+	// Having this in one place makes it easier to maintain
+	/// Handles updating the overlays for the camera and speaker indicator overlays
+	proc/updateStatusOverlays()
+		if (has_radio)
+			if (internal_radio.listening)
+				src.UpdateOverlays(speakerOverlay, "r_overlay")
+			else
+				src.UpdateOverlays(null, "r_overlay")
+		if (has_camera)
+			if (internal_camera.camera_status)
+				src.UpdateOverlays(cameraOverlay, "c_overlay")
+			else
+				src.UpdateOverlays(null, "c_overlay")
 
+	/// Naturally, handles opening intercom UI. Includes checks for if a user should or shouldn't be able to view the UI.
+	proc/accessIntercom(var/mob/user) // since multiple things open the UI we need to compact this into one place
+
+		if (!isAI(user) && !isshell(user))
+			boutput(user, "<span class='alert'>You're not even an AI, you can't just access this!</span>")
+			return
+		if (!src.has_radio)
+			boutput(user, "<span class='alert'>Error: No intercom detected in [src].</span>")
+			return
+		if (HAS_FLAG(src.status, NOPOWER) && user)
+			boutput(user, "<span class='alert'>Unable to access intercom; equipment currently depowered.</span>")
+			return
+		if (src.emagged)
+			boutput(user, "<span class='alert'>ERROR:\\\\ Equipment control systems corrupted; unable to access radio.</span>")
+			return
+
+		if (user != owner.get_inhabited_mob())
+			boutput(user, "<span class='alert'>You don't own this display, you can't access its radio!</span>")
+			return
+
+		internal_radio.ui_interact(owner.get_message_mob())
+
+	/// Will try to send a message to the owner AI that the mob arg user wants its attention (will also build href links)
 	proc/requestPresence(mob/user as mob) // someone wants to ask for the AI to talk to them!
 		if(!src.owner) // who you gonna call?! no one.
 			return 0
@@ -515,21 +590,24 @@
 		var/href_intercom // what's the text to render for the href intercom ui shortcut?
 		if (internal_radio)
 			href_intercom = "<a href='byond://?src=\ref[src];accessIntercom=\ref[owner]'><u>Access intercom</u>"
+		else
+			href_intercom = "<i>No intercom detected</i>"
 
 		var/href = "[href_camera] | [href_intercom]"
-		boutput(target_mob, "--- Notice: [user.name] is requesting your attention via status display intercom!<br>- [href]")
+		boutput(target_mob, "--- Notice: [user.name] is requesting your attention via the status display in [get_area(src)]!<br>- [href]")
 		src.lastPresenceRequest = world.time
 		return 4
 
+	// Not technically 'nearest' but whatever
 	proc/getNearestCamera()
 		var/obj/machinery/camera/nearest_camera = null
-		if (internal_camera.camera_status) // do we have an active camera??
+		if (internal_camera?.camera_status) // do we have an active camera??
 			nearest_camera = internal_camera
 		else
 			for (var/obj/machinery/camera/nearby_camera in view(src))
 				if (!nearby_camera.camera_status)
 					continue
-				if (!(nearby_camera.network == "SS13" || nearby_camera.network == "Zeta" || nearby_camera.network == "Robots" || nearby_camera.network == "AI"))
+				if (!(nearby_camera.network == "SS13" || nearby_camera.network == "Zeta" || nearby_camera.network == "Robots" || nearby_camera.network == "AI")) // display cams are set to the "AI" network
 					continue // if we can see through cameras that are none of the above then uh... someone fix that??
 				nearest_camera = nearby_camera
 				break
@@ -559,7 +637,7 @@
 				src.resetDisplay(TRUE)
 				src.sendAlert(ownerOverride)
 
-	/// call when we break or reset, we need to let our ai know!!
+	/// Used to alert the AI that the terminal broke/glitched if it has one
 	proc/sendAlert(var/mob/living/silicon/ai/ownerOverride) // if you know there won't be an owner by the time this is called, keep the owner you wanted to alert as an arg for this
 		if (!(owner || ownerOverride) || HAS_FLAG(status, NOPOWER) || emagged)
 			return
@@ -660,7 +738,7 @@
 
 	emp_act()
 		src.take_damage(rand(15,30))
-		if(src.is_on && prob(90))
+		if(!HAS_FLAG(src.status, NOPOWER) && prob(90))
 			var/nameOverride = owner
 			src.resetDisplay(TRUE) // BZZZZZZZZ
 			src.sendAlert(nameOverride)
@@ -685,6 +763,15 @@
 		else if(src.has_radio)
 			src.visible_message("<span class='alert'>[user.name] shorts out [src]'s equipment circuit, permanently shutting down its radio!</span>")
 
+	demag(var/mob/user)
+		if(!src.emagged)
+			if(user)
+				boutput(user, "<span class='notice'>This is already fixed, you don't need to do it again, dummy!")
+			return 0
+		if(user)
+			user.show_text("You repair the damage to [src]'s equipment control circuit.", "blue")
+		src.emagged = FALSE
+		return 1
 
 	get_desc()
 		..()
@@ -739,16 +826,10 @@
 		if (isAIeye(user))
 			var/mob/dead/aieye/AE = user
 			A = AE.mainframe
-		if (HAS_FLAG(src.status, BROKEN))
-			boutput(user, "<span class='alert'><i>You can't tune a broken display to yourself!</i></span>")
-			return
-		if (HAS_FLAG(status, NOPOWER))
-			boutput(user, "<span class='alert'><b>This display has no power, you can't tune it to yourself!</b></span>")
-			return
 		if (owner == A) // lets open up the display's intercom!
-			src.accessIntercom(A)
+			src.accessIntercom(user)
 			return
-		src.claimDisplay(A, user) //Captain said it's my turn on the status display
+		src.tryClaimDisplay(A, user, TRUE) //Captain said it's my turn on the status display
 
 	attackby(obj/item/W as obj, mob/user as mob)
 		if (isdead(user))
@@ -792,10 +873,63 @@
 	Topic(href, href_list)
 		..()
 		if(isdead(usr))
-			boutput(src, "You cannot access the intercom because you are dead!")
+			boutput(src, "You cannot do this because you are dead!")
 			return
 		if((locate(href_list["accessIntercom"]) == src.owner) && isAI(usr)) // accessIntercom href should set "accessIntercom" = owner
 			src.accessIntercom(usr)
+
+	receive_silicon_hotkey(var/mob/user)
+		..()
+
+		if (!isAI(user))
+			return
+		if (!user.client.check_key(KEY_OPEN) && !user.client.check_key(KEY_BOLT) && !user.client.check_key(KEY_SHOCK))
+			return
+		if (!src.has_radio)
+			boutput(user, "<span class='alert'>Error: No radio detected</span>")
+			return
+		if (HAS_FLAG(src.status, NOPOWER))
+			boutput(user, "<span class='alert'><b>The display doesn't have any power!</b></span>")
+			return
+		if (HAS_FLAG(src.status, BROKEN))
+			boutput(user, "<span class='alert'><b>That display is broken, you can't do anything to it!</b></span>")
+			return
+		if (user != owner?.get_inhabited_mob())
+			boutput(user, "<span class='alert'>You don't own this display!</span>")
+			return
+
+		// We're putting this in the middle of the checks because if we're emagged then we can't disconnect due to the equipmentstate check
+		if(user.client.check_key(KEY_SHOCK)) // space, disconnect
+			boutput(user, "<span class='alert'>You disconnect the display from your mainframe!</span>")
+			src.resetDisplay()
+			src.manualConnectRequired = TRUE
+			return
+
+		if (!src.equipmentState)
+			boutput(user, "<span class='alert'><b>The internal radio is disabled!</b></span>")
+			return
+
+		if (user.client.check_key(KEY_OPEN)) // ctrl, toggle mic
+			var/broadcasting = src.internal_radio.broadcasting
+			if (broadcasting)
+				broadcasting = FALSE
+				boutput(user, "<span class='notice'>You disable the display's microphone.</span>")
+			else
+				broadcasting = TRUE
+				boutput(user, "<span class='notice'>You enable the display's microphone.</span>")
+			src.internal_radio.broadcasting = broadcasting
+			return
+
+		if (user.client.check_key(KEY_BOLT)) // shift, toggle speaker
+			var/listening = src.internal_radio.listening
+			if (listening)
+				listening = FALSE
+				boutput(user, "<span class='notice'>You disable the display's speaker.</span>")
+			else
+				listening = TRUE
+				boutput(user, "<span class='notice'>You enable the display's speaker.</span>")
+			src.internal_radio.listening = listening
+			src.updateStatusOverlays()
 
 
 // Decided to leave the ability to request the AI's attention in these despite the radioless ones making this feature not nearly as useful as normal
@@ -848,9 +982,8 @@
 
 	ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
 		..()
-		if (broadcasting)
-			return // SET THE OVERLAYS GOD DAMN IT
-		else
-			return
+		if (action == "toggle-listening")
+			display.updateStatusOverlays()
+		return TRUE
 
 

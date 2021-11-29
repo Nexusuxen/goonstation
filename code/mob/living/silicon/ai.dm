@@ -274,6 +274,8 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 	if(src.deployed_shell?.client)
 		return src.deployed_shell
 
+	// Uncomment below statement for debugging/testing purposes. Remember to put it back into a comment before merging, dweeb.
+	return src
 
 
 /mob/living/silicon/ai/show_message(msg, type, alt, alt_type, group = "", var/just_maptext, var/image/chat_maptext/assoc_maptext = null)
@@ -1285,9 +1287,7 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 	src.updateOverlaysClient(src.client) //ov1
 	if (!isdead(src))
 		for (var/obj/machinery/ai_status_display/O in machine_registry[MACHINES_STATUSDISPLAYS]) //change status
-			if (O.glitched || (O.owner && O.owner != src) || !O.is_on)
-				continue
-			O.claimDisplay(src)
+			O.tryClaimDisplay(src)
 	return
 
 /mob/living/silicon/ai/Logout()
