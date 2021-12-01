@@ -865,8 +865,10 @@ The following vars control the functionality of the display in different ways:
 	updateHealth()
 		return // this would call onDestroy(), we already have our own 0-health handling of things!!
 
-	proc/speech_bubble() // /radio proc override, we want the speech bubble on top of the display so we can actually see it
-		src.UpdateOverlays(image('icons/mob/mob.dmi', "speech"), "speech_bubble")
+	proc/speech_bubble(var/bubbleOverride) // /radio proc override, we want the speech bubble on top of the display so we can actually see it
+		if (!bubbleOverride) // bubbleOverride has been added in conjunction with PR #6844. if that is denied, best to remove bubbleOverride and its handling
+			bubbleOverride = image('icons/mob/mob.dmi', "speech")
+		src.UpdateOverlays(bubbleOverride, "speech_bubble")
 		SPAWN_DBG(1.5 SECONDS)
 		src.UpdateOverlays(null, "speech_bubble")
 
@@ -953,8 +955,7 @@ The following vars control the functionality of the display in different ways:
 /obj/item/device/radio/intercom/AI/aiDisplay
 	name = "AI Display Radio"
 	desc = "If you're reading this, something has gone terribly wrong and you should file a bug report if you know how this somehow ended up being visible!"
-	broadcasting = 1 // we're set to overhear conversations by default :)
-	listening = 0
+	// listening & broadcasting are set in ai_status_display.New()
 	var/obj/machinery/ai_status_display/display = null
 
 	New()
@@ -968,9 +969,9 @@ The following vars control the functionality of the display in different ways:
 		if (!istype(newloc, /obj/machinery/ai_status_display))
 			qdel(src)
 		else ..()
-	speech_bubble() // /radio proc override, we want the speech bubble on top of the display so we can actually see it
+	speech_bubble(var/bubbleOverride) // /radio proc override, we want the speech bubble on top of the display so we can actually see it
 		if ((src.listening && src.wires & WIRE_RECEIVE))
-			src.display.speech_bubble()
+			src.display.speech_bubble(bubbleOverride) //bubbleOverride should be removed if PR #6844 is denied
 
 	ui_status(mob/user, datum/ui_state/state)
 		if (istype(src.loc, /obj/machinery/ai_status_display))
@@ -986,4 +987,10 @@ The following vars control the functionality of the display in different ways:
 			display.updateStatusOverlays()
 		return TRUE
 
+	// uncomment showMapText() below if PR #6488 is merged. delete if it is denied.
+	// intended to make AI displays capable of displaying maptext from AIs, just like intercoms in 6488
+	/*showMapText(var/mob/R, var/mob/M, receive, msg, secure, real_name, lang_id, textLoc)
+		..(R, M, receive, msg, secure, real_name, lang_id, src.display)*/
 
+#undef ON // pretty sure this is the only way to really ensure a local define :I
+#undef OFF
