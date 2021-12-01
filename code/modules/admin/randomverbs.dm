@@ -1112,13 +1112,11 @@
 	set name = "Remove All Labels"
 	set popup_menu = 0
 
-	for (var/atom/movable/A in world)
-		A.name_suffixes = null
-		A.UpdateName()
-
-	for (var/turf/T in world)
-		T.name_suffixes = null
-		T.UpdateName()
+	for (var/atom/A in world)
+		if(!isnull(A.name_suffixes))
+			A.name_suffixes = null
+			A.UpdateName()
+		LAGCHECK(LAG_LOW)
 
 	return
 
@@ -2809,3 +2807,28 @@ var/global/mirrored_physical_zone_created = FALSE //enables secondary code branc
 		logTheThing("admin", usr, AM, "has shipped [AM] to cargo.")
 		logTheThing("diary", usr, AM, "has shipped [AM] to cargo.", "admin")
 		message_admins("[key_name(usr)] has shipped [AM] to cargo.")
+
+var/global/force_radio_maptext = FALSE
+/client/proc/toggle_radio_maptext()
+	SET_ADMIN_CAT(ADMIN_CAT_FUN)
+	set name = "Toggle Forced Radio maptext"
+	admin_only
+
+	if(holder && src.holder.level >= LEVEL_ADMIN)
+		if(!force_radio_maptext)
+			switch(alert("Set all radios to use flying text?", "Bad Idea??","Yes","No"))
+				if("Yes")
+					force_radio_maptext = TRUE
+					logTheThing("admin", src, null, "has enabled forced radio maptext.")
+					logTheThing("diary", src, null, "has enabled forced radio maptext.", "admin")
+					message_admins("[key_name(src)] has enabled flying text for all radios!")
+				if("No")
+					return
+		else
+			force_radio_maptext = FALSE
+			logTheThing("admin", src, null, "has disabled forced radio maptext.")
+			logTheThing("diary", src, null, "has disabled forced radio maptext.", "admin")
+			message_admins("[key_name(src)] has disabled forced radio flying text.")
+			return
+	else
+		boutput(src, "You must be at least an Administrator to use this command.")
