@@ -301,8 +301,9 @@
 
 	var/has_camera = TRUE // that face is looking back at you :)
 	var/obj/machinery/camera/ai/internal_camera // gotta keep track of our camera, too
+	// camera/ai is defined under camera, right next to ranch camera in camera.dm
 
-	var/equipmentState = FALSE // should our radio and camera be online if we have them??
+	var/equipmentState = OFF // should our radio and camera be online if we have them??
 
 	_health = 100
 	_max_health = 100
@@ -310,18 +311,22 @@
 	var/repairHint = "unscrew the broken screen from the casing" // we wanna let the user know what they should do next to continue repairs. starts at first step
 
 /*
-Initially written for my own sanity but if you're reading this then I kept this in as documentation
+Initially written for my own sanity but if you're reading this then I kept this in as sort of documentation
 
 The following vars control the functionality of the display in different ways:
 --- equipmentStatus
 		Whether or not the radio/camera should be on or not
+		Independent of NOPOWER and BROKEN, though those two will ALWAYS set this to FALSE/OFF
+		May ONLY be true if owner is true. If otherwise, fix that shit.
 --- Status (bitflag):
 	BROKEN
 		Whether or not the display has been broken; sets equipmentStatus & owner to 0/null respectively
+		Does NOT set NOPOWER (unless BROKEN naturally does that)
 	NOPOWER
-		Whether or not there's any power. Sets equipmentStatus to 0 but keeps owner
+		Whether or not there's any power. Sets equipmentStatus to 0 but keeps owner assuming nothing else reset it
 --- manualConnectRequired:
-		Set to true when a display is shut down via emp/brute force (but NOT by destroying it). Should not be true while equipmentPower or Owner
+		Set to true when a display is shut down via emp/brute force (but NOT by destroying it).
+		Should not be true while equipmentPower or Owner
 ---
 */
 
