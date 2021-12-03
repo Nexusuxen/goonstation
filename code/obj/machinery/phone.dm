@@ -25,6 +25,7 @@
 	var/ringingicon = "phone_ringing"
 	var/answeredicon = "phone_answered"
 	var/dialicon = "phone_dial"
+	var/mob/living/silicon/ai/mainframe = null // for AI phones, but defining it here makes the code cleaner so we can just do if(mainframe) instead of if(istype- blah blah
 
 
 
@@ -72,7 +73,13 @@
 
 		if (linked)
 			linked.linked = null
-		linked = null
+			linked = null
+			linked.ringing = 0
+			linked.dialing = 0
+
+		answered = 0
+		ringing = 0
+		dialing = 0
 
 		if (handset)
 			handset.parent = null
@@ -104,10 +111,7 @@
 				if(user)
 					boutput(user,"<span class='alert'>As you pick up the phone you notice that the cord has been cut!</span>")
 		else
-			src.ringing = 0
-			src.linked.ringing = 0
-			if(src.linked.handset.holder)
-				src.linked.handset.holder.playsound_local(src.linked.handset.holder,"sound/machines/phones/remote_answer.ogg",50,0)
+			src.answerPhone()
 		return
 
 	attack_ai(mob/user as mob)
@@ -171,49 +175,100 @@
 		if(src.connected == 0)
 			return
 
-		src.last_ring++
 		if(..())
 			return
 
 		if(src.ringing) // Are we calling someone
+			src.last_ring++
 			if(src.linked && src.linked.answered == 0)
 				if(src.last_ring >= 2)
-					src.last_ring = 0
-					if(src.handset && src.handset.holder)
-						src.handset.holder.playsound_local(src.handset.holder,"sound/machines/phones/ring_outgoing.ogg" ,40,0)
+					doRing()
 			else
 				if(src.last_ring >= 2)
-					playsound(src.loc,"sound/machines/phones/ring_incoming.ogg" ,40,0)
-					src.icon_state = "[ringingicon]"
-					src.last_ring = 0
+					doRing()
 
+	receive_silicon_hotkey(var/mob/user)
+		..()
 
-	proc/hang_up()
+		if (!isAI(user))
+			return
+
+		var/mob/living/silicon/ai/userAI
+		if (isAIeye(user))
+			var/mob/dead/aieye/eye = user
+			userAI = eye.mainframe
+		else userAI = user
+		var/obj/machinery/phone/ai/internal_phone = userAI.internal_phone
+
+		if (user.client.check_key(KEY_OPEN))
+			if (!src.connected || src.unlisted)
+				boutput(user, "<span class='alert'>You can't access this phone!</span>")
+				return
+			. = 1
+			internal_phone.engagePhone(user, src)
+			return
+
+	proc/hang_up(var/destroyed = FALSE) // are we hanging up because we got fucking destroyed?
 		src.answered = 0
 		if(src.linked) // Other phone needs updating
 			if(!src.linked.answered) // nobody picked up. Go back to not-ringing state
-				src.linked.icon_state = "[phoneicon]"
+				src.linked.icon_state = "[src.linked.phoneicon]"
 			else if(src.linked.handset && src.linked.handset.holder)
-				src.linked.handset.holder.playsound_local(src.linked.handset.holder,"sound/machines/phones/remote_hangup.ogg",50,0)
-			src.linked.ringing = 0
-			src.linked.linked = null
-			src.linked = null
+				if(src.linked.mainframe)
+					var/obj/machinery/phone/ai/aiPhone = src.linked
+					var/mob/ai = aiPhone.mainframe.get_message_mob()
+					ai.playsound_local(ai,"sound/machines/phones/remote_hangup.ogg",35,0)
+					aiPhone.phoneButton.icon_state = "phone_pickedup"
+					flick("phone_failed_animated", aiPhone.phoneButton)
+					aiPhone.disengagePhone()
+				else
+					src.linked.handset.holder.playsound_local(src.linked.handset.holder,"sound/machines/phones/remote_hangup.ogg",50,0)
+			if(src.linked) // aiPhone.disengagePhone() sets linked to null, so we gotta check to prevent runtimes
+				src.linked.ringing = 0
+				src.linked.linked = null
+				src.linked = null
+
+		if(mainframe)
+			var/mob/ai = mainframe.get_message_mob() // we're making this not sound like the ai is literally putting a phone down
+			ai.playsound_local(ai,"sound/machines/phones/remote_hangup.ogg",35,0)
+			mainframe.hud.phone.icon_state = "phone"
+			flick("phone_hangup", mainframe.hud.phone)
+
+		else
+			playsound(src.loc,"sound/machines/phones/hang_up.ogg" ,50,0)
+
 		src.ringing = 0
 		src.handset = null
 		src.icon_state = "[phoneicon]"
-		playsound(src.loc,"sound/machines/phones/hang_up.ogg" ,50,0)
 
 	// This makes phones do that thing that phones do
 	proc/call_other(var/obj/machinery/phone/target)
 		// Dial the number
-		if(!src.handset)
+		if(!src.handset || src.dialing) // we're already dialing, we can't do it more than once at a time, doofus!
 			return
 		src.dialing = 1
-		src.handset.holder?.playsound_local(src.handset.holder,"sound/machines/phones/dial.ogg" ,50,0)
+
+		var/mob/recipient = src.handset.holder // this is so we know what mob to play sounds to
+		if(mainframe) // since AIs can be either in their eye or mainframe
+			recipient = mainframe.get_message_mob()
+
+		if(!isnull(recipient))
+			if(mainframe)
+				// source: https://freesound.org/people/wtermini/sounds/546450/ (cropped)
+				recipient.playsound_local(recipient,"sound/machines/phones/speed_dial.ogg",50,0)
+			else
+				recipient.playsound_local(recipient,"sound/machines/phones/dial.ogg",50,0)
 		SPAWN_DBG(4 SECONDS)
+			if(!src.handset) // did we hang up when dialing, for some reason?
+				return
 			// Is it busy?
 			if(target.answered || target.linked || target.connected == 0)
-				playsound(src.loc,"sound/machines/phones/phone_busy.ogg" ,50,0)
+				if(!isnull(recipient))
+					recipient.playsound_local(recipient,"sound/machines/phones/phone_busy.ogg",50,0)
+				if(mainframe)
+					var/atom/movable/screen/phoneButton = mainframe.hud.phone
+					phoneButton.icon_state = "phone_pickedup"
+					flick("phone_failed_animated", phoneButton)
 				src.dialing = 0
 				return
 
@@ -223,7 +278,43 @@
 			src.ringing = 1
 			src.linked.ringing = 1
 			src.dialing = 0
+			// this is to make the ringing more responsive/instantaneous rather than waiting for process() to catch up
+			// also lets us know when we start ringing to set icons for the AI!
+			src.doRing(start = TRUE)
+			src.linked.doRing(start = TRUE)
 			return
+
+	/// Handles specifically ringing; either receiving or outgoing. Does NOT handle dialtone. This is intended to be called on both the caller and linked phone
+	proc/doRing(var/start = FALSE) // we wanna know if we've just started ringing or not
+		if(!ringing)
+			return
+		if(linked.linked != src)
+			linked = null
+			return // couldn't figure out why phones sometimes didn't properly unlink so this bandaid is here until that's fixed
+		last_ring = 0
+		if(answered && !linked.answered && handset?.holder) // they haven't picked up yet
+			handset.holder.playsound_local(handset,"sound/machines/phones/ring_outgoing.ogg",40,0)
+			if(mainframe && start)
+				mainframe.hud.phone.icon_state = "phone_pending"
+		else if(!answered && linked.answered) // we're getting a call!
+			playsound(src, "sound/machines/phones/ring_incoming.ogg",40,0)
+			src.icon_state = "[ringingicon]"
+
+	/// Handles answering the phone. Call on phone that is *answering*. Answered = 1 is assume to have been set prior.
+	proc/answerPhone()
+		src.ringing = 0
+		src.linked.ringing = 0
+		var/mob/recipient = src.linked.handset?.holder
+		if(src.linked.mainframe)
+			recipient = src.linked.mainframe.get_message_mob()
+		if(recipient)
+			recipient.playsound_local(recipient,"sound/machines/phones/remote_answer.ogg",50,0)
+		if(src.linked.mainframe)
+			src.linked.mainframe.hud.phone.icon_state = "phone_answered"
+		if(src.mainframe)
+			src.mainframe.hud.phone.icon_state = "phone_answered"
+
+
 
 
 /obj/machinery/phone/custom_suicide = 1
@@ -264,6 +355,15 @@
 					return
 		Unsubscribe(who)
 
+	/// Handles disengaging the AI's internal phone in this context, so it doesn't have to disengage it by hitting the button the re-engage it to reopen the UI
+	Unsubscribe(client/who)
+		..()
+		if(!owner?.mainframe)
+			return
+		var/obj/machinery/phone/ai/_owner = owner
+		if((owner?.dialing || owner?.linked) && !_owner.disengaging) // without disengaging disengage() can't distinguish between the button and this calling it since pressing button can call this
+			return // we only 'hang up' if the ai hasn't tried to dial to anyone
+		_owner.disengagePhone(fromUnsubscribe = TRUE)
 
 // Item generated when someone picks up a phone
 /obj/item/phone_handset
@@ -310,12 +410,12 @@
 			return
 		var/processed = "<span class='game say'><span class='bold'>[M.name] \[<span style=\"color:[src.color]\"> [bicon(src)] [src.parent.phone_id]</span>\] says, </span> <span class='message'>\"[text[1]]\"</span></span>"
 		var/mob/T = src.parent.linked.handset.holder
-		if(T?.client)
-			T.show_message(processed, 2)
-			M.show_message(processed, 2)
+		//if(T?.client)
+		T.show_message(processed, 2)
+		M.show_message(processed, 2)
 
-			for (var/obj/item/device/radio/intercom/I in range(3, T))
-				I.talk_into(M, text, null, M.real_name, lang_id)
+		for (var/obj/item/device/radio/intercom/I in range(3, T))
+			I.talk_into(M, text, null, M.real_name, lang_id)
 
 	// Attempt to pick up the handset
 	attack_hand(mob/living/user as mob)
@@ -338,6 +438,123 @@
 
 /obj/machinery/phone/unlisted
 	unlisted = TRUE
+
+/* nex notes
+
+We'll wanna route everything to the AI mainframe, then route it to the eye and maybe shell as needed
+
+Button in AI UI somewhere, likely top left panel, labeled PHONE. Clicking should behave the same as clicking a phone
+Color change from blue to orange when 'picked up'. Shift click to mute/disable, turning UI dark red
+
+mainframe.hud.phone is the datum path to the ui element controlling the phone
+
+*/
+
+// It's slightly hacky slapping this into an AI, but refactoring nearly 70 references to handset alone is a LOT of work
+/obj/machinery/phone/ai
+	name = "AI Internal Landline"
+	desc = "If you are reading this and know how I became visible, file a bug report!! Also how does an AI have a landline?!"
+	var/atom/movable/screen/phoneButton = null // keep track of our ai's phone hud obj so we can more easily reference it to change its appearance
+	// silicon/ai.New() handles assigning the hud obj to phoneButton
+	var/disengaging // lets Unsubscribe() know if it should directly call disengage()
+
+
+	/// Called by the phone UI element for AIs when clicked
+	proc/handlePhoneAccess(var/mob/user) // user needs to be inhabited mob (i.e eye or mainframe)
+		if(!user)
+			return
+		if(answered)
+			disengagePhone(user)
+		else
+			engagePhone(user)
+
+	/// Handles the AI 'putting down' the phone, disengaging it.
+	proc/disengagePhone(var/mob/user, var/fromUnsubscribe = FALSE)
+		if(!fromUnsubscribe)
+			src.disengaging = TRUE
+		//chui is ass, fucking hell, i see why it's deprecated
+		var/mob/ai = mainframe.get_message_mob()
+		if(phonebook?.IsSubscribed(ai.client) && !fromUnsubscribe) // we first call Unsubscribe unless Unsubscribe called us, in which case we move to the next step. prevents loops & double hangup sounds
+			phonebook.Unsubscribe(ai.client)
+			return
+		phoneButton.underlays = list("button")
+		phoneButton.icon_state = "phone"
+		// if you dial then immediately hang up
+		src.answered = 0
+		src.dialing = 0
+		var/handsetRef = src.handset
+		src.hang_up()
+		if (handsetRef)
+			qdel(handsetRef)
+		src.disengaging = FALSE
+
+	/// Handles the AI 'picking up' the phone, engaging it.
+	proc/engagePhone(var/mob/user, var/autoCall) // set autocall to the phone id you want to automatically call
+		src.answered = 1
+		phoneButton.underlays = list("button_orange")
+		if(!src.handset)
+			src.handset = new /obj/item/phone_handset(src)
+		src.handset.holder = mainframe
+
+		if(autoCall)
+			if(src.ringing || src.linked)
+				boutput(user, "<span class='alert'>Your phone is already in use, hang up before trying to call another phone!</span>")
+				return
+			phoneButton.icon_state = "phone_pickedup"
+			boutput(user, "<span class='notice'>Speed-dialing target phone...</span>")
+			src.call_other(autoCall)
+			return
+
+		if(src.ringing)
+			src.phoneButton.icon_state = "phone"
+			src.answerPhone()
+
+		else if(user)
+			phoneButton.icon_state = "phone_pickedup"
+			if(!src.phonebook)
+				src.phonebook = new /chui/window/phonecall(src)
+			phonebook.Subscribe(user.client)
+
+	doRing(var/start) // we have to have our own handling for playing sounds to the AI
+		if(!ringing)
+			return
+		src.last_ring = 0
+		var/mob/ai = mainframe.get_message_mob()
+		if(answered && !linked.answered) // they haven't picked up yet
+			phoneButton.icon_state = "phone_pending"
+			ai.playsound_local(ai,"sound/machines/phones/ring_outgoing.ogg",20,0)
+		else if(!answered && linked.answered) // we're getting a call!!
+			//https://freesound.org/people/infobandit/sounds/29621/
+			ai.playsound_local(ai, "sound/machines/phones/ring_incoming_ai.ogg",20,0)
+			if(start)
+				phoneButton.underlays = list("button_flashing_orange")
+			flick("phone_ringing", phoneButton)
+
+
+	attack_hand(var/mob/user)
+		if (!isAI(src.loc))
+			qdel(src)
+		boutput(user, "<span class='alert'>HOW DID YOU DO THAT, FILE A BUG REPORT, WHAT THE FUCK.</span>")
+		// idk if I should make an admin log here for debugging but this should never happen anyways
+
+
+/obj/machinery/phone_handset/ai
+	name = "AI Internal Landline"
+	desc = "If you are reading this and know how I became visible, file a bug report!! Also how does an AI have a landline?!"
+
+	New(var/obj/machinery/phone/parent_phone, var/mob/living/picker_upper)
+		if (!parent_phone)
+			return // neither of these should happen but this is preemptive weirdness prevention
+		if (!isAI(src.loc))
+			return
+		..()
+
+	attack_hand(var/mob/user)
+		if (!isAI(src.loc))
+			qdel(src)
+		boutput(user, "<span class='alert'>HOW DID YOU DO THAT, FILE A BUG REPORT, WHAT THE FUCK.</span>")
+
+
 
 //
 //		----------------- CELL PHONE STUFF STARTS HERE ---------------------

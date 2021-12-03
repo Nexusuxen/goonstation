@@ -77,6 +77,7 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 	var/obj/item/device/radio/radio2 = null
 	var/obj/item/device/radio/radio3 = null
 	var/obj/item/device/pda2/internal_pda = null
+	var/obj/machinery/phone/ai/internal_phone = null
 	var/obj/item/organ/brain/brain = null
 	var/moustache_mode = 0
 	var/status_message = null
@@ -198,6 +199,7 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 	src.radio2 = new /obj/item/device/radio(src)
 	src.radio3 = new /obj/item/device/radio/headset/command/ai(src)
 	src.internal_pda = new /obj/item/device/pda2/ai(src)
+	src.internal_phone = new /obj/machinery/phone/ai(src)
 
 	src.tracker = new /datum/ai_camera_tracker(src)
 	update_appearance()
@@ -207,6 +209,8 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 	hud = new(src)
 	src.attach_hud(hud)
 	src.eyecam.attach_hud(hud)
+
+	src.internal_phone.phoneButton = src.hud.phone
 
 	holograms = list()
 
@@ -2223,6 +2227,9 @@ proc/get_mobs_trackable_by_AI()
 	src.UpdateName()
 	src.internal_pda.name = "[src.name]'s Internal PDA Unit"
 	src.internal_pda.owner = "[src.name]"
+	src.internal_phone.name = "[src.name]'s Internal Landline"
+	src.internal_phone.phone_id = "[src.name]"
+	src.internal_phone.mainframe = src
 
 /*-----Core-Creation---------------------------------------*/
 

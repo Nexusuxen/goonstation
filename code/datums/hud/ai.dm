@@ -13,6 +13,7 @@
 		laws
 		viewport
 		hologram
+		phone
 		killswitch
 
 	var/list/spinner = list("/", "-", "\\", "|")
@@ -65,6 +66,9 @@
 
 		hologram = create_screen("hologram", "Create Hologram", 'icons/mob/hud_ai.dmi', "hologram", "WEST, NORTH-3", HUD_LAYER)
 		hologram.underlays += "button"
+
+		phone = create_screen("phone", "Operate Internal Phone", 'icons/mob/hud_ai.dmi', "phone", "WEST, NORTH-3.5", HUD_LAYER)
+		phone.underlays += "button"
 
 		tracking = create_screen("tracking", "Tracking", 'icons/mob/hud_ai.dmi', "track", "WEST, SOUTH", HUD_LAYER)
 		tracking.underlays += "button"
@@ -176,3 +180,11 @@
 					master.create_hologram()
 				else
 					boutput(master, "Deploy to an AI Eye first to create a hologram.")
+			if ("phone")
+				// note: handlePhoneAccess() and another proc will adjust our icon state according to the internal phone's state
+				if(master.internal_phone)
+					master.internal_phone.handlePhoneAccess(user)
+				else
+					boutput(master, "<span class='alert'>You don't have an internal phone!</span>")
+
+
