@@ -301,8 +301,9 @@
 
 	var/has_camera = TRUE // that face is looking back at you :)
 	var/obj/machinery/camera/ai/internal_camera // gotta keep track of our camera, too
+	// camera/ai is defined under camera, right next to ranch camera in camera.dm
 
-	var/equipmentState = FALSE // should our radio and camera be online if we have them??
+	var/equipmentState = OFF // should our radio and camera be online if we have them??
 
 	_health = 100
 	_max_health = 100
@@ -310,18 +311,22 @@
 	var/repairHint = "unscrew the broken screen from the casing" // we wanna let the user know what they should do next to continue repairs. starts at first step
 
 /*
-Initially written for my own sanity but if you're reading this then I kept this in as documentation
+Initially written for my own sanity but if you're reading this then I kept this in as sort of documentation
 
 The following vars control the functionality of the display in different ways:
 --- equipmentStatus
 		Whether or not the radio/camera should be on or not
+		Independent of NOPOWER and BROKEN, though those two will ALWAYS set this to FALSE/OFF
+		May ONLY be true if owner is true. If otherwise, fix that shit.
 --- Status (bitflag):
 	BROKEN
 		Whether or not the display has been broken; sets equipmentStatus & owner to 0/null respectively
+		Does NOT set NOPOWER (unless BROKEN naturally does that)
 	NOPOWER
-		Whether or not there's any power. Sets equipmentStatus to 0 but keeps owner
+		Whether or not there's any power. Sets equipmentStatus to 0 but keeps owner assuming nothing else reset it
 --- manualConnectRequired:
-		Set to true when a display is shut down via emp/brute force (but NOT by destroying it). Should not be true while equipmentPower or Owner
+		Set to true when a display is shut down via emp/brute force (but NOT by destroying it).
+		Should not be true while equipmentPower or Owner
 ---
 */
 
@@ -865,8 +870,10 @@ The following vars control the functionality of the display in different ways:
 	updateHealth()
 		return // this would call onDestroy(), we already have our own 0-health handling of things!!
 
-	proc/speech_bubble() // /radio proc override, we want the speech bubble on top of the display so we can actually see it
-		src.UpdateOverlays(image('icons/mob/mob.dmi', "speech"), "speech_bubble")
+	proc/speech_bubble(var/bubbleOverride) // /radio proc override, we want the speech bubble on top of the display so we can actually see it
+		if (!bubbleOverride) // bubbleOverride has been added in conjunction with PR #6844. if that is denied, best to remove bubbleOverride and its handling
+			bubbleOverride = image('icons/mob/mob.dmi', "speech")
+		src.UpdateOverlays(bubbleOverride, "speech_bubble")
 		SPAWN_DBG(1.5 SECONDS)
 		src.UpdateOverlays(null, "speech_bubble")
 
@@ -953,8 +960,7 @@ The following vars control the functionality of the display in different ways:
 /obj/item/device/radio/intercom/AI/aiDisplay
 	name = "AI Display Radio"
 	desc = "If you're reading this, something has gone terribly wrong and you should file a bug report if you know how this somehow ended up being visible!"
-	broadcasting = 1 // we're set to overhear conversations by default :)
-	listening = 0
+	// listening & broadcasting are set in ai_status_display.New()
 	var/obj/machinery/ai_status_display/display = null
 
 	New()
@@ -968,9 +974,9 @@ The following vars control the functionality of the display in different ways:
 		if (!istype(newloc, /obj/machinery/ai_status_display))
 			qdel(src)
 		else ..()
-	speech_bubble() // /radio proc override, we want the speech bubble on top of the display so we can actually see it
+	speech_bubble(var/bubbleOverride) // /radio proc override, we want the speech bubble on top of the display so we can actually see it
 		if ((src.listening && src.wires & WIRE_RECEIVE))
-			src.display.speech_bubble()
+			src.display.speech_bubble(bubbleOverride) //bubbleOverride should be removed if PR #6844 is denied
 
 	ui_status(mob/user, datum/ui_state/state)
 		if (istype(src.loc, /obj/machinery/ai_status_display))
@@ -978,7 +984,7 @@ The following vars control the functionality of the display in different ways:
 			if (display.equipmentState)
 				. = ..(user, state)
 			else
-				. = UI_CLOSE // if the display ain't on that radio shouldn't be either; stop touching it
+				. = UI_CLOSE // if the display ain't on, that radio shouldn't be either; stop touching it
 
 	ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
 		..()
@@ -986,4 +992,10 @@ The following vars control the functionality of the display in different ways:
 			display.updateStatusOverlays()
 		return TRUE
 
+	// uncomment showMapText() below if PR #6488 is merged. delete if it is denied.
+	// intended to make AI displays capable of displaying maptext from AIs, just like intercoms in 6488
+	/*showMapText(var/mob/R, var/mob/M, receive, msg, secure, real_name, lang_id, textLoc)
+		..(R, M, receive, msg, secure, real_name, lang_id, src.display)*/
 
+#undef ON // pretty sure this is the only way to really ensure a local define :I
+#undef OFF
