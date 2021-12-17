@@ -792,6 +792,9 @@
 								end = 4
 								secure_headset_mode = lowertext(copytext(message,3,end)) //why did i do this to the players
 							message = copytext(message, end)
+						if ("4")
+							message_mode = "phone"
+							message = copytext(message, 3)
 
 						else
 							message = copytext(message, 3)
@@ -971,11 +974,12 @@
 
 		// Added shortcuts for the AI mainframe radios. All the relevant vars are already defined here, and
 		// I didn't want to have to reinvent the wheel in silicon.dm (Convair880).
-		if ("internal 1", "internal 2", "monitor")
+		if ("internal 1", "internal 2", "monitor", "phone")
 			var/mob/living/silicon/ai/A
 			var/obj/item/device/radio/R1
 			var/obj/item/device/radio/R2
 			var/obj/item/device/radio/R3
+			var/datum/phone/ai/P
 
 			if (isAI(src))
 				A = src
@@ -991,6 +995,8 @@
 					R2 = A.radio2
 				if (A.radio3 && istype(A.radio3, /obj/item/device/radio/))
 					R3 = A.radio3
+				if (A.internal_phone && istype(A.internal_phone, /datum/phone/ai))
+					R4 = A.internal_phone
 
 			switch (message_mode)
 				if ("internal 1")
@@ -1017,6 +1023,17 @@
 						//DEBUG_MESSAGE("AI radio #3 triggered. Message: [message]")
 					else
 						src.show_text("Mainframe radio inoperable or unavailable.", "red")
+				if ("phone")
+					if (R4 && !(A.stat || A.hasStatus(list("stunned", "weakened"))))
+						skip_open_mics_in_range = 1
+						if (R4.currentPhoneCall)
+							R4.sendSpeech(src, messages, secure_headset_mode, A.name, lang_id)
+							italics = 1
+							DEBUG_MESSAGE("AI internal phone triggered. Message: [message]")
+						else
+							src.show_text("Notice: No call detected.", "red")
+					else
+						src.show_text("Mainframe landline inoperable or unavailable.", "red")
 
 		if ("intercom")
 			for (var/obj/item/device/radio/intercom/I in view(1, null))

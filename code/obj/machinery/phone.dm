@@ -149,6 +149,34 @@
 	attack_ai(mob/user as mob)
 		return
 
+	receive_silicon_hotkey(var/mob/user)
+		..()
+
+		if (!isAI(user))
+			return
+
+		var/mob/living/silicon/ai/userAI
+		if (isAIeye(user))
+			var/mob/dead/aieye/eye = user
+			userAI = eye.mainframe
+		else userAI = user
+		var/datum/phone/ai/internalPhone = userAI.internal_phone
+
+		if (user.client.check_key(KEY_OPEN))
+			if (!src.connected)
+				boutput(user, "<span class='alert'>Cannot detect device on landline network.</span>")
+				return
+			if (src.unlisted)
+				boutput(user, "<span class='alert'>Cannot access target phone registry; manual connection required.</span>")
+				return
+			if (internalPhone.currentPhoneCall || internalPhone.incomingCall)
+				boutput(user, "<span class='alert'>Internal landline connection busy; unable to initiate call.</span>")
+				return
+			. = 1
+			internalPhone.handleSound('sound/machines/phones/ai_dial.ogg', 50, 0)
+			internalPhone.startPhoneCall(src.phoneDatum)
+			return
+
 	emag_act(var/mob/user, var/obj/item/card/emag/E)
 		src.icon_state = "[ringingIcon]"
 		if (!src.emagged)
