@@ -14,6 +14,7 @@
 		viewport
 		hologram
 		phone
+		mute
 		killswitch
 
 	var/list/spinner = list("/", "-", "\\", "|")
@@ -69,6 +70,9 @@
 
 		phone = create_screen("phone", "Operate Internal Phone", 'icons/mob/hud_ai.dmi', "phone", "WEST, NORTH-3.5", HUD_LAYER)
 		phone.underlays += "button"
+
+		mute = create_screen("mute", "Toggle Phone Ringer", 'icons/mob/hud_ai.dmi', "ringer_on", "WEST+1, NORTH-3.5", HUD_LAYER)
+		mute.underlays += "button_half"
 
 		tracking = create_screen("tracking", "Tracking", 'icons/mob/hud_ai.dmi', "track", "WEST, SOUTH", HUD_LAYER)
 		tracking.underlays += "button"
@@ -185,4 +189,10 @@
 				if(master.internal_phone)
 					master.internal_phone.handlePhoneAccess(user)
 				else
-					boutput(master, "<span class='alert'>You don't have an internal phone!</span>")
+					boutput(master, "<span class='alert'>You don't have an internal phone, this is probably a bug!</span>")
+			if ("mute")
+				// ditto but with toggleRinger()
+				if(master.internal_phone)
+					master.internal_phone.toggleRinger()
+				else
+					boutput(master, "<span class='alert'>You don't have an internal phone, this is probably a bug!</span>")

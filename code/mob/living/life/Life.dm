@@ -147,6 +147,7 @@
 	..()
 	add_lifeprocess(/datum/lifeprocess/sight)
 	add_lifeprocess(/datum/lifeprocess/blindness)
+	add_lifeprocess(/datum/lifeprocess/ai_phone)
 
 /mob/living/silicon/hivebot/New()
 	..()

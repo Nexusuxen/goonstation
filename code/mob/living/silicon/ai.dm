@@ -212,7 +212,9 @@ var/list/ai_emotions = list("Happy" = "ai_happy",\
 	hud = new(src)
 	src.attach_hud(hud)
 	src.eyecam.attach_hud(hud)
-	src.internal_phone.phoneButton = src.hud.phone
+	src.internal_phone.hudButton = src.hud.phone
+	src.internal_phone.muteButton = src.hud.mute
+	src.internal_phone.mainframe = src
 
 	holograms = list()
 

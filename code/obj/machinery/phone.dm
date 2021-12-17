@@ -169,12 +169,11 @@
 			if (src.unlisted)
 				boutput(user, "<span class='alert'>Cannot access target phone registry; manual connection required.</span>")
 				return
-			if (internalPhone.currentPhoneCall || internalPhone.incomingCall)
+			if (internalPhone.isBusy())
 				boutput(user, "<span class='alert'>Internal landline connection busy; unable to initiate call.</span>")
 				return
 			. = 1
-			internalPhone.handleSound('sound/machines/phones/ai_dial.ogg', 50, 0)
-			internalPhone.startPhoneCall(src.phoneDatum)
+			internalPhone.uiMakeCall(src.phoneDatum)
 			return
 
 	emag_act(var/mob/user, var/obj/item/card/emag/E)

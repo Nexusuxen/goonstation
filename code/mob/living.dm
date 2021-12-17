@@ -979,7 +979,7 @@
 			var/obj/item/device/radio/R1
 			var/obj/item/device/radio/R2
 			var/obj/item/device/radio/R3
-			var/datum/phone/ai/P
+			var/datum/phone/ai/Ph
 
 			if (isAI(src))
 				A = src
@@ -996,7 +996,7 @@
 				if (A.radio3 && istype(A.radio3, /obj/item/device/radio/))
 					R3 = A.radio3
 				if (A.internal_phone && istype(A.internal_phone, /datum/phone/ai))
-					R4 = A.internal_phone
+					Ph = A.internal_phone
 
 			switch (message_mode)
 				if ("internal 1")
@@ -1024,10 +1024,10 @@
 					else
 						src.show_text("Mainframe radio inoperable or unavailable.", "red")
 				if ("phone")
-					if (R4 && !(A.stat || A.hasStatus(list("stunned", "weakened"))))
+					if (Ph && !(A.stat || A.hasStatus(list("stunned", "weakened"))))
 						skip_open_mics_in_range = 1
-						if (R4.currentPhoneCall)
-							R4.sendSpeech(src, messages, secure_headset_mode, A.name, lang_id)
+						if (Ph.currentPhoneCall)
+							Ph.sendSpeech(src, messages, secure_headset_mode, A.name, lang_id)
 							italics = 1
 							DEBUG_MESSAGE("AI internal phone triggered. Message: [message]")
 						else
