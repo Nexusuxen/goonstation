@@ -7,7 +7,7 @@ var/datum/disease_controller/disease_controls
 	New()
 		..()
 		for (var/X in typesof(/datum/ailment))
-			if (X == /datum/ailment || X == /datum/ailment/disease || X == /datum/ailment/parasite || X == /datum/ailment/disability)
+			if (X == /datum/ailment || X == /datum/ailment/disease || X == /datum/ailment/parasite || X == /datum/ailment/disability || IS_ABSTRACT(X))
 				continue
 			var/datum/ailment/A = new X
 			standard_diseases += A

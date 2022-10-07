@@ -1,5 +1,10 @@
 // Parent for chronic exposure diseases (e.g mercury poisoning)
 
+/// List of reagentID = [type path] for chronic exposure diseases
+var/global/chronic_exposure_reagents = list(
+	"mercury" = /datum/ailment/disease/chronic_exposure/mercury
+)
+
 ABSTRACT_TYPE(/datum/ailment/disease/chronic_exposure)
 /datum/ailment/disease/chronic_exposure
 	name = "Chronic Exposure \[You shouldn't be seeing this!\]"
@@ -19,6 +24,7 @@ ABSTRACT_TYPE(/datum/ailment/disease/chronic_exposure)
 
 
 /// Rolls a chance to progress or regress the disease
+/// We need to do our own checks since we can also regress, and active/remissive/acute are irrelevant here
 /datum/ailment/disease/chronic_exposure/proc/progress_check(var/mob/living/affected_mob, var/datum/ailment_data/D)
 	var/mob/living/carbon/human/H = null
 	if(ishuman(affected_mob))

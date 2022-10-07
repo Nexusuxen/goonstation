@@ -126,6 +126,13 @@
 	amount_per_transfer_from_this = 5
 	initial_reagents = "calomel"
 
+/obj/item/reagent_containers/glass/bottle/edta
+	name = "bottle (EDTA)"
+	desc = "A small bottle of EDTA, for flushing metals from the blood stream, and removing trace metals from a patient's body/curing metal poisoning."
+	bottle_style = "2"
+	amount_per_transfer_from_this = 5
+	initial_reagents = "edta"
+
 /obj/item/reagent_containers/glass/bottle/spaceacillin
 	name = "bottle (spaceacillin)"
 	desc = "A small bottle of spaceacillin, for curing minor diseases."

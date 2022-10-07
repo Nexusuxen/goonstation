@@ -3453,15 +3453,17 @@
 /mob/living/carbon/human/proc/chronic_exposure_check()
 	if(length(trace_reagents) == 0)
 		return // it's empty, why bother checking
-	var/datum/ailment_data/AD = src.find_ailment_by_type(/datum/ailment/disease/chronic_exposure/mercury)
-	if(!AD)
-		var/mercury = trace_reagents["mercury"]
-		if((mercury > 5) && (prob((mercury - 5) * 5))) // i'm p sure bypassing disease resist makes sense here?
-			src.contract_disease(/datum/ailment/disease/chronic_exposure/mercury, null, null, TRUE)
-	else
-		var/datum/ailment/disease/chronic_exposure/mercury/illness = AD.master
-		illness.progress_check(src, AD)
-	AD = null // so further similar checks to the above using if(!AD)/else would work as intended
+	for(var/toxin in trace_reagents)
+		if(isnull(chronic_exposure_reagents[toxin]))
+			continue
+		var/datum/ailment/disease/chronic_exposure/disease = chronic_exposure_reagents[toxin]
+		var/datum/ailment_data/AD = src.find_ailment_by_type(disease)
+		if(!AD) // no AD means we're not sick yet
+			var/threshold = disease.threshold_1
+			if((toxin > threshold) && (prob((toxin - threshold) * 5))) // * 5 boosts chances of contraction to reasonable amounts
+				src.contract_disease(/datum/ailment/disease/chronic_exposure/mercury, null, null, TRUE)
+		else
+			disease.progress_check(src, AD)
 
 /mob/living/carbon/human/get_pronouns()
 	RETURN_TYPE(/datum/pronouns)

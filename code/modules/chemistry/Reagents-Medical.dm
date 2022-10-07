@@ -301,7 +301,7 @@ datum
 		medical/calomel // COGWERKS CHEM REVISION PROJECT. marked for revision. should be a chelation agent
 			name = "calomel"
 			id = "calomel"
-			description = "This potent purgative rids the body of impurities. It is highly toxic however and close supervision is required."
+			description = "This potent purgative rids the body of impurities. It is highly toxic however and close supervision is required. Repeated use risks mercury poisoning."
 			reagent_state = LIQUID
 			fluid_r = 25
 			fluid_g = 200
@@ -325,7 +325,7 @@ datum
 					var/mob/living/carbon/human/H = M
 					if(isnull(H.trace_reagents["mercury"]))
 						H.trace_reagents += list("mercury" = 0)
-					H.trace_reagents["mercury"] += (depletion_rate*mult / 4)
+					H.trace_reagents["mercury"] += (depletion_rate*mult / 4) //25+u needed to risk stage 1 mercurialism
 				..()
 				return
 
@@ -352,7 +352,7 @@ datum
 		medical/edta
 			name = "EDTA"
 			id = "edta"
-			description = "A water-soluble white solid that binds to metals. Used in industry and as a medical purgative for toxic metals."
+			description = "Ethylenediaminetetraacetic acid. A water-soluble white solid that binds to metals. Used in industry and as a medical purgative for toxic metals."
 			reagent_state = SOLID
 			fluid_r = 255
 			fluid_g = 255
