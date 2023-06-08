@@ -18,7 +18,6 @@ export const SpawnEvent = (props, context) => {
     loc_type,
     incompatible_antag,
     equip_antag,
-    ask_permission,
   } = data;
   return (
     <Window
@@ -52,22 +51,11 @@ export const SpawnEvent = (props, context) => {
               </Button>
             </LabeledList.Item>
             <LabeledList.Item label="Accept delay">
-              {!!ask_permission && (
-                <NumberInput
-                  value={ghost_confirmation_delay / 10}
-                  minValue={0}
-                  maxValue={120}
-                  onDrag={(e, spawn_delay) => act('set_spawn_delay', { spawn_delay: (spawn_delay * 10) })}
-                  disabled={!ask_permission}
-                />
-              )}
-              <Button.Checkbox
-                checked={ask_permission}
-                onClick={() => act('set_ask_permission', { ask_permission: !ask_permission })}
-                tooltip="Do we ask permission or just spawn them directly?"
-              >
-                Ask permission.
-              </Button.Checkbox>
+              <NumberInput
+                value={ghost_confirmation_delay / 10}
+                minValue={0}
+                maxValue={120}
+                onDrag={(e, spawn_delay) => act('set_spawn_delay', { spawn_delay: (spawn_delay * 10) })} />
             </LabeledList.Item>
             <LabeledList.Item label="Amount to spawn">
               <NumberInput

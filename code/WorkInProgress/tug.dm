@@ -140,10 +140,8 @@ TYPEINFO(/obj/tug_cart)
 		. = ..()
 		if (src.loc == oldloc)
 			return
-		if (!QDELETED(next_cart))
+		if (next_cart)
 			next_cart.Move(oldloc)
-		else if(next_cart)
-			next_cart = null
 
 	disposing()
 		load = null
@@ -351,10 +349,8 @@ TYPEINFO(/obj/vehicle/tug)
 		. = ..()
 		if (src.loc == oldloc)
 			return
-		if (!QDELETED(cart))
+		if (cart)
 			cart.Move(oldloc)
-		else if(cart)
-			cart = null
 
 /obj/ability_button/vehicle_speed
 	name = "Vehicle Speed"
