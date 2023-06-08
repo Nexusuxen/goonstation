@@ -15121,9 +15121,9 @@
 /obj/cable{
 	icon_state = "1-8"
 	},
-/obj/machinery/atmospherics/pipe/simple{
-	dir = 4;
-	level = 2
+/obj/machinery/atmospherics/pipe/simple/insulated/cold{
+	can_rupture = 0;
+	dir = 8
 	},
 /turf/simulated/floor/white,
 /area/station/medical/medbay/surgery)
@@ -28428,10 +28428,7 @@
 /turf/simulated/floor/plating,
 /area/station/science/teleporter)
 "gNH" = (
-/obj/machinery/atmospherics/unary/cryo_cell{
-	dir = 1;
-	pipe_direction = 1
-	},
+/obj/machinery/atmospherics/unary/cryo_cell,
 /turf/simulated/floor/redwhite,
 /area/station/medical/medbay/surgery)
 "gOV" = (
@@ -39991,15 +39988,15 @@
 /obj/cable{
 	icon_state = "0-4"
 	},
+/obj/machinery/atmospherics/pipe/simple/insulated/cold{
+	can_rupture = 0;
+	dir = 6
+	},
 /obj/machinery/disposal/small{
 	dir = 4
 	},
 /obj/disposalpipe/trunk{
 	dir = 4
-	},
-/obj/machinery/atmospherics/pipe/simple{
-	level = 2;
-	dir = 6
 	},
 /turf/simulated/floor/redwhite{
 	dir = 8
@@ -42827,9 +42824,9 @@
 /turf/simulated/wall/auto/reinforced/supernorn,
 /area/station/engine/engineering/ce/private)
 "ujN" = (
-/obj/machinery/atmospherics/pipe/simple{
+/obj/machinery/atmospherics/pipe/simple/insulated/cold{
 	dir = 10;
-	level = 2
+	can_rupture = 0
 	},
 /turf/simulated/floor/redwhite/corner,
 /area/station/medical/medbay/surgery)
@@ -44777,10 +44774,7 @@
 	pixel_x = 10;
 	tag = ""
 	},
-/obj/machinery/atmospherics/unary/cryo_cell{
-	dir = 1;
-	pipe_direction = 1
-	},
+/obj/machinery/atmospherics/unary/cryo_cell,
 /turf/simulated/floor/redwhite{
 	dir = 6
 	},

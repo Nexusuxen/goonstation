@@ -4,7 +4,7 @@
 	spread = "Non-Contagious"
 	cure = "Robustissin, Robust Coffee, getting robusted"
 	associated_reagent = "sheltestgrog"
-	reagentcure = list("cold_medicine", "coffee")
+	reagentcure = list("robustissin", "coffee")
 	affected_species = list("Human")
 	stage_prob = 5
 

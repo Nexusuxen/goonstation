@@ -1148,7 +1148,6 @@
 		src.goods_sell += new /datum/commodity/sticker/googly_eyes_angry(src)
 		src.goods_sell += new /datum/commodity/toygun(src)
 		src.goods_sell += new /datum/commodity/toygunammo(src)
-		src.goods_sell += new /datum/commodity/clownsabre(src)
 		src.goods_sell += new /datum/commodity/junk/circus_board(src)
 		src.goods_sell += new /datum/commodity/junk/pie_launcher(src)
 		src.goods_sell += new /datum/commodity/junk/laughbox(src)

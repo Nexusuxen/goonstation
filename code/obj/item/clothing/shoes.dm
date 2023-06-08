@@ -271,9 +271,6 @@ TYPEINFO(/obj/item/clothing/shoes/industrial)
 			..()
 			delProperty("chemprot")
 
-	waders
-		name = "angler's waders"
-
 /obj/item/clothing/shoes/clown_shoes
 	name = "clown shoes"
 	desc = "Damn, thems some big shoes."

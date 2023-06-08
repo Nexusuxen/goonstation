@@ -163,7 +163,6 @@
 #include "text.dm"
 #include "tgs.dm"
 #include "tgui.dm"
-#include "unionfind.dm"
 #include "vox.dm"
 #include "weakref.dm"
 #include "zlevel.dm"

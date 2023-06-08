@@ -20,6 +20,7 @@
 	ai_attacks_per_ability = 0
 
 	dir_locked = TRUE //most items don't have dirstates, so don't let us change one
+	var/mutable_appearance/disguise
 	var/icon/face_image
 	var/icon/face_displace_image
 	var/is_hiding = FALSE
@@ -69,8 +70,8 @@
 		src.stop_hiding()
 
 	proc/disguise_as(var/obj/target)
-		src.appearance = target
-		src.dir = target.dir
+		src.disguise = new /mutable_appearance(target)
+		src.appearance = src.disguise
 		src.overlay_refs = target.overlay_refs?.Copy() //this is necessary to preserve overlay management metadata
 		src.start_hiding()
 
