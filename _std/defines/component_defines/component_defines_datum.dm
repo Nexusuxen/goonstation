@@ -36,3 +36,40 @@
 // ---- reagents signals ----
 	/// When reagent scanned
 	#define COMSIG_REAGENTS_ANALYZED "reagents_analyzed"
+
+// ---- phone signals ----
+	/// When a phone wants to register to a switchboard
+	/// (target_id, target)
+	#define COMSIG_PHONE_SWITCHBOARD_REGISTER "phone_switchboard_register"
+	/// When a switchboard successfully registers with a phone
+	#define COMSIG_PHONE_SWITCHBOARD_REGISTER_SUCCESSFUL "phone_switchboard_register_successful"
+	/// When a switchboard fails to register with a phone
+	#define COMSIG_PHONE_SWITCHBOARD_REGISTER_FAILED "phone_switchboard_register_failed"
+	/// Signals when an unregister occurs
+	/// (target_id, datum, responded)
+	#define COMSIG_PHONE_SWITCHBOARD_UNREGISTER "phone_switchboard_unregister"
+	/// When a phone dials another phone
+	/// (caller_id, caller, target_id, switchboard)
+	#define COMSIG_PHONE_CALL_REQUEST "phone_call_request"
+	/// When a phone rejects a call request signal
+	/// (switchboard, target_id)
+	#define COMSIG_PHONE_CALL_REQUEST_DENIED "phone_call_request_denied"
+	/// When a phone accepts a call request signal
+	#define COMSIG_PHONE_CALL_REQUEST_ACCEPTED "phone_call_request_accepted"
+	/// When a phone transmits speech
+	#define COMSIG_PHONE_CALL_TRANSMIT_SPEECH "phone_call_transmit_speech"
+	/// When a phone transmits some nerd's vape exhale
+	#define COMSIG_PHONE_CALL_TRANSMIT_VAPE "phone_call_transmit_vape"
+	/// When a phone transmits a voltron-using nerd
+	#define COMSIG_PHONE_CALL_TRANSMIT_VOLTRON "phone_call_transmit_voltron"
+	/// When a phonecall request is recognized and rejected
+	#define COMSIG_PHONE_CALL_TRANSMIT_REJECTED "phone_call_transmit_rejected"
+	/// When one phone wants to terminate the call
+	#define COMSIG_PHONE_HANGUP "phone_call_hangup"
+	/// When a phonecall has ended
+	#define COMSIG_PHONE_CALL_ENDED "phone_call_ended"
+	/// Signals a phone networker to dial the provided phone ID
+	/// (target_id)
+	#define COMSIG_PHONE_DIAL "phone_dial"
+	/// When speech is picked up by the microphone
+	#define COMSIG_PHONE_SPOKEN_INTO "phone_spoken_into"
