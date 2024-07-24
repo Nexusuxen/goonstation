@@ -5,6 +5,8 @@
 	event_handler_flags = 0
 	var/atom/target
 	var/is_respawnable = TRUE
+	/// Is this observer locked to one particular owner?
+	var/locked = FALSE
 
 	New()
 		..()
@@ -16,7 +18,7 @@
 		//If our target is a mob we should also clean ourselves up and leave their observer list without a null in it.
 		var/mob/living/M = src.target
 		if(istype(M))
-			M.observers -= src
+			LAZYLISTREMOVE(M.observers, src)
 			src.UnregisterSignal(M, list(COMSIG_TGUI_WINDOW_OPEN))
 
 		if (isobj(target))
@@ -72,36 +74,34 @@
 		set hidden = 1
 		return
 
+	/// Let's have a proc so as to make it easier to reassign an observer.
 	proc/set_observe_target(target)
 		//If there's an existing target we should clean up after ourselves
 		if(src.target == target)
 			return //No sense in doing all this if we're not changing targets
 
-		var/area/old_area
 		if(src.target)
-			old_area = get_area(src.target)
 			var/mob/living/M = src.target
 			src.target = null
 			M.removeOverlaysClient(src.client)
 			for (var/datum/hud/hud in M.huds)
 				src.detach_hud(hud)
 			if(istype(M))
-				M.observers -= src
+				LAZYLISTREMOVE(M.observers, src)
 
 		if(!target) //Uh oh, something went wrong here. Act natural and return the user to a regular ghost.
 			qdel(src)
 			return
-		//Let's have a proc so as to make it easier to reassign an observer.
+
 		src.target = target
 		src.set_loc(target)
-		src.client?.parallax_controller?.update_area_parallax_layers(get_area(src.target), old_area)
 		if(src.ghost?.auto_tgui_open)
 			RegisterSignal(target, COMSIG_TGUI_WINDOW_OPEN, PROC_REF(open_tgui_if_interactive))
 		set_eye(target)
 
 		var/mob/living/M = target
 		if (istype(M))
-			M.observers += src
+			LAZYLISTADD(M.observers, src)
 			if(src.client)
 				M.updateOverlaysClient(src.client)
 			for (var/datum/hud/hud in M.huds)
@@ -137,6 +137,7 @@
 /mob/dead/target_observer/slasher_ghost
 	name = "spooky not-quite ghost"
 	is_respawnable = FALSE
+	locked = TRUE
 	var/start_time
 
 	New()
@@ -161,3 +162,26 @@
 			O.update_item_abilities()
 			return O
 		return null
+
+
+/mob/dead/target_observer/verb/ghostjump(x as num, y as num, z as num)
+	set name = ".ghostjump"
+	set hidden = TRUE
+
+	if(src.type != /mob/dead/target_observer)
+		return // ugh, bad inheritance :whelm:
+
+	var/turf/T = locate(x, y, z)
+	if (!can_ghost_be_here(src, T))
+		return
+
+	if(isnull(src.ghost))
+		src.ghost = new(src.corpse)
+
+		if (!src.corpse)
+			src.ghost.name = src.name
+			src.ghost.real_name = src.real_name
+
+	var/mob/dead/observer/ghost = src.ghost
+	qdel(src)
+	ghost.set_loc(T)

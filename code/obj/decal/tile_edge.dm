@@ -23,7 +23,7 @@
 				I.color = src.color
 			var/md5hasho = "tile_edge_[md5("[rand(1,10000)]_[rand(1,10000)]")]"
 			//world.log << md5hasho
-			if (T.UpdateOverlays(I, md5hasho))
+			if (T.AddOverlays(I, md5hasho))
 				qdel(src)
 			else
 				return ..()
@@ -172,12 +172,13 @@
 	anchored = ANCHORED
 	dir = NORTH
 	event_handler_flags = USE_FLUID_ENTER
+	object_flags = HAS_DIRECTIONAL_BLOCKING
 	pass_unstable = TRUE
 
 	Cross(atom/movable/mover)
 		if (istype(mover, /obj/projectile))
 			return 1
-		if (get_dir(loc, mover) & dir)
+		if ((get_dir(loc, mover) & dir) && (dir in cardinal))
 			return !density
 		else
 			return 1
@@ -187,7 +188,7 @@
 			. = 1
 		else if (istype(O, /obj/projectile))
 			. = 1
-		else if (get_dir(O.loc, O.movement_newloc) & src.dir)
+		else if ((get_dir(O.loc, O.movement_newloc) & src.dir) && (dir in cardinal))
 			. = !density
 		else
 			. = 1

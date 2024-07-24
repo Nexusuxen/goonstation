@@ -13,7 +13,7 @@
 	firevuln = 3
 	brutevuln = 1
 	angertext = "starts chasing" // comes between critter name and target name
-	butcherable = 1
+	butcherable = BUTCHER_ALLOWED
 	chase_text = "punches out"
 
 	skinresult = /obj/item/material_piece/cloth/leather
@@ -36,7 +36,7 @@
 			if (src.attack)  //If attack flag was set, attack this target
 				src.target = C
 				src.oldtarget_name = C.name
-				src.visible_message("<span class='combat'><b>[src]</b> [src.angertext] [src.target]!</span>")
+				src.visible_message(SPAN_COMBAT("<b>[src]</b> [src.angertext] [src.target]!"))
 				playsound(src.loc, pick('sound/voice/animal/YetiGrowl.ogg'), 40, 0)
 				src.task = "chasing"
 				break
@@ -47,7 +47,7 @@
 		..()
 		playsound(src.loc, 'sound/impact_sounds/Metal_Hit_Heavy_1.ogg', 40, 1, -1)
 		M.changeStatus("stunned", 10 SECONDS)
-		M.changeStatus("weakened", 10 SECONDS)
+		M.changeStatus("knockdown", 10 SECONDS)
 
 	CritterAttack(mob/M)
 		if (ishuman(M))
@@ -55,7 +55,7 @@
 			var/obj/item/parts/targetLimb = pickTargetLimb(H)
 			if(targetLimb)
 				src.attacking = 0
-				src.visible_message("<span class='combat'><B>[src]</B> bites [targetLimb] right off!'")
+				src.visible_message(SPAN_COMBAT("<b>[src]</b> bites [targetLimb] right off!'"))
 				random_brute_damage(H, 25)
 				targetLimb.remove(0)
 				H.update_body()
@@ -67,7 +67,7 @@
 		//Instakill code. Happens when there are no more limbs to chew.
 		//I want to rework this so the yeti keeps the heads as a trophy and he drops them once dead
 		src.attacking = 1
-		src.visible_message("<span class='combat'><B>[src]</B> devours the rest of [M] in one bite!</span>")
+		src.visible_message(SPAN_COMBAT("<B>[src]</B> devours the rest of [M] in one bite!"))
 		logTheThing(LOG_COMBAT, M, "was devoured by [src] at [log_loc(src)].") // Some logging for instakill critters would be nice (Convair880).
 		playsound(src.loc, 'sound/items/eatfood.ogg', 30, 1, -2)
 		M.remove()
@@ -83,7 +83,7 @@
 			return null
 		var/list/part_list = list("l_arm", "r_arm", "l_leg", "r_leg")
 
-		while(part_list.len > 0)
+		while(length(part_list) > 0)
 			var/current_part = pick(part_list)
 			part_list -= current_part
 			var/obj/item/parts/bodypart = H.limbs.get_limb(current_part)
@@ -97,92 +97,6 @@
 	desc = "Well-known as the single most aggressive, dangerous, intelligent, sturdy and hungry thing in the universe."
 	health = 225
 	opensdoors = OBJ_CRITTER_OPENS_DOORS_ANY
-
-/obj/critter/shark
-	name = "space shark"
-	desc = "This is the third most terrifying thing you've ever laid eyes on."
-	icon = 'icons/misc/banshark.dmi'
-	icon_state = "banshark1"
-	density = 1
-	health = 75
-	aggressive = 1
-	defensive = 1
-	wanderer = 1
-	opensdoors = OBJ_CRITTER_OPENS_DOORS_NONE
-	atkcarbon = 1
-	atksilicon = 1
-	firevuln = 3
-	brutevuln = 1
-	angertext = "swims after" // comes between critter name and target name
-	generic = 0
-	var/recentsound = 0
-	butcherable = 1
-	atk_brute_amt = 40
-	crit_chance = 0
-	atk_text = "tears into"
-	chase_text = "bashes into"
-	crit_text = "tears a chunk out of"
-
-	CritterDeath()
-		..()
-		src.reagents.add_reagent("shark_dna", 50, null)
-		return
-
-	New()
-		..()
-		src.seek_target()
-
-	seek_target()
-		src.anchored = UNANCHORED
-		for (var/mob/living/C in hearers(src.seekrange,src))
-			if (src.target)
-				src.task = "chasing"
-				break
-			if ((C.name == src.oldtarget_name) && (world.time < src.last_found + 100)) continue
-			if (C.health < 0) continue
-			if (C.name == src.attacker) src.attack = 1
-			if (iscarbon(C)) src.attack = 1
-			if (issilicon(C)) src.attack = 1
-			if (src.attack)
-				src.target = C
-				src.oldtarget_name = C.name
-				src.visible_message("<span class='combat'><b>[src]</b> [src.angertext] [src.target]!</span>")
-				if(!recentsound)
-					playsound(src.loc, 'sound/misc/jaws.ogg', 50, 0)
-					recentsound = 1
-					SPAWN(1 MINUTE) recentsound = 0
-				src.task = "chasing"
-				break
-			else
-				continue
-
-	ChaseAttack(mob/M)
-		..()
-		playsound(src.loc, 'sound/impact_sounds/Metal_Hit_Heavy_1.ogg', 50, 1, -1)
-		M.changeStatus("stunned", 2 SECONDS)
-		M.changeStatus("weakened", 2 SECONDS)
-
-	CritterAttack(mob/M)
-		if (isdead(M))
-			src.visible_message("<span class='combat'><B>[src]</B> gibs [M] in one bite!</span>")
-			logTheThing(LOG_COMBAT, M, "was gibbed by [src] at [log_loc(src)].") // Some logging for instakill critters would be nice (Convair880).
-			playsound(src.loc, 'sound/items/eatfood.ogg', 30, 1, -2)
-			M.gib()
-			SPAWN(3 SECONDS) playsound(src.loc, 'sound/voice/burp_alien.ogg', 50, 0)
-			src.task = "thinking"
-			src.seek_target()
-			src.attacking = 0
-			sleeping = 1
-		else
-			..()
-			playsound(src.loc, 'sound/impact_sounds/Flesh_Tear_1.ogg', 50, 0.4)
-
-
-
-/obj/item/reagent_containers/food/snacks/ingredient/egg/critter/shark
-	name = "shark egg"
-	critter_type = /obj/critter/shark
-	warm_count = 50
 
 /obj/critter/bat
 	name = "bat"
@@ -228,7 +142,7 @@
 					src.visible_message("[usr] offers up [his_or_her(usr)] arm to feed [src].")
 					if (prob(30))
 						take_bleeding_damage(usr, null, 5, DAMAGE_CUT, 0, get_turf(src))
-						src.visible_message("<span class='alert'><B>Whoops, looks like [src] bit down a bit too hard.</span>")
+						src.visible_message(SPAN_ALERT("<B>Whoops, looks like [src] bit down a bit too hard."))
 
 			//stand next to bat, and point towards some blood, the bat will try to drink it
 			else if (istype(over_object,/obj/item/reagent_containers/) && BOUNDS_DIST(usr, src) == 0)
@@ -414,7 +328,7 @@
 			if (src.attack)
 				src.target = C
 				src.oldtarget_name = C.name
-				src.visible_message("<span class='combat'><b>[src]</b> [src.angertext] [C.name]!</span>")
+				src.visible_message(SPAN_COMBAT("<b>[src]</b> [src.angertext] [C.name]!"))
 				src.task = "chasing"
 				break
 			else
@@ -422,7 +336,7 @@
 
 	ChaseAttack(mob/M)
 		..()
-		if (prob(30)) M.changeStatus("weakened", 2 SECONDS)
+		if (prob(30)) M.changeStatus("knockdown", 2 SECONDS)
 
 /obj/item/reagent_containers/food/snacks/ingredient/egg/critter/bat
 	name = "bat egg"

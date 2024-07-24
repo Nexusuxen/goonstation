@@ -13,14 +13,14 @@
 
 			owner.see_in_dark = SEE_DARK_HUMAN
 			owner.see_invisible = INVIS_NONE
-			if (human_owner?.mutantrace)
-				human_owner.mutantrace.sight_modifier()
 
 			if (owner.client)
 				if((owner.traitHolder && owner.traitHolder.hasTrait("cateyes")) || (owner.getStatusDuration("food_cateyes")))
 					owner.render_special.set_centerlight_icon("cateyes")
 				else
 					owner.render_special.set_centerlight_icon("default")
+			if (human_owner?.mutantrace)
+				human_owner.mutantrace.sight_modifier()
 
 			if (human_owner && isvampire(human_owner))
 				if (human_owner.check_vampire_power(1) == 1 && !isrestrictedz(human_owner.z))
@@ -140,6 +140,12 @@
 				owner.see_infrared = 1
 			owner.render_special.set_centerlight_icon("thermal", rgb(0.5 * 255, 0.5 * 255, 0.5 * 255))
 
+
+		if (HAS_ATOM_PROPERTY(owner, PROP_MOB_NIGHTVISION))
+			owner.render_special.set_centerlight_icon("nightvision", rgb(0.5 * 255, 0.5 * 255, 0.5 * 255))
+		else if (HAS_ATOM_PROPERTY(owner, PROP_MOB_NIGHTVISION_WEAK))
+			owner.render_special.set_centerlight_icon("thermal", rgb(0.5 * 255, 0.5 * 255, 0.5 * 255))
+
 		if (HAS_ATOM_PROPERTY(owner, PROP_MOB_MESONVISION))
 			if(T && !isrestrictedz(T.z))
 				owner.sight |= SEE_TURFS
@@ -149,12 +155,6 @@
 			owner.render_special.set_centerlight_icon("meson", rgb(0.5 * 255, 0.5 * 255, 0.5 * 255), wide = (owner.client?.widescreen))
 			if (owner.see_invisible < INVIS_INFRA)
 				owner.see_invisible = INVIS_INFRA
-
-
-		if (HAS_ATOM_PROPERTY(owner, PROP_MOB_NIGHTVISION))
-			owner.render_special.set_centerlight_icon("nightvision", rgb(0.5 * 255, 0.5 * 255, 0.5 * 255))
-		else if (HAS_ATOM_PROPERTY(owner, PROP_MOB_NIGHTVISION_WEAK))
-			owner.render_special.set_centerlight_icon("thermal", rgb(0.5 * 255, 0.5 * 255, 0.5 * 255))
 
 		if (human_owner)////Glasses handled separately because i dont have a fast way to get glasses on any mob type
 			if (istype(human_owner.glasses, /obj/item/clothing/glasses/construction) && (T && !isrestrictedz(T.z)))

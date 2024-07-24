@@ -23,7 +23,7 @@
 /turf/unsimulated/floor/wood/two,
 /area/shuttle/escape/centcom)
 "gh" = (
-/obj/decal/fakeobjects/swordrack{
+/obj/fakeobject/swordrack{
 	pixel_y = 5
 	},
 /turf/unsimulated/wall/auto/sengoku{
@@ -36,7 +36,7 @@
 	},
 /area/shuttle/escape/centcom)
 "ik" = (
-/obj/wingrille_spawn/auto,
+/obj/mapping_helper/wingrille_spawn/auto,
 /turf/unsimulated/floor/wood/two,
 /area/shuttle/escape/centcom)
 "kb" = (
@@ -176,7 +176,7 @@
 /turf/unsimulated/floor/wood/two,
 /area/shuttle/escape/centcom)
 "Sm" = (
-/obj/decal/fakeobjects/lotus{
+/obj/fakeobject/lotus{
 	icon_state = "lotus_2"
 	},
 /turf/unsimulated/wall/water/border,

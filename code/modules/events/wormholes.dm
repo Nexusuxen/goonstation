@@ -16,7 +16,7 @@
 				targpick = pick(random_floor_turfs)
 				var/obj/portal/P = new /obj/portal/wormhole
 				P.set_loc(holepick)
-				P.target = targpick
+				P.set_target(targpick)
 				SPAWN(rand(18 SECONDS, 32 SECONDS))
 					qdel(P)
 				if (rand(1,1000) == 1)
@@ -36,6 +36,6 @@ var/global/list/turf/random_floor_turfs = null
 
 	while (rand_amt > length(random_floor_turfs))
 		var/turf/T = pick(station_z_turfs)
-		if(istype(T,/turf/simulated/floor) && !(locate(/obj/window) in T))
+		if(!IS_ARRIVALS(get_area(T)) && istype(T,/turf/simulated/floor) && !(locate(/obj/window) in T))
 			random_floor_turfs += T
 			LAGCHECK(LAG_LOW)

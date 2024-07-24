@@ -94,6 +94,20 @@
 		..()
 		telescopeDialogue = new/datum/dialogueMaster/telescopeDojo(src)
 
+#ifdef ENABLE_ARTEMIS
+/datum/telescope_event/artemis
+	name = "Artemis"
+	name_undiscovered = "Encrypted NT signal"
+	id = "at"
+	size = 10
+	manual = 1
+	tags = TAG_TELEPORT_LOC
+
+	New()
+		..()
+		telescopeDialogue = new/datum/dialogueMaster/telescopeArtemis(src)
+#endif
+
 /datum/telescope_event/cow
 	name = "Void Diner"
 	name_undiscovered = "Unusual signal"
@@ -104,6 +118,17 @@
 	New()
 		..()
 		telescopeDialogue = new/datum/dialogueMaster/telescopeCow(src)
+
+/datum/telescope_event/watchfuleye
+	name = "Watchful Eye Sensor"
+	name_undiscovered = "Strong Signal"
+	id = "we"
+	size = 25
+	tags = TAG_TELEPORT_LOC
+
+	New()
+		..()
+		telescopeDialogue = new/datum/dialogueMaster/telescopeEye(src)
 
 //MINING STUFF BELOW
 /datum/telescope_event/ore_miraclium

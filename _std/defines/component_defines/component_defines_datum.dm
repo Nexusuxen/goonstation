@@ -8,12 +8,16 @@
 	#define COMSIG_COMPONENT_REMOVING "component_removing"
 	/// just before a datum's disposing()
 	#define COMSIG_PARENT_PRE_DISPOSING "parent_pre_disposing"
+	/// when a variable is changed by admin varedit
+	#define COMSIG_VARIABLE_CHANGED "variable_changed"
+	/// when a proc is called by admin proc-call
+	#define COMSIG_PROC_CALLED "proc_called"
 
 // ---- mind signals ----
 
-	/// when a mind attaches to a mob (mind, mob)
+	/// when a mind attaches to a mob (mind, new_mob, old_mob)
 	#define COMSIG_MIND_ATTACH_TO_MOB "mind_attach_to_mob"
-	/// when a mind detaches from a mob (mind, mob)
+	/// when a mind detaches from a mob (mind, old_mob, new_mob)
 	#define COMSIG_MIND_DETACH_FROM_MOB "mind_detach_from_mob"
 	/// when a mind should update the contents of its memory
 	#define COMSIG_MIND_UPDATE_MEMORY "update_dynamic_player_memory"

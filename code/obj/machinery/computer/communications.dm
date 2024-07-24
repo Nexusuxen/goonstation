@@ -9,7 +9,7 @@
 // The communications computer
 
 /obj/machinery/computer/communications
-	name = "Communications Console"
+	name = "communications console"
 	icon_state = "comm"
 	req_access = list(access_heads)
 	object_flags = CAN_REPROGRAM_ACCESS | NO_GHOSTCRITTER
@@ -35,7 +35,7 @@
 
 	New()
 		..()
-		MAKE_SENDER_RADIO_PACKET_COMPONENT(null, status_display_freq)
+		MAKE_SENDER_RADIO_PACKET_COMPONENT(null, null, status_display_freq)
 
 /obj/machinery/computer/communications/special_deconstruct(obj/computerframe/frame as obj)
 	if(src.status & BROKEN)
@@ -124,18 +124,18 @@
 		// Status display stuff
 		if("setstat")
 			switch(href_list["statdisp"])
-				if("message")
-					post_status("message", stat_msg1, stat_msg2)
-				if("alert")
-					post_status("alert", href_list["alert"])
+				if(STATUS_DISPLAY_PACKET_MODE_MESSAGE)
+					post_status(STATUS_DISPLAY_PACKET_MODE_MESSAGE, stat_msg1, stat_msg2)
+				if(STATUS_DISPLAY_PACKET_MODE_DISPLAY_ALERT)
+					post_status(STATUS_DISPLAY_PACKET_MODE_DISPLAY_ALERT, href_list["alert"])
 				else
 					post_status(href_list["statdisp"])
 
-		if("setmsg1")
+		if(STATUS_DISPLAY_PACKET_MESSAGE_TEXT_1)
 			stat_msg1 = input("Line 1", "Enter Message Text", stat_msg1) as text|null
 			stat_msg1 = copytext(adminscrub(stat_msg1), 1, MAX_MESSAGE_LEN)
 			src.updateDialog()
-		if("setmsg2")
+		if(STATUS_DISPLAY_PACKET_MESSAGE_TEXT_2)
 			stat_msg2 = input("Line 2", "Enter Message Text", stat_msg2) as text|null
 			stat_msg2 = copytext(adminscrub(stat_msg2), 1, MAX_MESSAGE_LEN)
 			src.updateDialog()
@@ -176,7 +176,7 @@
 	src.updateUsrDialog()
 
 /proc/disablelockdown(var/mob/usr)
-	boutput(world, "<span class='alert'>Lockdown cancelled by [usr.name]!</span>")
+	boutput(world, SPAN_ALERT("Lockdown cancelled by [usr.name]!"))
 
 	for(var/obj/machinery/firealarm/FA as anything in machine_registry[MACHINES_FIREALARMS]) //deactivate firealarms
 		SPAWN(0)
@@ -323,10 +323,17 @@
 	if(isdead(src))
 		boutput(usr, "You can't call the shuttle because you are dead!")
 		return
+	if(get_z(src) != Z_LEVEL_STATION)
+		src.show_text("Your mainframe was unable relay this command that far away!", "red")
+		return
+
+	if (emergency_shuttle.online)
+		boutput(usr, SPAN_ALERT("The emergency shuttle is currently in flight!"))
+		return
 
 	logTheThing(LOG_ADMIN, usr,  "called the Emergency Shuttle (reason: [call_reason])")
 	logTheThing(LOG_DIARY, usr, "called the Emergency Shuttle (reason: [call_reason])", "admin")
-	message_admins("<span class='internal'>[key_name(usr)] called the Emergency Shuttle to the station</span>")
+	message_admins(SPAN_INTERNAL("[key_name(usr)] called the Emergency Shuttle to the station"))
 	call_shuttle_proc(usr, call_reason)
 
 	// hack to display shuttle timer
@@ -364,20 +371,20 @@
 		boutput(user, "Centcom will not allow the shuttle to be called.")
 		return 1
 	if (signal_loss >= 75)
-		boutput(user, "<span class='alert'>Severe signal interference is preventing contact with the Emergency Shuttle.</span>")
+		boutput(user, SPAN_ALERT("Severe signal interference is preventing contact with the Emergency Shuttle."))
 		return 1
 
 	// sanitize the reason
 	if(call_reason)
-		call_reason = copytext(html_decode(trim(strip_html(html_decode(call_reason)))), 1, 140)
+		call_reason = copytext(html_decode(trimtext(strip_html(html_decode(call_reason)))), 1, 140)
 	if(!call_reason || length(call_reason) < 1)
 		call_reason = "No reason given."
 
-	message_admins("<span class='internal'>[key_name(user)] called the Emergency Shuttle to the station</span>")
+	message_admins(SPAN_INTERNAL("[key_name(user)] called the Emergency Shuttle to the station"))
 	logTheThing(LOG_STATION, null, "[key_name(user)] called the Emergency Shuttle to the station")
 
 	emergency_shuttle.incall()
-	command_announcement(call_reason + "<br><b><span class='alert'>It will arrive in [round(emergency_shuttle.timeleft()/60)] minutes.</span></b>", "The Emergency Shuttle Has Been Called", css_class = "notice")
+	command_announcement(call_reason + "<br><b>[SPAN_ALERT("It will arrive in [round(emergency_shuttle.timeleft()/60)] minutes.")]</b>", "The Emergency Shuttle Has Been Called", css_class = "notice")
 	return 0
 
 /proc/cancel_call_proc(var/mob/user)
@@ -385,17 +392,17 @@
 		return 1
 
 	if (!emergency_shuttle.can_recall)
-		boutput(user, "<span class='alert'>Centcom will not allow the shuttle to be recalled.</span>")
+		boutput(user, SPAN_ALERT("Centcom will not allow the shuttle to be recalled."))
 		return 1
 
 	if (signal_loss >= 75)
-		boutput(user, "<span class='alert'>Severe signal interference is preventing contact with the Emergency Shuttle.</span>")
+		boutput(user, SPAN_ALERT("Severe signal interference is preventing contact with the Emergency Shuttle."))
 		return 1
 
-	boutput(world, "<span class='notice'><B>Alert: The shuttle is going back!</B></span>") //marker4
+	boutput(world, SPAN_NOTICE("<B>Alert: The shuttle is going back!</B>")) //marker4
 
 	logTheThing(LOG_STATION, user, "recalled the Emergency Shuttle")
-	message_admins("<span class='internal'>[key_name(user)] recalled the Emergency Shuttle</span>")
+	message_admins(SPAN_INTERNAL("[key_name(user)] recalled the Emergency Shuttle"))
 	emergency_shuttle.recall()
 
 	return 0

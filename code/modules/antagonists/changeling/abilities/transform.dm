@@ -20,8 +20,8 @@
 		var/mob/living/carbon/human/H = holder.owner
 		if(!istype(H))
 			return 1
-		if (H.mutantrace)
-			if (ismonkey(H))
+		if (ismonkey(H))
+			if (!istype(H.default_mutantrace, /datum/mutantrace/monkey))
 				if (tgui_alert(H,"Are we sure?","Exit this lesser form?",list("Yes","No")) != "Yes")
 					return 1
 				doCooldown()
@@ -50,11 +50,8 @@
 				H.abilityHolder.updateButtons()
 				logTheThing(LOG_COMBAT, H, "leaves lesser form as a changeling, [log_loc(H)].")
 				return 0
-			else if (isabomination(H))
-				boutput(H, "We cannot transform in this form.")
-				return 1
 			else
-				boutput(H, "We cannot transform in this form.")
+				boutput(H, "We cannot leave this form in this way.")
 				return 1
 		else
 			if (tgui_alert(H,"Are we sure?","Assume lesser form?",list("Yes","No")) != "Yes")
@@ -85,19 +82,19 @@
 
 		var/datum/abilityHolder/changeling/H = holder
 		if (!istype(H))
-			boutput(holder.owner, "<span class='alert'>That ability is incompatible with our abilities. We should report this to a coder.</span>")
+			boutput(holder.owner, SPAN_ALERT("That ability is incompatible with our abilities. We should report this to a coder."))
 			return 1
 
-		if (H.absorbed_dna.len < 2)
-			boutput(holder.owner, "<span class='alert'>We need to absorb more DNA to use this ability.</span>")
+		if (length(H.absorbed_dna) < 2)
+			boutput(holder.owner, SPAN_ALERT("We need to absorb more DNA to use this ability."))
 			return 1
 
 		var/target_name = tgui_input_list(holder.owner, "Select the target DNA:", "Target DNA", sortList(H.absorbed_dna, /proc/cmp_text_asc))
 		if (!target_name)
-			boutput(holder.owner, "<span class='notice'>We change our mind.</span>")
+			boutput(holder.owner, SPAN_NOTICE("We change our mind."))
 			return 1
 
-		holder.owner.visible_message(text("<span class='alert'><B>[holder.owner] transforms!</B></span>"))
+		holder.owner.visible_message(SPAN_ALERT("<B>[holder.owner] transforms!</B>"))
 		logTheThing(LOG_COMBAT, holder.owner, "transforms into [target_name] as a changeling [log_loc(holder.owner)].")
 		var/mob/living/carbon/human/C = holder.owner
 		var/datum/bioHolder/D = H.absorbed_dna[target_name]

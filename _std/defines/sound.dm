@@ -41,6 +41,7 @@ var/global/list/audio_channel_name_to_id = list(
 
 //playsound flags
 #define SOUND_IGNORE_SPACE (1<<0)
+#define SOUND_SKIP_OBSERVERS (1<<1) //! Only applies to local playsound(s)
 
 #define MAX_SOUND_RANGE max_sound_range
 #define MAX_SOUND_RANGE_NORMAL 33
@@ -48,3 +49,6 @@ var/global/list/audio_channel_name_to_id = list(
 
 /// the world gets split into a K-by-K grid and each tick each sound can only be played once in each big tile of this grid
 #define SOUND_LIMITER_GRID_SIZE 3
+
+///how loud are dectalk bots
+#define BOTTALK_VOLUME 33

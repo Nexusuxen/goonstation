@@ -3,8 +3,8 @@
 	scantype = "Medical Emergency"
 	max_stages = 3
 	spread = "The patient's appendicitis is dangerously enlarged"
-	cure = "Removal of organ"
-	reagentcure = list("organ_drug3")
+	cure_flags = CURE_CUSTOM
+	cure_desc = "Removal of organ"
 	recureprob = 10
 	affected_species = list("Human")
 	stage_prob = 1
@@ -36,7 +36,7 @@
 				return
 			if (probmult(8)) H.emote(pick("pale", "shudder"))
 			if (probmult(5))
-				boutput(H, "<span class='alert'>Your abdomen hurts!</span>")
+				boutput(H, SPAN_ALERT("Your abdomen hurts!"))
 			if (probmult(10))
 				H.show_text(pick_string("organ_disease_messages.txt", "appendicitis0"), "red")
 		if (2)
@@ -46,10 +46,10 @@
 				H.ailments -= src
 				return
 			if (probmult(10))
-				var/vomit_message = "<span class='alert'>[H] suddenly and violently vomits!</span>"
+				var/vomit_message = SPAN_ALERT("[H] suddenly and violently vomits!")
 				H.vomit(0, null, vomit_message)
 			else if (probmult(2) && !H.reagents?.has_reagent("promethazine"))
-				H.visible_message("<span class='alert'>[H] vomits blood!</span>")
+				H.visible_message(SPAN_ALERT("[H] vomits blood!"))
 				playsound(H.loc, 'sound/impact_sounds/Slimy_Splat_1.ogg', 50, 1)
 				random_brute_damage(H, rand(5,8))
 				bleed(H, rand(5,8), 5)
@@ -58,43 +58,26 @@
 				H.bodytemperature += 4
 				H.show_text(pick_string("organ_disease_messages.txt", "appendicitis1"), "red")
 			if (probmult(5))
-				boutput(H, "<span class='alert'>Your back aches terribly!</span>")
+				boutput(H, SPAN_ALERT("Your back aches terribly!"))
 			if (probmult(3))
-				boutput(H, "<span class='alert'>You feel excruciating pain in your upper-right adbomen!</span>")
+				boutput(H, SPAN_ALERT("You feel excruciating pain in your upper-right abdomen!"))
 				// H.organHolder.takepancreas
 
 			if (probmult(5)) H.emote(pick("faint", "collapse", "groan"))
 		if (3)
 			if (probmult(20))
 				H.emote(pick("twitch", "groan"))
-			//human's appendix burst, and add a load of toxic chemicals or bacteria to the person.
+			//human's appendix burst, and add a load of toxic chemicals to the person.
 			if (probmult(10))
 				if (H.organHolder.appendix.get_damage() >= 90)
 					H.cure_disease(D)
 					H.organHolder.appendix.take_damage(200,200,200)
 					// H.organHolder.drop_organ("appendix")
 					H.emote("collapse")
-					H.setStatus("weakened", 3 SECONDS)
+					H.setStatus("knockdown", 3 SECONDS)
 
 					if (prob(20))
 						H.reagents.add_reagent("toxin", 20)
-					#ifdef CREATE_PATHOGENS
-					add_pathogens(H, 30)
-					#endif
-					boutput(H, "<span class='alert'>Your appendix has burst! Seek medical help!</span>")
+					boutput(H, SPAN_ALERT("Your appendix has burst! Seek medical help!"))
 
 			H.take_toxin_damage(1 * mult)
-
-//stolen from the admin button because I know fuck all about pathogens - Kyle
-proc/add_pathogens(var/mob/living/A, var/amount)
-	if (!A || !A.reagents)
-		return 0
-
-	A.reagents.add_reagent("pathogen", amount)
-	var/datum/reagent/blood/pathogen/R = A.reagents.get_reagent("pathogen")
-	var/datum/pathogen/P = new /datum/pathogen
-	P.setup(1)
-	R.pathogens += P.pathogen_uid
-	R.pathogens[P.pathogen_uid] = P
-
-	return 1

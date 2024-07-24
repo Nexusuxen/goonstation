@@ -49,7 +49,7 @@
 		)))
 
 	src.handler = new
-	src.handler.plane = 0
+	src.handler.plane = PLANE_BLACKNESS
 	src.handler.mouse_opacity = 0
 	src.handler.screen_loc = "[src.preview_id]:1,1"
 	src.viewer?.screen += src.handler
@@ -107,10 +107,16 @@
 	src.handler.vis_contents |= src.background
 	src.viewer?.screen |= src.background
 
+///subtype of human for character previews so we can filter them out from some logging
+/mob/living/carbon/human/preview
+	name = "character preview"
+	real_name = "character preview"
+	unobservable = TRUE
+
 /**
  * # Character Preview
  *
- * This is intended only for use with humans. `preview_thing` will be a generic human.
+ * This is intended only for use with humans. `preview_thing` will be a subtype of generic human.
  *
  * This parent type is for use in single-client windows.
  * See [/datum/movable_preview/character/window] for a detatched window and and [/datum/movable_preview/character/multiclient] for a multi-client variant.
@@ -119,7 +125,7 @@
 	custom_setup = TRUE
 
 	custom_setup(client/viewer, window_id, control_id)
-		var/mob/living/carbon/human/H = new(global.get_centcom_mob_cloner_spawn_loc())
+		var/mob/living/carbon/human/preview/H = new(global.get_centcom_mob_cloner_spawn_loc())
 		mobs -= H
 		src.preview_thing = H
 		qdel(H.name_tag)
@@ -134,12 +140,18 @@
 		src.flat_icon = null
 		var/mob/living/carbon/human/preview_mob = src.preview_thing
 		preview_mob.dir = direction
-		preview_mob.set_mutantrace(null)
-		preview_mob.bioHolder.mobAppearance.CopyOther(AH)
-		preview_mob.set_mutantrace(MR)
-		preview_mob.organHolder.head.donor = preview_mob
-		preview_mob.organHolder.head.donor_appearance.CopyOther(preview_mob.bioHolder.mobAppearance)
+
+		preview_mob.bioHolder.mobAppearance.CopyOther(AH, skip_update_colorful = TRUE)
+		if(preview_mob.mutantrace.type != (istype(MR, /datum/mutantrace) ? MR.type : MR))
+			preview_mob.set_mutantrace(MR)
+		preview_mob.mutantrace.AppearanceSetter(preview_mob, "preview")
+		if (preview_mob.mutantrace.special_head)
+			preview_mob.organHolder?.head?.MakeMutantHead(preview_mob.mutantrace.special_head, preview_mob.mutantrace.mutant_folder, preview_mob.mutantrace.special_head_state, skip_update = TRUE)
 		preview_mob.update_colorful_parts()
+		preview_mob.organHolder.left_eye?.update_color(AH, "L")
+		preview_mob.organHolder.right_eye?.update_color(AH, "R")
+		preview_mob.organHolder.head.donor = preview_mob
+
 		preview_mob.set_body_icon_dirty()
 		preview_mob.set_face_icon_dirty()
 		preview_mob.real_name = "clone of " + name

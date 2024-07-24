@@ -1,16 +1,13 @@
 ////Martian Turf stuff//////////////
-ABSTRACT_TYPE(/turf/simulated/martian)
-/turf/simulated/martian
+/turf/simulated/floor/martian
+	name = "organic floor"
+	icon_state = "floor1"
 	name = "martian"
 	icon = 'icons/turf/martian.dmi'
 	thermal_conductivity = 0.05
 	heat_capacity = 0
 
-/turf/simulated/martian/floor
-	name = "organic floor"
-	icon_state = "floor1"
-
-/turf/unsimulated/martian/floor
+/turf/unsimulated/floor/martian
 	icon = 'icons/turf/martian.dmi'
 	name = "organic floor"
 	icon_state = "floor1"
@@ -29,7 +26,7 @@ TYPEINFO_NEW(/turf/simulated/wall/auto/martian)
 
 /turf/simulated/wall/auto/martian
 	name = "organic wall"
-	icon = 'icons/turf/walls_martian.dmi'
+	icon = 'icons/turf/walls/martian.dmi'
 	icon_state = "martian-0"
 	mod = "martian-"
 
@@ -54,15 +51,10 @@ TYPEINFO_NEW(/turf/simulated/wall/auto/martian)
 			P.write_on_turf(src, user, params)
 			return
 
-		else if (istype(W, /obj/item/light_parts))
-			src.attach_light_fixture_parts(user, W) // Made this a proc to avoid duplicate code (Convair880).
-			return
-
 		else
-			if(src.material)
-				src.material.triggerOnHit(src, W, user, 1)
+			src.material_trigger_when_attacked(W, user, 1)
 			attack_particle(user, src)
-			src.visible_message("<span class='alert'>[user ? user : "Someone"] hits [src] with [W].</span>", "<span class='alert'>You hit [src] with [W].</span>")
+			src.visible_message(SPAN_ALERT("[user ? user : "Someone"] hits [src] with [W]."), SPAN_ALERT("You hit [src] with [W]."))
 			src.take_damage(W.force / 2)
 
 	dismantle_wall(devastated=0, keep_material = 1)

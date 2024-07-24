@@ -11,7 +11,7 @@
 	var/protective_temperature = 0
 	speaker_range = 0
 	desc = "A standard-issue device that can be worn on a crewmember's ear to allow hands-free communication with the rest of the crew."
-	flags = FPRINT | TABLEPASS | CONDUCT
+	flags = TABLEPASS | CONDUCT
 	icon_override = "civ"
 	icon_tooltip = "Civilian"
 	wear_layer = MOB_EARS_LAYER
@@ -24,20 +24,20 @@
 		if (istype(O, /obj/item/device/radio_upgrade))
 			var/obj/item/device/radio_upgrade/R = O
 			if (wiretap)
-				boutput(user, "<span class='alert'>This [src] already has a wiretap installed! It doesn't have room for any more!</span>")
+				boutput(user, SPAN_ALERT("This [src] already has a wiretap installed! It doesn't have room for any more!"))
 				return
 
 			src.install_radio_upgrade(R)
-			boutput(user, "<span class='notice'>You install [R] into [src].</span>")
+			boutput(user, SPAN_NOTICE("You install [R] into [src]."))
 			playsound(src.loc , 'sound/items/Deconstruct.ogg', 80, 0)
 			user.u_equip(R)
 
 		else if (issnippingtool(O) && wiretap)
-			boutput(user, "<span class='notice'>You begin removing [src.wiretap] from [src].</span>")
+			boutput(user, SPAN_NOTICE("You begin removing [src.wiretap] from [src]."))
 			if (!do_after(user, 2 SECONDS))
-				boutput(user, "<span class='alert'>You were interrupted!.</span>")
+				boutput(user, SPAN_ALERT("You were interrupted!."))
 				return
-			boutput(user, "<span class='notice'>You remove [src.wiretap] from [src].</span>")
+			boutput(user, SPAN_NOTICE("You remove [src.wiretap] from [src]."))
 			playsound(src.loc , 'sound/items/Deconstruct.ogg', 80, 0)
 			user.put_in_hand_or_drop(src.wiretap)
 			src.remove_radio_upgrade()
@@ -64,6 +64,9 @@
 		var/obj/item/device/radio/headset/headset = new src.type
 		src.secure_frequencies = headset.secure_frequencies
 		src.secure_classes = headset.secure_classes
+		for(var/sayToken in src.secure_connections)
+			src.secure_connections[sayToken].RemoveComponent()
+			src.secure_connections.Remove(sayToken)
 		src.set_secure_frequencies()
 
 /obj/item/device/radio/headset/wizard
@@ -89,6 +92,7 @@
 		"r" = R_FREQ_RESEARCH,
 		"m" = R_FREQ_MEDICAL,
 		"c" = R_FREQ_CIVILIAN,
+		"a" = R_FREQ_INTERCOM_AI,
 		)
 	secure_classes = list(
 		"h" = RADIOCL_COMMAND,
@@ -97,6 +101,7 @@
 		"r" = RADIOCL_RESEARCH,
 		"m" = RADIOCL_MEDICAL,
 		"c" = RADIOCL_CIVILIAN,
+		"a" = RADIOCL_INTERCOM_AI,
 		)
 	icon_override = "ai"
 	icon_tooltip = "Artificial Intelligence"
@@ -117,6 +122,12 @@
 
 /obj/item/device/radio/headset/command/nt/consultant
 	icon_tooltip = "NanoTrasen Security Consultant"
+
+/obj/item/device/radio/headset/command/inspector
+	name = "inspector's headset"
+	desc = "A radio headset capable of communicating over the Command frequency, for use by official Inspectors."
+	icon_override = "inspector"
+	icon_tooltip = "Inspector"
 
 /obj/item/device/radio/headset/command/captain
 	name = "captain's headset"
@@ -280,7 +291,7 @@
 
 	get_desc(dist, mob/user)
 		if (user.mind?.special_role)
-			. += "<span class='alert'><b>Good.</b></span>"
+			. += SPAN_ALERT("<b>Good.</b>")
 		else
 			. += "Keep it safe!"
 
@@ -369,18 +380,18 @@
 	icon_tooltip = "Miner"
 
 /obj/item/device/radio/headset/mail
-	name = "mailman's headset"
+	name = "mail courier's headset"
 	desc = "In a land of belt hells, the pit fiend is king."
 	icon_state = "command headset"
 	secure_frequencies = list(
 	"h" = R_FREQ_COMMAND,
-	"e" = R_FREQ_ENGINEERING)
+	"c" = R_FREQ_CIVILIAN)
 	secure_classes = list(
 		"h" = RADIOCL_COMMAND,
-		"e" = RADIOCL_ENGINEERING,
+		"c" = RADIOCL_CIVILIAN,
 		)
 	icon_override = "mail"
-	icon_tooltip = "Mailman"
+	icon_tooltip = "Mail Courier"
 
 /obj/item/device/radio/headset/clown
 	name = "clown's headset"
@@ -458,8 +469,8 @@
 		icon_state = "comtac"
 
 		New()
-			..()
 			START_TRACKING_CAT(TR_CAT_NUKE_OP_STYLE)
+			..()
 
 		setupProperties()
 			..()
@@ -486,8 +497,8 @@
 		desc = "A two-way radio headset designed to protect the wearer from dangerous levels of noise during gunfights."
 
 		New()
-			..()
 			START_TRACKING_CAT(TR_CAT_NUKE_OP_STYLE)
+			..()
 
 		setupProperties()
 			..()
@@ -642,3 +653,10 @@ TYPEINFO(/obj/item/device/radio_upgrade)
 
 			src.secure_frequencies = list("z" = frequency)
 			src.secure_classes = list("z" = RADIOCL_SYNDICATE)
+
+	// Used by syndieborgs
+	syndicatechannel
+		name = "syndicate radio channel upgrade"
+		desc = "A device capable of communicating over a private secure radio channel. Can be installed in a radio headset."
+		secure_frequencies = list("z" = R_FREQ_SYNDICATE)
+		secure_classes = list("z" = RADIOCL_SYNDICATE)

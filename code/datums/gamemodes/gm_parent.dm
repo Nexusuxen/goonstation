@@ -70,124 +70,81 @@ ABSTRACT_TYPE(/datum/game_mode)
 /datum/game_mode/proc/victory_msg()
 	return ""
 
+///Headline of the victory message
+/datum/game_mode/proc/victory_headline()
+	return ""
+
+///Body of the victory message
+/datum/game_mode/proc/victory_body()
+	return ""
+
+
 // Did some streamlining here (Convair880).
 /datum/game_mode/proc/declare_completion()
-	var/list/datum/mind/antags = list()
 	var/list/stuff_to_output = list()
 
-	for (var/datum/mind/traitor in traitors)
-		antags.Add(traitor)
-	for (var/datum/mind/various in Agimmicks)
-		antags.Add(various)
+	for (var/datum/antagonist/traitor in get_all_antagonists())
+		var/obj_count = 0
+		var/traitor_name
+		var/datum/mind/criminal_mind = traitor.owner
 
-	for (var/datum/mind/traitor in antags)
-		try
-			var/traitorwin = 1
-			var/obj_count = 0
-			var/traitor_name
+		if (criminal_mind.current)
+			traitor_name = "[criminal_mind.current.real_name] (played by [criminal_mind.displayed_key])"
+		else
+			traitor_name = "[criminal_mind.displayed_key] (character destroyed)"
 
-			// This is a really hacky check to prevent traitors from being outputted twice if their primary antag role has an antagonist datum that could be used for data instead.
-			// Once antagonist datums are completed, this check should be removed entirely.
-			if (traitor.get_antagonist(traitor.special_role))
-				continue
-
-			if (traitor.current)
-				traitor_name = "[traitor.current.real_name] (played by [traitor.displayed_key])"
-			else
-				traitor_name = "[traitor.displayed_key] (character destroyed)"
-
-			if (traitor.special_role == ROLE_MINDHACK)
+		switch(traitor.id)
+			if(ROLE_MINDHACK)
 				stuff_to_output += "<B>[traitor_name]</B> was mindhacked!"
 				continue // Objectives are irrelevant for mindhacks and thralls.
-			else if (traitor.special_role == ROLE_VAMPTHRALL)
+			if(ROLE_VAMPTHRALL)
 				stuff_to_output += "<B>[traitor_name]</B> was a vampire's thrall!"
 				continue // Ditto.
-			else if (traitor.special_role == ROLE_FLOCKTRACE)
+			if(ROLE_FLOCKTRACE)
 				continue // Flocktraces are listed under their respective flockmind
+
+		switch(traitor.assigned_by)
+			if (ANTAGONIST_SOURCE_LATE_JOIN)
+				stuff_to_output += "<B>[traitor_name]</B> was a late-joining [traitor.display_name]!"
+			if (ANTAGONIST_SOURCE_RANDOM_EVENT)
+				stuff_to_output += "<B>[traitor_name]</B> was a random event [traitor.display_name]!"
 			else
-				if (traitor.late_special_role)
-					stuff_to_output += "<B>[traitor_name]</B> was a late-joining [traitor.special_role]!"
-				else if (traitor.random_event_special_role)
-					stuff_to_output += "<B>[traitor_name]</B> was a random event [traitor.special_role]!"
-				else
-					stuff_to_output += "<B>[traitor_name]</B> was a [traitor.special_role]!"
+				stuff_to_output += "<B>[traitor_name]</B> was a [traitor.display_name]!"
 
-				if (traitor.special_role == ROLE_SLASHER)
-					var/foundmachete = FALSE
-					for_by_tcl(M, /obj/item/slasher_machete)
-						if(M.slasher_key == traitor.current.ckey)
-							foundmachete = TRUE
-							var/outputval = round((M.force - 15) / 2.5)
-							stuff_to_output += "<B>Souls Stolen:</b> [outputval]"
-							break
-					if(!foundmachete)
-						stuff_to_output += "<B>Souls Stolen:</b> They did not finish with a machete!"
+		if (traitor.id == ROLE_SLASHER)
+			var/foundmachete = FALSE
+			for_by_tcl(M, /obj/item/slasher_machete)
+				if(M.slasher_key == criminal_mind.current.ckey)
+					foundmachete = TRUE
+					var/outputval = round((M.force - 15) / 2.5)
+					stuff_to_output += "<B>Souls Stolen:</b> [outputval]"
+					break
+			if(!foundmachete)
+				stuff_to_output += "<B>Souls Stolen:</b> They did not finish with a machete!"
 
-				for (var/datum/objective/objective in traitor.objectives)
-	#ifdef CREW_OBJECTIVES
-					if (istype(objective, /datum/objective/crew)) continue
-	#endif
-					obj_count++
-					if (objective.check_completion())
-						stuff_to_output += "Objective #[obj_count]: [objective.explanation_text] <span class='success'><B>Success</B></span>"
-						logTheThing(LOG_DIARY, traitor, "completed objective: [objective.explanation_text]")
-						if (!isnull(objective.medal_name) && !isnull(traitor.current))
-							traitor.current.unlock_medal(objective.medal_name, objective.medal_announce)
-					else
-						stuff_to_output += "Objective #[obj_count]: [objective.explanation_text] <span class='alert'>Failed</span>"
-						logTheThing(LOG_DIARY, traitor, "failed objective: [objective.explanation_text]. Womp womp.")
-						traitorwin = 0
+		for (var/datum/objective/objective in traitor.objectives)
+			obj_count++
+			if (objective.check_completion())
+				stuff_to_output += "Objective #[obj_count]: [objective.explanation_text] [SPAN_SUCCESS("<B>Success</B>")]"
+				logTheThing(LOG_DIARY, criminal_mind, "completed objective: [objective.explanation_text]")
+				if (!isnull(objective.medal_name) && !isnull(criminal_mind.current))
+					criminal_mind.current.unlock_medal(objective.medal_name, objective.medal_announce)
+			else
+				stuff_to_output += "Objective #[obj_count]: [objective.explanation_text] [SPAN_ALERT("Failed")]"
+				logTheThing(LOG_DIARY, criminal_mind, "failed objective: [objective.explanation_text]. Womp womp.")
 
-			// Please use objective.medal_name for medals that are tied to a specific objective instead of adding them here.
-			if (obj_count)
-				if (traitorwin)
-					if (traitor.current)
-						traitor.current.unlock_medal("MISSION COMPLETE", 1)
-					stuff_to_output += "<span class='success'>The [traitor.special_role] was successful!</span><br>"
-				else
-					stuff_to_output += "<span class='alert'>The [traitor.special_role] has failed!</span><br>"
+		// Please use objective.medal_name for medals that are tied to a specific objective instead of adding them here.
+		if (obj_count)
+			if (traitor.check_success())
+				stuff_to_output += "[SPAN_SUCCESS("The [traitor.display_name] was successful!")]<br>"
+			else
+				stuff_to_output += "[SPAN_ALERT("The [traitor.display_name] has failed!")]<br>"
 
 	#ifdef DATALOGGER
-			if (traitorwin)
-				game_stats.Increment("traitorwin")
-			else
-				game_stats.Increment("traitorloss")
+		game_stats.Increment(traitor.check_success() ? "traitorwin" : "traitorloss")
 	#endif
-		catch(var/exception/e)
-			logTheThing(LOG_DEBUG, null, "Kyle|antag-runtime: [e.file]:[e.line] - [e.name] - [e.desc]")
 
-
-	// Their antag status is revoked on death/implant removal/expiration, but we still want them to show up in the game over stats (Convair880).
-	for (var/datum/mind/traitor in former_antagonists)
-		try
-			var/traitor_name
-
-			if (traitor.current)
-				traitor_name = "[traitor.current.real_name] (played by [traitor.displayed_key])"
-			else
-				traitor_name = "[traitor.displayed_key] (character destroyed)"
-
-			if (traitor.former_antagonist_roles.len)
-				for (var/string in traitor.former_antagonist_roles)
-					if (string == ROLE_MINDHACK)
-						stuff_to_output += "<B>[traitor_name] was mindhacked!</B>"
-					else if (string == ROLE_VAMPTHRALL)
-						stuff_to_output += "<B>[traitor_name] was a vampire's thrall!</B>"
-					else
-						stuff_to_output += "<B>[traitor_name] was a [string]!</B>"
-		catch(var/exception/e)
-			logTheThing(LOG_DEBUG, null, "kyle|former-antag-runtime: [e.file]:[e.line] - [e.name] - [e.desc]")
-
-	// Display all antagonist datums. We arrange them like this so that each antagonist is bundled together by type
-	for (var/V in concrete_typesof(/datum/antagonist))
-		var/datum/antagonist/dummy = V
-		for (var/datum/antagonist/A as anything in get_all_antagonists(initial(dummy.id)))
-			#ifdef DATA_LOGGER
-			game_stats.Increment(A.check_completion() ? "traitorwin" : "traitorloss")
-			#endif
-			var/antag_dat = A.handle_round_end(TRUE)
-			if (A.display_at_round_end && length(antag_dat))
-				stuff_to_output.Add(antag_dat)
+		traitor.handle_round_end(TRUE)
 
 	boutput(world, stuff_to_output.Join("<br>"))
 
@@ -199,24 +156,46 @@ ABSTRACT_TYPE(/datum/game_mode)
   * Arguments:
   * * type - requested antagonist type.
   * * number - requested number of antagonists. If it can't find that many it will try to look again, but ignoring antagonist preferences.
+	* * allow_carbon - if this proc is ran mid-round this allows for /mob/living/carbon to be included in the list of candidates. (normally only new_player)
+	* * filter_proc - a proc that takes a mob and returns TRUE if it should be included in the list of candidates.
+	* * force_fill - if true, if not enough players have the role selectied, randomly select from all other players as well
   */
-/datum/game_mode/proc/get_possible_enemies(type,number)
+/datum/game_mode/proc/get_possible_enemies(type, number, allow_carbon=FALSE, filter_proc=null, force_fill = TRUE)
 	var/list/candidates = list()
 	/// Used to fill in the quota if we can't find enough players with the antag preference on.
 	var/list/unpicked_candidate_minds = list()
 
 	for(var/client/C)
-		var/mob/new_player/player = C.mob
-		if (!istype(player)) continue
-		if (jobban_isbanned(player, "Syndicate")) continue //antag banned
+		if (istype(C.mob, /mob/new_player))
+			var/mob/new_player/new_player = C.mob
+			if (!new_player.ready)
+				continue
+		else if(istype(C.mob, /mob/living/carbon))
+			if(!allow_carbon)
+				continue
+			var/datum/job/job = find_job_in_controller_by_string(C.mob.job)
+			if (job)
+				if(!job.allow_traitors)
+					continue
+				if (!job.can_join_gangs && (type == ROLE_GANG_LEADER || type == ROLE_GANG_MEMBER))
+					continue
+		else
+			continue
+		if(filter_proc && !call(filter_proc)(C.mob))
+			continue
+		var/datum/mind/mind = C.mob.mind
+		if (jobban_isbanned(C.mob, "Syndicate")) continue //antag banned
 
-		if ((player.ready) && !(player.mind in traitors) && !(player.mind in token_players) && !(player.mind in candidates))
-			if (player.client.preferences.vars[get_preference_for_role(type)])
-				candidates += player.mind
+		if (!(mind in traitors) && !(mind in token_players) && !(mind in candidates))
+			if (C.preferences.vars[get_preference_for_role(type)])
+				candidates += mind
 			else // eligible but has the preference off, keeping in mind in case we don't find enough candidates with it on to fill the gap
-				unpicked_candidate_minds.Add(player.mind)
+				unpicked_candidate_minds.Add(mind)
 
-	if(length(candidates) < number) // ran out of eligible players with the preference on, filling the gap with other players
+	logTheThing(LOG_DEBUG, null, "Picking [number] possible antagonists of type [type], \
+									found [length(candidates)] players out of [length(candidates) + length(unpicked_candidate_minds)] who had that antag enabled.")
+
+	if(length(candidates) < number && force_fill) // ran out of eligible players with the preference on, filling the gap with other players
 		logTheThing(LOG_DEBUG, null, "<b>Enemy Assignment</b>: Only [length(candidates)] players with be_[type] set to yes were ready. We need [number] so including players who don't want to be [type]s in the pool.")
 
 		if(length(unpicked_candidate_minds))
@@ -228,8 +207,8 @@ ABSTRACT_TYPE(/datum/game_mode)
 				if (iteration > length(unpicked_candidate_minds)) // ran out of eligible clients
 					break
 
-	if(length(candidates) < number) // somehow failed to meet our candidate amount quota
-		message_admins("<span class='alert'><b>WARNING:</b> get_possible_enemies was asked for more antagonists ([number]) than it could find candidates ([length(candidates)]) for. This could be a freak accident or an error in the code requesting more antagonists than possible. The round may have an irregular number of antagonists of type [type].")
+	if(length(candidates) < number && force_fill) // somehow failed to meet our candidate amount quota
+		message_admins(SPAN_ALERT("<b>WARNING:</b> get_possible_enemies was asked for more antagonists ([number]) than it could find candidates ([length(candidates)]) for. This could be a freak accident or an error in the code requesting more antagonists than possible. The round may have an irregular number of antagonists of type [type]."))
 		logTheThing(LOG_DEBUG, null, "<b>WARNING:</b> get_possible_enemies was asked for more antagonists ([number]) than it could find candidates ([length(candidates)]) for. This could be a freak accident or an error in the code requesting more antagonists than possible. The round may have an irregular number of antagonists of type [type].")
 
 	if(length(candidates) < 1)
@@ -247,12 +226,13 @@ ABSTRACT_TYPE(/datum/game_mode)
 		else
 			antag.special_role = ROLE_CHANGELING
 
-	antag.add_antagonist(antag.special_role)
+	antag.add_antagonist(antag.special_role, source = ANTAGONIST_SOURCE_ROUND_START)
 
 	var/datum/antagonist/antag_datum = antag.get_antagonist(antag.special_role)
 	if (!antag_datum.uses_pref_name)
 		var/datum/player/player = antag.get_player()
 		player.joined_names = list()
+		antag.current.bioHolder.mobAppearance.flavor_text = null
 
 /datum/game_mode/proc/check_win()
 
@@ -275,6 +255,21 @@ ABSTRACT_TYPE(/datum/game_mode)
 
 	command_alert("Summary downloaded and printed out at all communications consoles.", "Enemy communication intercept. Security Level Elevated.")
 
+/datum/game_mode/proc/roundstart_player_count(loud = TRUE)
+	var/readied_count = 0
+	var/unreadied_count = 0
+	for (var/client/C in global.clients)
+		var/mob/new_player/mob = C.mob
+		if (istype(mob))
+			if (mob.ready)
+				readied_count++
+			else
+				unreadied_count++
+	var/total = readied_count + (unreadied_count/2)
+	if (loud)
+		logTheThing(LOG_GAMEMODE, "Found [readied_count] readied players and [unreadied_count] unreadied ones, total count being fed to gamemode datum: [total]")
+	return total
+
 ////////////////////////////
 // Objective related code //
 ////////////////////////////
@@ -294,12 +289,8 @@ ABSTRACT_TYPE(/datum/game_mode)
 	if (!istype(traitor) || !isnum(allow_hijack))
 		return null
 
-	var/upperbound = 3
-	if (allow_hijack)
-		upperbound = 4
-
 	var/objective_path = null
-	var/picker = rand(1,upperbound)
+	var/picker = rand(1,3)
 	switch(picker)
 		if(1)
 			objective_path = /datum/objective/escape
@@ -307,8 +298,7 @@ ABSTRACT_TYPE(/datum/game_mode)
 			objective_path = /datum/objective/escape/survive
 		if(3)
 			objective_path = /datum/objective/escape/kamikaze
-		if(4)
-			objective_path = /datum/objective/escape/hijack
+
 
 	var/datum/objective/O = new objective_path(null, traitor)
 

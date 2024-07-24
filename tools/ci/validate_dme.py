@@ -7,20 +7,35 @@ import sys
 
 reading = False
 
+# Things we want to block from being included
 FORBID_INCLUDE = [
     # Sekrits
-	r'\+secret/**/*.dm',
+    r'+secret**/*.dm',
     r'code/_placeholder.dm',
     r'code/_publicVersion.dm',
 
     # Included by __std.dme
-    r'_std/**/*.dm',
+    r'_std**/*.dm',
 
     # Included by _unit_test.dm
     r'code/modules/unit_tests/[!_]*.dm',
 
     # Included by tgs/includes.dm
     r'code/modules/tgs/**/*.dm',
+
+    # Included by map.dm (which we have to whitelist)
+    r'maps**/*.dm',
+
+    # OpenDream pragma lint file
+    r'tools/ci/od_lints.dm'
+]
+
+# Things we want to explicitly allow, even if they're in blocked dirs
+ALLOW_INCLUDE = [
+     # The one file in maps we always include
+     r'maps/config/map.dm',
+     # OD lint stuff that we want to live in `goonstation.dme`
+     r'_std\__odlint.dme'
 ]
 
 lines = []
@@ -43,7 +58,7 @@ offset = total - len(lines)
 print(f"{offset} lines were ignored in output")
 fail_no_include = False
 
-for code_file in glob.glob("code/**/*.dm", recursive=True):
+for code_file in glob.glob("**/*.dm", recursive=True):
     dm_path = code_file.replace('/', '\\')
 
     included = f"#include \"{dm_path}\"" in lines
@@ -53,12 +68,20 @@ for code_file in glob.glob("code/**/*.dm", recursive=True):
         if not fnmatch.fnmatch(code_file, forbid):
             continue
 
-        forbid_include = True
+        explicit_allowed = False
+        for allow in ALLOW_INCLUDE:
+             if fnmatch.fnmatch(code_file, allow):
+                  explicit_allowed = True
+                  break
 
-        if included:
-            print(f"{dm_path} should not be included")
-            print(f"::error file={code_file},line=1,title=DME Validator::File should not be included")
-            fail_no_include = True
+        if not explicit_allowed:
+            forbid_include = True
+
+            if included:
+                print(f"{dm_path} should not be included")
+                print(f"::error file={code_file},line=1,title=DME Validator::File should not be included")
+                fail_no_include = True
+                break
 
     if forbid_include:
         continue

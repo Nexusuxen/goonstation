@@ -70,7 +70,7 @@
 
 	ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
 		. = ..()
-		if (.)
+		if (. || GET_COOLDOWN(src, "anti-spam"))
 			return
 
 		switch(action)
@@ -78,6 +78,8 @@
 				var/datum/materiel/M = locate(params["ref"]) in materiel_stock
 				if (src.credits[M.category] >= M.cost)
 					src.credits[M.category] -= M.cost
+					if (!M.cost)
+						ON_COOLDOWN(src, "anti-spam", 1 SECOND)
 					var/atom/A = new M.path(src.loc)
 					playsound(src.loc, sound_buy, 80, 1)
 					src.vended(A)
@@ -92,12 +94,10 @@
 		else
 			..()
 
-
-
 	proc/accepted_token(var/token, var/mob/user)
 		src.ui_interact(user)
-		playsound(src.loc, sound_token, 80, 1)
-		boutput(user, "<span class='notice'>You insert the requisition token into [src].</span>")
+		playsound(src.loc, sound_token, 80, 0)
+		boutput(user, SPAN_NOTICE("You insert the requisition token into [src]."))
 		if(log_purchase)
 			logTheThing(LOG_STATION, user, "inserted [token] into [src] at [log_loc(get_turf(src))]")
 
@@ -169,8 +169,8 @@
 		return
 
 	New()
-		..()
 		START_TRACKING_CAT(TR_CAT_NUKE_OP_STYLE)
+		..()
 		// List of avaliable objects for purchase
 		materiel_stock += new/datum/materiel/sidearm/smartgun
 		materiel_stock += new/datum/materiel/sidearm/pistol
@@ -215,6 +215,16 @@
 		STOP_TRACKING_CAT(TR_CAT_NUKE_OP_STYLE)
 		..()
 
+	ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+		switch(action) // Keep track of each purchase for the crew credits
+			if ("redeem")
+				var/datum/materiel/M = locate(params["ref"]) in materiel_stock
+				if (src.credits[M.category] >= M.cost && usr.mind.is_antagonist())
+					var/datum/antagonist/nuclear_operative/nukie = usr.mind.get_antagonist(ROLE_NUKEOP) || usr.mind.get_antagonist(ROLE_NUKEOP_COMMANDER)
+					nukie?.purchased_items.Add(M)
+		..()
+
+
 /obj/submachine/weapon_vendor/pirate
 	name = "Pirate Weapons Vendor"
 	icon = 'icons/obj/vending.dmi'
@@ -238,11 +248,11 @@
 
 /obj/submachine/weapon_vendor/fishing
 	name = "Fishing Supplies Vendor"
-	icon = 'icons/obj/vending.dmi'
-	icon_state = "fishing"
 	desc = "An automated quartermaster service for obtaining and upgrading your fishing gear."
+	icon_state = "fishing"
 	credits = list(WEAPON_VENDOR_CATEGORY_FISHING = 0)
-	token_accepted = /obj/item/requisition_token/fishing
+	token_accepted = /obj/item/currency/fishing
+	sound_token = 'sound/effects/insert_ticket.ogg'
 	log_purchase = FALSE
 	layer = 4
 
@@ -256,20 +266,21 @@
 		materiel_stock += new/datum/materiel/fishing_gear/uniform
 		materiel_stock += new/datum/materiel/fishing_gear/hat
 		materiel_stock += new/datum/materiel/fishing_gear/fish_box
+		materiel_stock += new/datum/materiel/fishing_gear/fish_mount
 		..()
 
-	accepted_token(var/token)
-		if (istype(token, /obj/item/requisition_token/fishing/legendary))
-			src.credits[WEAPON_VENDOR_CATEGORY_FISHING]+=5
-		else if (istype(token, /obj/item/requisition_token/fishing/epic))
-			src.credits[WEAPON_VENDOR_CATEGORY_FISHING]+=4
-		else if (istype(token, /obj/item/requisition_token/fishing/rare))
-			src.credits[WEAPON_VENDOR_CATEGORY_FISHING]+=3
-		else if (istype(token, /obj/item/requisition_token/fishing/uncommon))
-			src.credits[WEAPON_VENDOR_CATEGORY_FISHING]+=2
-		else
-			src.credits[WEAPON_VENDOR_CATEGORY_FISHING]++
+	accepted_token(var/obj/item/currency/fishing/token)
+		if (istype(token, /obj/item/currency/fishing))
+			src.credits[WEAPON_VENDOR_CATEGORY_FISHING]+=token.amount
 		..()
+
+	attack_ai(mob/user)
+		return ui_interact(user)
+
+	MouseDrop_T(var/obj/item/I, var/mob/user)
+
+		if (istype(I, /obj/item/currency/fishing))
+			src.Attackby(I, user)
 
 /obj/submachine/weapon_vendor/fishing/portable
 	anchored = 0
@@ -277,7 +288,7 @@
 	attackby(obj/item/W, mob/user)
 		if (istool(W, TOOL_SCREWING | TOOL_WRENCHING))
 			user.visible_message("<b>[user]</b> [src.anchored ? "unanchors" : "anchors"] the [src].")
-			playsound(src, 'sound/items/Screwdriver.ogg', 100, 1)
+			playsound(src, 'sound/items/Screwdriver.ogg', 100, TRUE)
 			src.anchored = !(src.anchored)
 			return
 		else
@@ -356,7 +367,7 @@
 /datum/materiel/loadout/justabaton
 	name = "Just a Baton"
 	path = /obj/item/storage/belt/security/baton
-	description = "One belt containing a baton, a barrier, and a spare utility token. Does NOT come with a ranged weapon. Only for officers who DO NOT want a ranged weapon!"
+	description = "One belt containing a baton (or three), a barrier, and a spare utility token. Does NOT come with a ranged weapon. Only for officers who DO NOT want a ranged weapon!"
 
 /datum/materiel/utility/morphineinjectors
 	name = "Morphine Autoinjectors"
@@ -423,12 +434,12 @@
 /datum/materiel/sidearm/pistol
 	name = "Branwen Pistol"
 	path = /obj/item/storage/belt/gun/pistol
-	description = "A gun-belt containing a semi-automatic, 9mm caliber service pistol and three magazines."
+	description = "A gun-belt containing a semi-automatic, 9mm caliber service pistol and four magazines."
 
 /datum/materiel/sidearm/revolver
 	name = "Predator Revolver"
 	path = /obj/item/storage/belt/gun/revolver
-	description = "A gun-belt containing a hefty combat revolver and two .357 caliber speedloaders."
+	description = "A gun-belt containing a hefty combat revolver and three .357 caliber speedloaders."
 
 /datum/materiel/loadout/assault
 	name = "Assault Trooper"
@@ -438,7 +449,7 @@
 /datum/materiel/loadout/heavy
 	name = "Heavy Weapons Specialist"
 	path = /obj/storage/crate/classcrate/heavy
-	description = "Light machine gun, three boxes of ammunition and a pouch of high explosive grenades."
+	description = "Light machine gun, five boxes of ammunition and a pouch of high explosive grenades."
 
 /datum/materiel/loadout/grenadier
 	name = "Grenadier"
@@ -448,12 +459,12 @@
 /datum/materiel/loadout/infiltrator
 	name = "Infiltrator"
 	path = /obj/storage/crate/classcrate/infiltrator
-	description = "Tranquilizer pistol with a pouch of darts, emag and a variety of tools to help you blend in with regular crew."
+	description = "Tranquilizer pistol with a pouch of darts, EMAG and a variety of tools to help you blend in with regular crew."
 
 /datum/materiel/loadout/scout
 	name = "Scout"
 	path = /obj/storage/crate/classcrate/scout
-	description = "Burst-fire submachine gun, personal cloaking device, light breaker and an emag for sneaky flanking actions."
+	description = "Burst-fire submachine gun, personal cloaking device, light breaker and an EMAG for sneaky flanking actions."
 
 /datum/materiel/loadout/medic
 	name = "Field Medic"
@@ -510,12 +521,12 @@
 */
 /datum/materiel/utility/belt
 	name = "Tactical Espionage Belt"
-	path = /obj/item/storage/fanny/syndie
+	path = /obj/item/storage/fanny/syndie/large
 	description = "The classic 7 slot syndicate belt pack. Has no relation to the fanny pack."
 
 /datum/materiel/utility/knife
 	name = "Combat Knife"
-	path = /obj/item/dagger/syndicate/specialist
+	path = /obj/item/dagger/specialist
 	description = "A field-tested 10 inch combat knife, helps you move faster when held & knocks down targets when thrown."
 
 /datum/materiel/utility/rpg_ammo
@@ -578,31 +589,31 @@
 
 //FISHING
 /datum/materiel/fishing_gear/rod
-	name = "Basic Fishing Rod"
+	name = "Basic fishing rod"
 	path = /obj/item/fishing_rod/basic
 	description = "A basic fishing rod."
-	cost = 5
+	cost = 0
 
 /datum/materiel/fishing_gear/upgraded_rod
-	name = "Upgraded Fishing Rod"
+	name = "Upgraded fishing rod"
 	path = /obj/item/fishing_rod/upgraded
-	description = "An upgraded fishing rod."
+	description = "An upgraded fishing rod, able to fish in a variety of more difficult locations."
 	cost = 25
 
 /datum/materiel/fishing_gear/master_rod
-	name = "Master Fishing Rod"
+	name = "Master fishing rod"
 	path = /obj/item/fishing_rod/master
-	description = "The ultimate fishing rod."
+	description = "The ultimate fishing rod, capable of fishing in the most extreme circumstances."
 	cost = 50
 
 /datum/materiel/fishing_gear/fish_box
 	name = "Portable aquarium"
 	path = /obj/item/storage/fish_box
-	description = "A temporary solution for bulk-fish transportation."
+	description = "A temporary solution for bulk-fish transportation. Holds 6 fish in relative comfort."
 	cost = 10
 
 /datum/materiel/fishing_gear/uniform
-	name = "angler's overalls"
+	name = "Angler's overalls"
 	path = /obj/item/clothing/under/rank/angler
 	description = "Smells fishy; It's wearer must have a keen appreciation for the piscine."
 	cost = 5
@@ -610,8 +621,14 @@
 /datum/materiel/fishing_gear/hat
 	name = "Fish fear me cap"
 	path = /obj/item/clothing/head/fish_fear_me
-	description = "The ultimate angling headwear."
+	description = "The ultimate angling headwear. Comes with a new, personalised message every time."
 	cost = 15
+
+/datum/materiel/fishing_gear/fish_mount
+	name = "Fish Wall Mount"
+	path = /obj/item/wall_trophy/fish_trophy
+	description = "A Wall Mount to attach fish to and show it off."
+	cost = 10
 
 // Requisition tokens
 /obj/item/requisition_token
@@ -646,34 +663,6 @@
 		name = "doubloon"
 		desc = "A finely stamped gold coin compatible with the Pirate Weapons Vendor."
 		icon_state = "doubloon"
-
-/obj/item/requisition_token/fishing
-	icon_state = "fish_common"
-
-	common
-		name = "common research ticket"
-		desc = "A Nanotrasen aquatic research ticket compatible with the Fishing Equipment Vendor. Worth 1 credit."
-		icon_state = "fish_common"
-
-	uncommon
-		name = "uncommon research ticket"
-		desc = "A Nanotrasen aquatic research ticket compatible with the Fishing Equipment Vendor. Worth 2 credits."
-		icon_state = "fish_uncommon"
-
-	rare
-		name = "rare research ticket"
-		desc = "A Nanotrasen aquatic research ticket compatible with the Fishing Equipment Vendor. Worth 3 credits."
-		icon_state = "fish_rare"
-
-	epic
-		name = "epic research ticket"
-		desc = "A Nanotrasen aquatic research ticket compatible with the Fishing Equipment Vendor. Worth 4 credits."
-		icon_state = "fish_epic"
-
-	legendary
-		name = "legendary research ticket"
-		desc = "A Nanotrasen aquatic research ticket compatible with the Fishing Equipment Vendor. Worth 5 credits."
-		icon_state = "fish_legendary"
 
 #undef WEAPON_VENDOR_CATEGORY_SIDEARM
 #undef WEAPON_VENDOR_CATEGORY_LOADOUT

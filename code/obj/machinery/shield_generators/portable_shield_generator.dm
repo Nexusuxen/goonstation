@@ -32,6 +32,8 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 	var/obj/cable/connected_wire = null	//wire the gen is wrenched over. used to validate pnet connection
 	var/backup = 0		//if equip power went out while connected to wire, this should be true. Used to automatically turn gen back on if power is restored
 	var/first = 0		//tic when the power goes out.
+	///How fast the cell recharges when attached to a wire
+	var/recharge_rate = 200
 
 	New()
 		if(starts_with_cell)
@@ -60,11 +62,16 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 	process()
 		if(src.active)
 			src.power_usage = get_draw()
-			if(PCEL && !connected)
+			if (src.line_powered())
+				process_wired()
+			else if(PCEL)
 				process_battery()
 			else
-				process_wired()
-
+				src.shield_off()
+		var/datum/powernet/net = src.connected_wire?.get_powernet()
+		if (net && PCEL && PCEL.charge < PCEL.maxcharge && (net.newload + 200 <= net.avail)) //do we now have enough to charge?
+			net.newload += 200
+			PCEL.give(200)
 		if(backup)
 			src.active = !src.active
 
@@ -112,11 +119,15 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 		return
 
 	use_power(var/amount, var/chan=EQUIP)
-		if(PCEL && !connected && active)
-			PCEL.use(src.power_usage)
+		var/line_shielded = FALSE
 		if(connected && active)
 			var/datum/powernet/net = src.connected_wire.get_powernet()
-			net?.newload += src.power_usage
+			if(net.newload + amount <= net.avail)
+				net.newload += amount
+				line_shielded = TRUE
+		if(!line_shielded && PCEL && active)
+			PCEL.use(src.power_usage)
+
 
 	proc/process_wired()
 		//check for linepower
@@ -162,7 +173,7 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 			src.build_icon()
 			if(src.battery_level == 1)
 				playsound(src.loc, src.sound_battwarning, 50, 1)
-				src.visible_message("<span class='alert'>The <b>[src.name] emits a low battery alarm!</b></span>")
+				src.visible_message(SPAN_ALERT("The <b>[src.name] emits a low battery alarm!</b>"))
 
 		if(PCEL.charge <= 0)
 			src.visible_message("The <b>[src.name]</b> runs out of power and shuts down.")
@@ -174,7 +185,7 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 		if(!the_range)
 			return
 		if(BOUNDS_DIST(user, src) > 0)
-			boutput(user, "<span class='alert'>You flail your arms at [src.name] from across the room like a complete muppet. Move closer, genius!</span>")
+			boutput(user, SPAN_ALERT("You flail your arms at [src.name] from across the room like a complete muppet. Move closer, genius!"))
 			return
 		the_range = clamp(the_range, src.min_range, src.max_range)
 		src.range = the_range
@@ -184,7 +195,7 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 			shield_off()
 			sleep(0.5 SECONDS)
 			shield_on()
-		boutput(user, "<span class='notice'>[outcome_text]</span>")
+		boutput(user, SPAN_NOTICE("[outcome_text]"))
 
 	proc/pulse(var/mob/user)
 		set_range(user)
@@ -211,7 +222,7 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 			if(src.active)
 				src.turn_off()
 			else
-				src.turn_on()
+				src.turn_on(user)
 
 	proc/turn_on(mob/user)
 		if (src.active)
@@ -224,7 +235,8 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 		else	//turn on power if connected to a power grid with power in it
 			if(line_powered() && connected)
 				src.shield_on()
-				src.visible_message("<b>[user.name]</b> powers up the [src.name].")
+				if (user)
+					src.visible_message("<b>[user.name]</b> powers up the [src.name].")
 			else
 				boutput(user, "The [src.name]'s battery light flickers briefly.")
 		build_icon()
@@ -333,6 +345,11 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 		for(var/obj/forcefield/S in src.deployed_shields)
 			src.deployed_shields -= S
 			S:deployer = null	//There is no parent forcefield object and I'm not gonna be the one to make it so ":"
+			if(istype(S,/obj/forcefield/energyshield))
+				var/obj/forcefield/energyshield/checkedshield = S
+				if(checkedshield.linked_door)
+					checkedshield.linked_door.UnsubscribeProcess()
+					checkedshield.linked_door.linked_forcefield = null
 			qdel(S)
 
 		if(!connected)
@@ -444,7 +461,7 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 	desc = "A force field that can block various states of matter."
 	icon = 'icons/obj/meteor_shield.dmi'
 	icon_state = "shieldw"
-	event_handler_flags = USE_FLUID_ENTER
+	event_handler_flags = USE_FLUID_ENTER | IMMUNE_TRENCH_WARP
 	var/powerlevel //Stores the power level of the deployer
 	var/isactive = TRUE
 	density = 0
@@ -452,17 +469,16 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 	var/sound/sound_shieldhit = 'sound/impact_sounds/Energy_Hit_1.ogg'
 	var/obj/machinery/shieldgenerator/deployer = null
 	var/obj/machinery/door/linked_door = null
-	var/update_tiles
+
+	///Special variable, set to FALSE for shields created by door-shield generators so doors won't inherently power them off when the area loses power
+	var/powered_locally = TRUE
 
 	flags = 0
 
-	New(Loc, var/obj/machinery/shieldgenerator/deployer, var/update_tiles)
+	New(Loc, var/obj/machinery/shieldgenerator/deployer)
 		..()
-		src.update_tiles = update_tiles
 		src.deployer = deployer
-
-		if(update_tiles)
-			update_nearby_tiles()
+		update_nearby_tiles()
 
 		if((deployer != null && deployer.power_level == 4) || src.powerlevel == 4)
 			src.name = "Liquid Forcefield"
@@ -471,7 +487,7 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 			src.color = "#FF33FF" //change colour for different power levels
 			src.powerlevel = 4
 			src.mouse_opacity = 0
-			flags = ALWAYS_SOLID_FLUID | FLUID_DENSE
+			flags = FLUID_DENSE | FLUID_DENSE_ALWAYS
 		else if(deployer != null && deployer.power_level == 1)
 			src.name = "Atmospheric Forcefield"
 			src.desc = "A force field that prevents gas from passing through it."
@@ -488,7 +504,7 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 			src.color = "#33FF33"
 			src.powerlevel = 2
 			src.mouse_opacity = 0
-			flags = ALWAYS_SOLID_FLUID | FLUID_DENSE
+			flags = FLUID_DENSE | FLUID_DENSE_ALWAYS
 			gas_impermeable = TRUE
 		else if(deployer != null)
 			src.name = "Energy Forcefield"
@@ -497,14 +513,13 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 			src.color = "#FF3333"
 			src.powerlevel = 3
 			src.mouse_opacity = 1
-			flags = ALWAYS_SOLID_FLUID | USEDELAY | FLUID_DENSE
+			flags = FLUID_DENSE | USEDELAY | FLUID_DENSE_ALWAYS
 			density = 1
 
 	disposing()
 		if(linked_door)
 			linked_door.linked_forcefield = null
-		if(update_tiles)
-			update_nearby_tiles()
+		update_nearby_tiles()
 		deployer = 0
 		..()
 
@@ -515,7 +530,7 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 			src.isactive = TRUE
 			src.invisibility = INVIS_NONE
 			//these power levels are kind of arbitrary
-			if(src.powerlevel >= 2) src.flags |= FLUID_DENSE
+			if(src.powerlevel >= 2) src.flags |= FLUID_DENSE_ALWAYS
 			if(src.powerlevel < 3) src.gas_impermeable = TRUE
 			if(src.powerlevel == 3)
 				src.mouse_opacity = 1
@@ -524,7 +539,7 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 			src.icon_state = ""
 			src.isactive = FALSE
 			src.invisibility = INVIS_ALWAYS_ISH //ehh whatever this "works"
-			src.flags &= ~FLUID_DENSE
+			src.flags &= ~FLUID_DENSE_ALWAYS
 			src.gas_impermeable = FALSE
 			src.mouse_opacity = 0
 			src.set_density(FALSE)
@@ -624,20 +639,15 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 			playsound(src.loc, src.sound_shieldhit, 50, 1)
 			return
 
-
-
-//sealab arrivalss
-/obj/machinery/door/var/obj/forcefield/energyshield/linked_forcefield = 0
-
 /obj/forcefield/energyshield/perma
 	name = "Permanent Atmospheric/Liquid Forcefield"
 	desc = "A permanent force field that prevents gas and liquids from passing through it."
 	color = "#33FF33"
 	powerlevel = 2
 	layer = 2.5 //sits under doors if we want it to
-	flags = ALWAYS_SOLID_FLUID | FLUID_DENSE
+	flags = FLUID_DENSE | FLUID_DENSE_ALWAYS
 	gas_impermeable = TRUE
-	event_handler_flags = USE_FLUID_ENTER
+	event_handler_flags = USE_FLUID_ENTER | IMMUNE_TRENCH_WARP
 
 	meteorhit(obj/O as obj)
 		return
@@ -655,6 +665,8 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 	Cross(atom/A)
 		return ..() && !istype(A,/obj/machinery/vehicle)
 
+#define LINKED_FORCEFIELD_POWER_USAGE 100
+
 /obj/forcefield/energyshield/perma/doorlink
 	name = "Door-linked Atmospheric/Liquid Forcefield"
 	desc = "A door-linked force field that prevents gas and liquids from passing through it."
@@ -665,8 +677,11 @@ ADMIN_INTERACT_PROCS(/obj/machinery/shieldgenerator, proc/turn_on, proc/turn_off
 			var/obj/machinery/door/door = (locate() in src.loc)
 			if(door)
 				door.linked_forcefield = src
+				door.power_usage += LINKED_FORCEFIELD_POWER_USAGE
 				src.linked_door = door
 				src.set_dir(door.dir)
+
+#undef LINKED_FORCEFIELD_POWER_USAGE
 
 /obj/machinery/door/disposing()
 	if(linked_forcefield)

@@ -4,8 +4,8 @@
 /// nulls a var if its value doesn't match the var's type
 #define ENSURE_TYPE(VAR) if(!istype(VAR)) VAR = null;
 
-#define ABSTRACT_TYPE(type) /datum/_is_abstract ## type
-#define IS_ABSTRACT(type) text2path("/datum/_is_abstract[type]")
+#define ABSTRACT_TYPE(type) /_is_abstract ## type
+#define IS_ABSTRACT(type) text2path("/_is_abstract[type]")
 /*
 usage:
 
@@ -169,7 +169,8 @@ proc/maximal_subtype(var/list/L)
 /// contains lists of objects indexed by their type based on [START_TRACKING] / [STOP_TRACKING]
 var/list/list/by_type = list()
 
-/// Performs a typecheckless for loop with var/iterator over by_type[_type]
+/// Loops over all instances of a type that's tracked via the [START_TRACKING] and [STOP_TRACKING] macros.
+/// Example: for_by_tcl(gnome, /obj/item/gnomechompski) qdel(gnome)
 #define for_by_tcl(_iterator, _type) for(var ##_type/##_iterator as anything in by_type[##_type])
 
 // sometimes we want to have a list of objects of multiple types, without having to traverse multiple lists
@@ -180,7 +181,7 @@ var/list/list/by_type = list()
 #define START_TRACKING_CAT(x) OTHER_START_TRACKING_CAT(src, x)
 #define STOP_TRACKING_CAT(x) OTHER_STOP_TRACKING_CAT(src, x)
 #define OTHER_START_TRACKING_CAT(what, x) if(!by_cat[x]) { by_cat[x] = list() }; by_cat[x][what] = 1
-#define OTHER_STOP_TRACKING_CAT(what, x) by_cat[x].Remove(what)
+#define OTHER_STOP_TRACKING_CAT(what, x) by_cat[x]?.Remove(what)
 
 /// contains lists of objects indexed by a category string based on START_TRACKING_CAT / STOP_TRACKING_CAT
 var/list/list/by_cat = list()
@@ -217,6 +218,7 @@ var/list/list/by_cat = list()
 #define TR_CAT_RANCID_STUFF "rancid_stuff"
 #define TR_CAT_GHOST_OBSERVABLES "ghost_observables"
 #define TR_CAT_STATION_EMERGENCY_LIGHTS "emergency_lights"
+#define TR_CAT_STAMINA_MOBS "stamina_mobs"
 // powernets? processing_items?
 // mobs? ai-mobs?
 
@@ -233,6 +235,8 @@ var/list/list/by_cat = list()
 
 /typeinfo/atom
 	parent_type = /typeinfo/datum
+	/// Used to provide a list of subtypes that will be returned by get_random_subtype
+	var/random_subtypes = null
 
 /typeinfo/turf
 	parent_type = /typeinfo/atom
@@ -248,7 +252,7 @@ var/list/list/by_cat = list()
 /typeinfo/mob
 	parent_type = /typeinfo/atom/movable
 
-/typeinfo/var/SpacemanDMM_return_type = /typeinfo/
+/typeinfo/var/SpacemanDMM_return_type = /typeinfo
 
 /**
  * Declares typeinfo for some type.
@@ -456,7 +460,10 @@ proc/find_all_by_type(type, procedure=null, procedure_src=null, arguments=null, 
 		IT_TYPE(/turf) \
 		IT_TYPE(/atom/movable) \
 		IT_TYPE(/atom) \
-		IT_TYPE(/datum)
+		IT_TYPE(/datum) \
+		IT_TYPE(/client) \
+		else
+			CRASH("find_all_by_type: invalid type: [type]")
 	#undef IT_TYPE
 
 /// istype but for checking a list of types
@@ -466,3 +473,33 @@ proc/istypes(datum/dat, list/types)
 		if(istype(dat, type))
 			return TRUE
 	return FALSE
+
+/// Returns a random subtype when an atom has TYPEINFO with a random_subtypes list
+/proc/get_random_subtype(atom_type, return_instance = FALSE, return_instance_newargs = null)
+	var/typeinfo/atom/info = get_type_typeinfo(atom_type)
+	var/atom/chosen_type = pick(info.random_subtypes)
+	if (!return_instance)
+		return chosen_type
+	return new chosen_type(return_instance_newargs)
+
+/// thing.type but it also returns "num" for numbers etc.
+/proc/string_type_of_anything(thing)
+	. = "unknown"
+	if(isnum(thing))
+		return "num"
+	else if(istext(thing))
+		return "text"
+	else if(islist(thing))
+		return "list"
+	else if(ispath(thing))
+		return "path"
+	else if(isnull(thing))
+		return "null"
+	else if(isproc(thing))
+		return "proc"
+	else if(isresource(thing))
+		return "resource"
+	else if(thing == world)
+		return "world"
+	else
+		return "[thing:type]"

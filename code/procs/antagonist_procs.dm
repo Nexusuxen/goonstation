@@ -1,30 +1,3 @@
-/client/proc/gearspawn_traitor()
-	set category = "Commands"
-	set name = "Call Syndicate"
-	set desc="Teleports useful items to your location."
-
-	if (usr.stat || !isliving(usr) || isintangible(usr))
-		usr.show_text("You can't use this command right now.", "red")
-		return
-
-	var/uplink_path = get_uplink_type(usr, /obj/item/uplink/syndicate)
-	var/obj/item/uplink/syndicate/U = new uplink_path(usr.loc)
-	if (!usr.put_in_hand(U))
-		U.set_loc(get_turf(usr))
-		usr.show_text("<h3>Uplink spawned. You can find it on the floor at your current location.</h3>", "blue")
-	else
-		usr.show_text("<h3>Uplink spawned. You can find it in your active hand.</h3>", "blue")
-
-	if (usr.mind && istype(usr.mind))
-		U.lock_code_autogenerate = 1
-		U.setup(usr.mind)
-		usr.show_text("<h3>The password to your uplink is '[U.lock_code]'.</h3>", "blue")
-		usr.mind.store_memory("<B>Uplink password:</B> [U.lock_code].")
-
-	usr.verbs -= /client/proc/gearspawn_traitor
-
-	return
-
 /proc/alive_player_count()
 	. = 0
 	for(var/client/C)
@@ -82,6 +55,7 @@ var/list/roles_to_prefs = list(
 	ROLE_NUKEOP = "be_syndicate",
 	ROLE_VAMPIRE = "be_vampire",
 	ROLE_GANG_LEADER = "be_gangleader",
+	ROLE_GANG_MEMBER = "be_gangmember",
 	ROLE_WIZARD = "be_wizard",
 	ROLE_CHANGELING = "be_changeling",
 	ROLE_WEREWOLF = "be_werewolf",

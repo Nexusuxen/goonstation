@@ -82,18 +82,18 @@ var/global/list/persistent_bank_purchaseables =	list(\
 			I.name = "[H.real_name][pick_string("trinkets.txt", "modifiers")] [I.name]"
 			I.quality = rand(5,80)
 			var/equipped = 0
-			if (H.back?.storage && H.equip_if_possible(I, H.slot_in_backpack))
+			if (H.back?.storage && H.equip_if_possible(I, SLOT_IN_BACKPACK))
 				equipped = 1
-			else if (H.belt?.storage && H.equip_if_possible(I, H.slot_in_belt))
+			else if (H.belt?.storage && H.equip_if_possible(I, SLOT_IN_BELT))
 				equipped = 1
 			if (!equipped)
-				if (!H.l_store && H.equip_if_possible(I, H.slot_l_store))
+				if (!H.l_store && H.equip_if_possible(I, SLOT_L_STORE))
 					equipped = 1
-				else if (!H.r_store && H.equip_if_possible(I, H.slot_r_store))
+				else if (!H.r_store && H.equip_if_possible(I, SLOT_R_STORE))
 					equipped = 1
-				else if (!H.l_hand && H.equip_if_possible(I, H.slot_l_hand))
+				else if (!H.l_hand && H.equip_if_possible(I, SLOT_L_HAND))
 					equipped = 1
-				else if (!H.r_hand && H.equip_if_possible(I, H.slot_r_hand))
+				else if (!H.r_hand && H.equip_if_possible(I, SLOT_R_HAND))
 					equipped = 1
 
 				if (!equipped)
@@ -127,11 +127,9 @@ var/global/list/persistent_bank_purchaseables =	list(\
 
 		if(isAI(M))
 			var/mob/living/silicon/ai/AI = M
-			if (ispath(path, /obj/item/clothing))
-				if(ispath(path,/obj/item/clothing/head))
-					AI.set_hat(new path(AI))
-					equip_success = 1
-
+			path = null
+			AI.bought_hat = TRUE
+			return
 
 
 		//The AI can't really wear items...
@@ -201,7 +199,7 @@ var/global/list/persistent_bank_purchaseables =	list(\
 		stickers
 			name = "Sticker Box"
 			cost = 300
-			path = /obj/item/item_box/assorted/stickers/
+			path = /obj/item/item_box/assorted/stickers
 			icon = 'icons/obj/items/storage.dmi'
 			icon_state = "sticker_box_assorted"
 
@@ -339,40 +337,36 @@ var/global/list/persistent_bank_purchaseables =	list(\
 			var/succ = 0
 			if (ishuman(M))
 				var/mob/living/carbon/human/H = M
-				/*if (H.head && istype(H.head, /obj/item/clothing/head))
-					var/path = text2path("[H.head.type]/april_fools")
-					if (ispath(path))
-						M.u_equip(H.head)
-						qdel(H.head)
-						var/obj/item/clothing/head/hatt = new path
-						H.force_equip(hatt)
-						succ = 1*/
 
-
-				if (H.w_uniform && istype(H.w_uniform, /obj/item/clothing/under/rank))
-					var/obj/origin = text2path("[H.w_uniform.type]/april_fools")
+				if (H.w_uniform && istype(H.w_uniform, /obj/item/clothing/under))
+					var/obj/item/clothing/under/origin = text2path("[H.w_uniform.type]/april_fools")
 					if (ispath(origin))
-						H.w_uniform.icon_state = "[H.w_uniform.icon_state]-alt"
-						H.w_uniform.item_state = "[H.w_uniform.item_state]-alt"
+						H.w_uniform.icon = origin.icon
+						H.w_uniform.icon_state = origin.icon_state
+						H.w_uniform.item_state = origin.item_state
 						H.w_uniform.desc = initial(origin.desc)
 						succ = 1
 
 				if (H.wear_suit && istype(H.wear_suit, /obj/item/clothing/suit))
-					var/obj/origin = text2path("[H.wear_suit.type]/april_fools")
+					var/obj/item/clothing/suit/origin = text2path("[H.wear_suit.type]/april_fools")
 					if (ispath(origin))
-						H.wear_suit.icon_state = "[H.wear_suit.icon_state]-alt"
-						H.wear_suit.item_state = "[H.wear_suit.item_state]-alt"
+						H.wear_suit.icon_state = origin.icon_state
+						H.wear_suit.item_state = origin.item_state
 						H.wear_suit.desc = initial(origin.desc)
 						if (istype(H.wear_suit, /obj/item/clothing/suit/labcoat))
-							H.wear_suit:coat_style = "[H.wear_suit:coat_style]-alt"
+							H.wear_suit.coat_style = origin.coat_style
 						succ = 1
 
 				if (H.head && istype(H.head, /obj/item/clothing/head))
-					var/obj/origin = text2path("[H.head.type]/april_fools")
+					var/obj/item/clothing/head/origin = text2path("[H.head.type]/april_fools")
 					if (ispath(origin))
-						H.head.icon_state = "[H.head.icon_state]-alt"
-						H.head.item_state = "[H.head.item_state]-alt"
+						H.head.icon_state = origin.icon_state
+						H.head.item_state = origin.item_state
 						H.head.desc = initial(origin.desc)
+						if (istype(H.head, /obj/item/clothing/head/helmet/space/engineer))
+							var/obj/item/clothing/head/helmet/space/engineer/helmet_with_flashlight = H.head
+							var/obj/item/clothing/head/helmet/space/engineer/orig = origin
+							helmet_with_flashlight.base_icon_state = orig.base_icon_state
 						succ = 1
 
 			return succ
@@ -394,9 +388,11 @@ var/global/list/persistent_bank_purchaseables =	list(\
 						H.w_uniform.icon_state = "[type]clown"
 						H.w_uniform.item_state = "[type]clown"
 						H.w_uniform.name = "[type] clown suit"
-						H.wear_mask.icon_state = "[type]clown"
-						H.wear_mask.item_state = "[type]clown"
-						H.wear_mask.name = "[type] clown mask"
+						var/obj/item/clothing/mask/clown_hat/the_mask = H.wear_mask
+						the_mask.icon_state = "[type]clown"
+						the_mask.base_icon_state = "[type]clown"
+						the_mask.item_state = "[type]clown"
+						the_mask.name = "[type] clown mask"
 						H.shoes.icon_state = "[type]clown"
 						H.shoes.item_state = "[type]clown"
 						H.shoes.name = "[type] clown shoes"
@@ -434,7 +430,7 @@ var/global/list/persistent_bank_purchaseables =	list(\
 							H.limbs.l_leg.delete()
 						if (H.limbs.r_leg)
 							H.limbs.r_leg.delete()
-						boutput( H, "<span class='notice'><b>Your limbs magically disappear! Oh, no!</b></span>" )
+						boutput( H, SPAN_NOTICE("<b>Your limbs magically disappear! Oh, no!</b>") )
 				return 1
 			return 0
 
@@ -466,7 +462,7 @@ var/global/list/persistent_bank_purchaseables =	list(\
 		icon_dir = SOUTH
 
 		Create(var/mob/living/M)
-			var/obj/critter/frog/froggo = new(M.loc)
+			var/mob/living/critter/small_animal/frog/froggo = new(M.loc)
 			SPAWN(1 SECOND)
 				froggo.real_name = input(M.client, "Name your frog:", "Name your frog!", "frog")
 				phrase_log.log_phrase("name-frog", froggo.real_name, TRUE)
@@ -477,12 +473,12 @@ var/global/list/persistent_bank_purchaseables =	list(\
 	missile_arrival
 		name = "Missile Arrival"
 		cost = 20000
+		path = /obj/item/tank/emergency_oxygen  // oh boy they'll need this if they are unlucky
 		icon = 'icons/obj/large/32x64.dmi'
 		icon_state = "arrival_missile"
 		icon_dir = SOUTH
 
 		Create(var/mob/living/M)
-			M.back?.storage?.add_contents(new /obj/item/tank/emergency_oxygen(M.back)) // oh boy they'll need this if they are unlucky
 			var/mob/living/carbon/human/H = M
 			if(istype(H))
 				H.equip_new_if_possible(/obj/item/clothing/mask/breath, SLOT_WEAR_MASK)
@@ -491,12 +487,13 @@ var/global/list/persistent_bank_purchaseables =	list(\
 					launch_with_missile(M.loc)
 				else
 					launch_with_missile(M)
-			return 1
+			..()
+			return TRUE
 
 	critter_respawn
 		name = "Alt Ghost Critter"
 		cost = 1000
-		icon = 'icons/misc/critter.dmi'
+		icon = 'icons/mob/critter/robotic/boogie.dmi'
 		icon_state = "boogie"
 		var/list/respawn_critter_types = list(/mob/living/critter/small_animal/boogiebot/weak, /mob/living/critter/small_animal/figure/weak)
 
@@ -649,7 +646,7 @@ var/global/list/persistent_bank_purchaseables =	list(\
 			if (ishuman(M))
 				var/mob/living/carbon/human/H = M
 				var/obj/item/storage/lunchbox/L = pick(childrentypesof(/obj/item/storage/lunchbox))
-				if ((!H.l_hand && H.equip_if_possible(new L(H), H.slot_l_hand)) || (!H.r_hand && H.equip_if_possible(new L(H), H.slot_r_hand)) || (H.back?.storage && H.equip_if_possible(new L(H), H.slot_in_backpack)))
+				if ((!H.l_hand && H.equip_if_possible(new L(H), SLOT_L_HAND)) || (!H.r_hand && H.equip_if_possible(new L(H), SLOT_R_HAND)) || (H.back?.storage && H.equip_if_possible(new L(H), SLOT_IN_BACKPACK)))
 					return 1
 			return 0
 
@@ -696,7 +693,7 @@ var/global/list/persistent_bank_purchaseables =	list(\
 		name = "Hoodie"
 		cost = 1500
 		path = /obj/item/clothing/suit/hoodie/random
-		icon = 'icons/obj/clothing/overcoats/item_suit.dmi'
+		icon = 'icons/obj/clothing/overcoats/hoods/hoodies.dmi'
 		icon_state = "hoodie"
 
 	pride_o_matic
@@ -766,8 +763,8 @@ var/global/list/persistent_bank_purchaseables =	list(\
 		Create(var/mob/living/M)
 			if (isAI(M))
 				var/mob/living/silicon/ai/A = M
-				A.custom_emotions = ai_emotions | list("ROGUE(reward)" = "ai-red")
-				A.faceEmotion = "ai-red"
+				A.custom_emotions = ai_emotions | list("ROGUE(reward)" = "ai_red")
+				A.faceEmotion = "ai_red"
 				A.set_color("#EE0000")
 				return 1
 			return 0
@@ -781,7 +778,6 @@ var/global/list/persistent_bank_purchaseables =	list(\
 		Create(var/mob/living/M)
 			if (isAI(M))
 				var/mob/living/silicon/ai/A = M
-				var/picked = pick(filtered_concrete_typesof(/obj/item/clothing/head, /proc/filter_trait_hats))
-				A.set_hat(new picked())
+				A.bought_hat = TRUE
 				return 1
 			return 0

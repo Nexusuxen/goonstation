@@ -8,10 +8,11 @@
 	item_state = "pda"
 	w_class = W_CLASS_SMALL
 	rand_pos = 0
-	flags = FPRINT | TABLEPASS
 	c_flags = ONBELT
 	wear_layer = MOB_BELT_LAYER
+	force = 3
 	var/obj/item/card/id/ID_card = null // slap an ID card into that thang
+	var/datum/db_record/accessed_record = null // the bank account on the id card
 	var/obj/item/pen = null // slap a pen into that thang
 	var/registered = null // so we don't need to replace all the dang checks for ID cards
 	var/assignment = null
@@ -32,6 +33,7 @@
 	var/frequency = FREQ_PDA
 	var/beacon_freq = FREQ_NAVBEACON //Beacon frequency for locating beacons (I love beacons)
 	var/net_id = null //Hello dude intercepting our radio transmissions, here is a number that is not just \ref
+	var/scannable = TRUE // Whether this PDA is picked up when scanning for PDAs on the messenger
 
 	var/tmp/list/pdasay_autocomplete = list()
 
@@ -41,7 +43,12 @@
 	var/bg_color = "#6F7961"
 	var/link_color = "#000000"
 	var/linkbg_color = "#565D4B"
+	///is the background colour of this PDA locked due to annoying propreitary software
+	var/locked_bg_color = FALSE
 	var/graphic_mode = 0
+
+	var/screen_x = 0
+	var/screen_y = 0
 
 	var/setup_default_pen = /obj/item/pen //PDAs can contain writing implements by default
 	var/setup_default_cartridge = null //Cartridge contains job-specific programs
@@ -87,6 +94,7 @@
 
 	/// mailgroup-specific ringtones, added on the fly!
 	var/list/mailgroup_ringtones = list()
+	var/window_title = "Personal Data Assistant"
 
 	registered_owner()
 		.= registered
@@ -110,6 +118,13 @@
 		setup_drive_size = 32
 		mailgroups = list(MGD_COMMAND,MGD_PARTY)
 
+	hop
+		icon_state = "pda-hop"
+		setup_default_pen = /obj/item/pen/fancy
+		setup_default_cartridge = /obj/item/disk/data/cartridge/hop
+		setup_drive_size = 32
+		mailgroups = list(MGD_COMMAND,MGD_PARTY)
+
 	hos
 		icon_state = "pda-hos"
 		setup_default_pen = /obj/item/pen/fancy
@@ -127,6 +142,14 @@
 		setup_drive_size = 32
 		mailgroups = list(MGD_SECURITY,MGD_COMMAND,MGD_PARTY)
 		alertgroups = list(MGA_MAIL, MGA_RADIO, MGA_CHECKPOINT, MGA_ARREST, MGA_DEATH, MGA_CRISIS, MGA_TRACKING)
+
+
+	ntofficial
+		icon_state = "pda-nt"
+		setup_default_pen = /obj/item/pen/fancy
+		setup_default_cartridge = /obj/item/disk/data/cartridge/head
+		setup_drive_size = 32
+		mailgroups = list(MGD_COMMAND,MGD_PARTY)
 
 	ai
 		icon_state = "pda-h"
@@ -214,6 +237,7 @@
 		mailgroups = list(MGD_SCIENCE,MGD_PARTY)
 
 	quartermaster
+		name = "Quartermaster PDA"
 		icon_state = "pda-q"
 		setup_default_cartridge = /obj/item/disk/data/cartridge/quartermaster
 		mailgroups = list(MGD_CARGO,MGD_PARTY)
@@ -240,10 +264,10 @@
 				LAZYLISTADDUNIQUE(M.attached_objs, src)
 				src.glide_size = M.glide_size
 				RegisterSignal(M, COMSIG_MOVABLE_THROW_END, PROC_REF(on_mob_throw_end))
-				if (M.slip(ignore_actual_delay = 1, throw_type=THROW_PEEL_SLIP, params=list("slip_obj"=src)))
-					boutput(M, "<span class='notice'>You slipped on the PDA!</span>")
+				if (M.slip(walking_matters = 1, ignore_actual_delay = 1, throw_type = THROW_PEEL_SLIP, params = list("slip_obj" = src)))
+					boutput(M, SPAN_NOTICE("You slipped on the PDA!"))
 					if (M.bioHolder.HasEffect("clumsy"))
-						M.changeStatus("weakened", 5 SECONDS)
+						M.changeStatus("knockdown", 5 SECONDS)
 						JOB_XP(M, "Clown", 1)
 				else
 					src.on_mob_throw_end(M)
@@ -279,7 +303,9 @@
 		alertgroups = list(MGA_MAIL,MGA_RADIO)
 
 	mining
-		icon_state = "pda-e"
+		name = "Mining PDA"
+		icon_state = "pda-q"
+		setup_default_cartridge = /obj/item/disk/data/cartridge/miner
 		mailgroups = list(MGD_MINING,MGD_PARTY)
 		alertgroups = list(MGA_MAIL, MGA_RADIO, MGA_SALES)
 
@@ -294,6 +320,7 @@
 		mailgroups = list(MGD_KITCHEN,MGD_PARTY)
 
 	bartender
+		setup_default_cartridge = /obj/item/disk/data/cartridge/bartender
 		mailgroups = list(MGD_KITCHEN,MGD_PARTY)
 
 	botanist
@@ -304,17 +331,34 @@
 	syndicate
 		icon_state = "pda-syn"
 		name = "Military PDA"
-		owner = "John Doe"
-		setup_default_cartridge = /obj/item/disk/data/cartridge/nuclear
-		setup_system_os_path = /datum/computer/file/pda_program/os/main_os/mess_off
+		desc = "A cheap knockoff looking portable microcomputer claiming to be made by ElecTek LTD. It has a slot for an ID card, and a hole to put a pen into."
+		setup_system_os_path = /datum/computer/file/pda_program/os/main_os/knockoff
+		locked_bg_color = TRUE
+		bg_color = "#A33131"
+		r_tone = /datum/ringtone/basic/ring10
+		screen_x = 2
+		window_title = "Personnel Data Actuator"
+
+		nuclear
+			owner = "John Doe"
+			setup_default_cartridge = /obj/item/disk/data/cartridge/nuclear
+
+			New()
+				START_TRACKING_CAT(TR_CAT_NUKE_OP_STYLE)
+				..()
+
+			disposing()
+				STOP_TRACKING_CAT(TR_CAT_NUKE_OP_STYLE)
+				..()
 
 		New()
-			START_TRACKING_CAT(TR_CAT_NUKE_OP_STYLE)
 			..()
+			var/datum/computer/file/text/pda2manual/old_manual = locate() in src.hd.root.contents
+			src.hd.root.remove_file(old_manual)
+			var/datum/computer/file/pda_program/emergency_alert/crisis = locate() in src.hd.root.contents
+			src.hd.root.remove_file(crisis)
+			src.hd.root.add_file(new /datum/computer/file/text/pda2manual/knockoff)
 
-		disposing()
-			STOP_TRACKING_CAT(TR_CAT_NUKE_OP_STYLE)
-			..()
 
 /obj/item/device/pda2/pickup(mob/user)
 	..()
@@ -335,11 +379,12 @@
 	var/mob/M = src.loc
 	if(ispath(src.r_tone))
 		src.r_tone = new r_tone(src)
-	if(istype(M) && M.client)
-		src.bg_color = M.client.preferences.PDAcolor
-		var/list/color_vals = hex_to_rgb_list(bg_color)
-		src.linkbg_color = rgb(color_vals[1] * 0.8, color_vals[2] * 0.8, color_vals[3] * 0.8)
 
+	if(istype(M) && M.client && !src.locked_bg_color)
+		src.bg_color = M.client.preferences.PDAcolor
+
+	var/list/color_vals = hex_to_rgb_list(src.bg_color)
+	src.linkbg_color = rgb(color_vals[1] * 0.8, color_vals[2] * 0.8, color_vals[3] * 0.8)
 	src.update_colors(src.bg_color, src.linkbg_color)
 
 	src.hd = new /obj/item/disk/data/fixed_disk(src)
@@ -365,6 +410,7 @@
 		if(ismob(src.loc))
 			var/mob/mob = src.loc
 			get_all_character_setup_ringtones()
+
 			if(mob.client && (mob.client.preferences.pda_ringtone_index in selectable_ringtones) && mob.client?.preferences.pda_ringtone_index != "Two-Beep")
 				src.set_ringtone(selectable_ringtones[mob.client.preferences.pda_ringtone_index], FALSE, FALSE, "main", null, FALSE)
 				var/rtone_program = src.ringtone2program(src.r_tone)
@@ -417,6 +463,10 @@
 			qdel(src.alert_ringtones[T])
 			src.alert_ringtones[T] = null
 
+	if (src.pen)
+		qdel(src.pen)
+		src.pen = null
+
 	if (src.hd)
 		src.hd.dispose()
 		src.hd = null
@@ -441,7 +491,7 @@
 	if(!user.client)
 		return
 	if(!user.literate)
-		boutput(user, "<span class='alert'>You don't know how to read, the screen is meaningless to you.</span>")
+		boutput(user, SPAN_ALERT("You don't know how to read, the screen is meaningless to you."))
 		return
 
 	src.add_dialog(user)
@@ -450,7 +500,7 @@
 	//boutput(world, wincheck)
 	if(wincheck != "MAIN")
 		winclone(user, "pda2", "pda2_\ref[src]")
-
+	winset(user, "pda2_\ref[src]", "title=\"[src.window_title]\"")
 	var/display_mode = src.graphic_mode
 	if(!src.host_program || !owner)
 		display_mode = 0
@@ -558,6 +608,9 @@
 		else if (href_list["eject_id_card"])
 			src.eject_id_card(usr ? usr : null)
 
+		else if (href_list["eject_cash"])
+			src.eject_cash(usr ? usr : null)
+
 		else if (href_list["refresh"])
 			var/obj/item/uplink/integrated/pda/uplink = src.uplink
 			if(istype(uplink))
@@ -576,20 +629,20 @@
 		user.drop_item()
 		C.set_loc(src)
 		if (isnull(src.cartridge))
-			boutput(user, "<span class='notice'>You insert [C] into [src].</span>")
+			boutput(user, SPAN_NOTICE("You insert [C] into [src]."))
 		else
-			boutput(user, "<span class='notice'>You remove the old cartridge and insert [C] into [src].</span>")
+			boutput(user, SPAN_NOTICE("You remove the old cartridge and insert [C] into [src]."))
 			user.put_in_hand_or_eject(src.cartridge)
 		src.cartridge = C
 		src.updateSelfDialog()
 
 	else if (istype(C, /obj/item/device/pda_module))
 		if(src.closed)
-			boutput(user, "<span class='alert'>The casing is closed!</span>")
+			boutput(user, SPAN_ALERT("The casing is closed!"))
 			return
 
 		if(src.module)
-			boutput(user, "<span class='alert'>There is already a module installed!</span>")
+			boutput(user, SPAN_ALERT("There is already a module installed!"))
 			return
 
 		user.drop_item()
@@ -609,7 +662,7 @@
 			return
 
 		if(src.closed)
-			boutput(user, "<span class='alert'>The casing is closed!</span>")
+			boutput(user, SPAN_ALERT("The casing is closed!"))
 			return
 
 		src.module.set_loc(get_turf(src))
@@ -621,26 +674,26 @@
 	else if (istype(C, /obj/item/card/id))
 		var/obj/item/card/id/ID = C
 		if (!ID.registered)
-			boutput(user, "<span class='alert'>This ID isn't registered to anyone!</span>")
+			boutput(user, SPAN_ALERT("This ID isn't registered to anyone!"))
 			return
 		if (!src.owner)
 			src.owner = ID.registered
 			src.ownerAssignment = ID.assignment
 			src.name = "PDA-[src.owner]"
-			boutput(user, "<span class='notice'>Card scanned.</span>")
+			boutput(user, SPAN_NOTICE("Card scanned."))
 			src.updateSelfDialog()
 		else
 			if (src.ID_card)
 				if (IS_WORN_BY_SOMEONE_OTHER_THAN(src, user))
-					boutput(user, "<span class='alert'>There's already an ID card in [src].</span>")
+					boutput(user, SPAN_ALERT("There's already an ID card in [src]."))
 					return
-				boutput(user, "<span class='notice'>You swap [ID] and [src.ID_card].</span>")
+				boutput(user, SPAN_NOTICE("You swap [ID] and [src.ID_card]."))
 				src.eject_id_card(user)
 				src.insert_id_card(ID, user)
 				return
 			else if (!src.ID_card)
 				src.insert_id_card(ID, user)
-				boutput(user, "<span class='notice'>You insert [ID] into [src].</span>")
+				boutput(user, SPAN_NOTICE("You insert [ID] into [src]."))
 
 	else if (istype(C, /obj/item/uplink_telecrystal))
 		if (src.uplink && src.uplink.active)
@@ -651,7 +704,7 @@
 
 	else if (istype(C, /obj/item/explosive_uplink_telecrystal))
 		if (src.uplink && src.uplink.active)
-			boutput(user, "<span class='alert'>The [C] explodes!</span>")
+			boutput(user, SPAN_ALERT("The [C] explodes!"))
 			var/turf/T = get_turf(C.loc)
 			if(T)
 				T.hotspot_expose(700,125)
@@ -663,7 +716,10 @@
 		if (!src.pen)
 			src.insert_pen(C, user)
 		else
-			boutput(user, "<span class='alert'>There is already something in [src]'s pen slot!</span>")
+			boutput(user, SPAN_ALERT("There is already something in [src]'s pen slot!"))
+
+	else if (istype(C, /obj/item/currency/spacecash))
+		src.insert_cash(C, user)
 
 /obj/item/device/pda2/examine()
 	. = ..()
@@ -673,7 +729,7 @@
 	if (src.pen)
 		. += "[pen] is sticking out of the pen slot."
 
-/obj/item/device/pda2/attack(mob/M, mob/user)
+/obj/item/device/pda2/attack(mob/target, mob/user, def_zone, is_special = FALSE, params = null)
 	if(src.scan_program)
 		return
 	else
@@ -687,7 +743,7 @@
 		scan_dat = scan_atmospheric(A, visible = 1) // Replaced with global proc (Convair880).
 
 	if(scan_dat)
-		A.visible_message("<span class='alert'>[user] has scanned [A]!</span>")
+		A.visible_message(SPAN_ALERT("[user] has scanned [A]!"))
 		user.show_message(scan_dat, 1)
 
 	return
@@ -716,7 +772,7 @@
 /obj/item/device/pda2/mouse_drop(atom/over_object, src_location, over_location)
 	..()
 	if (over_object == usr && src.loc == usr && isliving(usr) && !usr.stat)
-		src.attack_self(usr)
+		src.AttackSelf(usr)
 
 /obj/item/device/pda2/verb/pdasay(var/target in pdasay_autocomplete, var/message as text)
 	set name = "PDAsay"
@@ -771,8 +827,8 @@
 
 		if (!overlay_images)
 			src.overlay_images = list()
-			overlay_images["idle"] = image('icons/obj/items/pda.dmi', "screen-idle")
-			overlay_images["alert"] = image('icons/obj/items/pda.dmi', "screen-message")
+			overlay_images["idle"] = image('icons/obj/items/pda.dmi', "screen-idle", pixel_x = src.screen_x, pixel_y = src.screen_y)
+			overlay_images["alert"] = image('icons/obj/items/pda.dmi', "screen-message", pixel_x = src.screen_x, pixel_y = src.screen_y)
 
 		for (var/k in src.overlay_images)
 			src.overlay_images[k].color = bg
@@ -829,11 +885,47 @@
 
 		return
 
+	proc/eject_cash(var/mob/user as mob)
+		if (src.loc == user && src.ID_card && src.accessed_record)
+			var/amount = tgui_input_number(usr, "How much would you like to withdraw?", "Withdrawal", 0, src.accessed_record["current_money"], 0)
+			if (src.loc != user || !src.ID_card || !src.accessed_record)
+				// no withdrawing after you're gone
+				return
+			if (amount < 1)
+				boutput(usr, SPAN_ALERT("Invalid amount!"))
+				return
+			if(amount > src.accessed_record["current_money"])
+				boutput(usr, SPAN_ALERT("Insufficient funds in account."))
+			else
+				src.accessed_record["current_money"] -= amount
+				var/obj/item/currency/spacecash/S = new /obj/item/currency/spacecash
+				S.setup(src.loc, amount)
+				usr.put_in_hand_or_drop(S)
+				boutput(user, SPAN_NOTICE("Withdrawal successful. Your account now has [src.accessed_record["current_money"]] credits."))
+				playsound(src.loc, 'sound/machines/printer_cargo.ogg', 50, 1)
+		return
+
+	proc/insert_cash(var/obj/item/currency/spacecash/cash as obj, var/mob/user as mob)
+		if (src.ID_card && src.accessed_record)
+			src.accessed_record["current_money"] += cash.amount
+			boutput(user, SPAN_NOTICE("You insert [cash] into \the [src]. Your account now has [src.accessed_record["current_money"]] credits."))
+			cash.amount = 0
+			qdel(cash)
+			playsound(src.loc, 'sound/machines/paper_shredder.ogg', 50, 1)
+			src.updateSelfDialog()
+		else
+			if (src.ID_card && !src.accessed_record)
+				boutput(user, SPAN_ALERT("\The [src] refuses your [cash]. The inserted ID card doesn't have a bank account associated with it."))
+			else if (!src.ID_card)
+				boutput(user, SPAN_ALERT("\The [src] refuses your [cash]. There is no ID card inserted."))
+		return
+
 	proc/eject_id_card(var/mob/user as mob)
 		if (src.ID_card)
 			src.registered = null
 			src.assignment = null
 			src.access = null
+			src.accessed_record = null
 			src.underlays -= src.ID_image
 			if (istype(user))
 				user.put_in_hand_or_drop(src.ID_card)
@@ -855,6 +947,7 @@
 		src.registered = ID.registered
 		src.assignment = ID.assignment
 		src.access = ID.access
+		src.accessed_record = data_core.bank.find_record("name", ID.registered)
 		if (!src.ID_image)
 			src.ID_image = image(src.icon, "blank")
 		src.ID_image = src.ID_card.icon_state
@@ -895,7 +988,7 @@
 			animate(time=2, icon_state=original_icon_state)
 			animate(time=2, transform=matrix(null, 0, -1, MATRIX_TRANSLATE))
 			animate(time=3, transform=null)
-			boutput(user, "<span class='notice'>You insert [insertedPen] into [src].</span>")
+			boutput(user, SPAN_NOTICE("You insert [insertedPen] into [src]."))
 
 /*
 	//Toggle the built-in flashlight
@@ -951,8 +1044,8 @@
 			src.r_tone_temp = new/datum/ringtone(src)
 			if (ismob(src.loc))
 				var/mob/B = src.loc
-				B.show_message("<span class='alert'>FATAL RINGTONE ERROR! Please call 1-800-IM-CODER.</span>", 1)
-				B.show_message("<span class='alert'>Restoring backup ringtone...</span>", 1)
+				B.show_message(SPAN_ALERT("FATAL RINGTONE ERROR! Please call 1-800-IM-CODER."), 1)
+				B.show_message(SPAN_ALERT("Restoring backup ringtone..."), 1)
 			return
 		else
 			if(temp)
@@ -991,8 +1084,8 @@
 					M.show_message("[bicon(src)] [RT?.succText]")
 
 	proc/bust_speaker()
-		src.visible_message("<span class='alert'>[src]'s tiny speaker explodes!</span>")
-		playsound(src, 'sound/impact_sounds/Machinery_Break_1.ogg', 20, 1)
+		src.visible_message(SPAN_ALERT("[src]'s tiny speaker explodes!"))
+		playsound(src, 'sound/impact_sounds/Machinery_Break_1.ogg', 20, TRUE)
 		elecflash(src, radius=1, power=1, exclude_center = 0)
 		src.speaker_busted = 1
 
@@ -1099,7 +1192,7 @@
 	proc/explode()
 		if (src.bombproof)
 			if (ismob(src.loc))
-				boutput(src.loc, "<span class='alert'><b>ALERT:</b> An attempt to run malicious explosive code on your PDA has been blocked.</span>")
+				boutput(src.loc, SPAN_ALERT("<b>ALERT:</b> An attempt to run malicious explosive code on your PDA has been blocked."))
 			return
 
 		if(src in bible_contents)
@@ -1115,7 +1208,7 @@
 
 		if (ismob(src.loc))
 			var/mob/M = src.loc
-			M.show_message("<span class='alert'>Your [src] explodes!</span>", 1)
+			M.show_message(SPAN_ALERT("Your [src] explodes!"), 1)
 
 		if(T)
 			T.hotspot_expose(700,125)
@@ -1137,7 +1230,7 @@
 		return ..()
 	var/mob/living/silicon/ai/ai = loc
 	if (ai.deployed_to_eyecam)
-		ai.eyecam << sound('sound/machines/twobeep.ogg', volume=35)
+		ai.eyecam.playsound_local_not_inworld('sound/machines/twobeep.ogg', 35)
 		ai.eyecam.show_message(message)
 	if (ismob(ai.deployed_shell))
 		var/mob/M = ai.deployed_shell
@@ -1170,11 +1263,31 @@ ThinkOS 7 comes with several useful applications built in, these include:<br>
 <li>Messenger: Send messages between all enabled PDAs.  Can also send the current file in the clipboard.</li>
 <li>File Browser: Manage and execute programs in the internal drive or loaded cartridge.</li>
 <li>Atmos Scanner: Using patented AirScan technology.</li>
-<li>Modules: Light up your life with a flashlight, or see right through the floor with a T-Scanner! The choice is yours!</li>
+<li>Modules: Light up your life with a flashlight, or see right through the floor with a T-ray Scanner! The choice is yours!</li>
 </ul></i>
 <b>To send a file with the messenger:</b><br>
 Enter the file browser and copy the file you want to send.  Now enter the messenger and select *send file*.<br>
 <br>
 ThinkOS 7 supports a wide variety of software solutions, ranging from robot interface systems to forensic and medical scanners.<br>
 <font size=1>This technology produced by Thinktronic Systems, LTD for the NanoTrasen Corporation</font>
+"}
+
+/datum/computer/file/text/pda2manual/knockoff
+	name = "User Guide!"
+
+	data = {"
+ElecTek 5 Personnel Data Actuator Manual<br>
+Operating System: ThoughtOS 1.2<hr>
+ThoughtOS 1.2 appears with several useful application!<br>
+<i><ul>
+<li>Notemaker: Load, edit, and save text files just like this one!</li>
+<li>Messenger: Send messages between all enabled PDAs.  Can also send the current file in the clipboard.</li>
+<li>File Browser: Manage and execute programs in the internal drive or loaded cartridge.</li>
+<li>Atmos Scanner: Using patented AirScan technology.</li>
+<li>Modules: Light up your life with a flashlight, or see right through the floor with a T-ray Scanner! The choice is yours!</li>
+</ul></i>
+<b>To send a file with the messenger:</b><br>
+Enter the file browser and copy the file you want to send.  Now enter the messenger and select *send file*.<br>
+<br>
+<font size=1>This technology produced by ElecTek LTD, part of the BonkTek Consortium!</font>
 "}

@@ -4,22 +4,6 @@ What are the archived variables for?
 	This prevents race conditions that arise based on the order of tile processing.
 */
 
-/// Define a custom trace gas my making a subtype of this.
-/datum/gas
-	/// How much of us are there in moles.
-	var/moles = 0
-#ifdef ATMOS_ARCHIVING
-	var/ARCHIVED(moles) = 0
-#endif
-	/// Amount of heat needed in joules to heat up 1 mole up 1 Kelvin.
-	var/specific_heat = 0
-
-/datum/gas/sleeping_agent
-	specific_heat = 40
-
-/datum/gas/oxygen_agent_b
-	specific_heat = 300
-
 /** The key of atmospherics.
  * 	This datum here is how we represent gas mixtures. Temperature is in Kelvin and volume is in Litres.
  * 	Defines and stores base gases using [APPLY_TO_GASES] and stores trace gases using [datum/gas_mixture/var/list/datum/gas/trace_gases]. */
@@ -47,11 +31,6 @@ What are the archived variables for?
 	/// Bitfield representing gas graphics on our tile.
 	var/graphic
 	var/tmp/graphic_archived // intentionally NOT using ARCHIVED() because graphic archiving is actually important and shouldn't be turned off
-	/// Non-base gases that are more modular. Tends to be slower than base gases however.
-	var/list/datum/gas/trace_gases
-	/// References are accessed directly to optimize functions as trace_gases.
-	/// Mapping of type->gas to leverage hashing previous use of locate and avoid O(n^2) when comparing multiple gas_mixtures
-	var/list/trace_gas_refs
 	/// Rough representation of oxygen and plasma used. Actual usage of plasma is currectly divided by 3 for balance.
 	var/tmp/fuel_burnt = 0
 
@@ -59,9 +38,6 @@ What are the archived variables for?
 // Overrides
 /datum/gas_mixture/disposing()
 	total_gas_mixtures--
-	if (trace_gases)
-		trace_gases = null
-		trace_gas_refs = null
 	..()
 
 /datum/gas_mixture/New()
@@ -72,49 +48,12 @@ What are the archived variables for?
 // For specific events
 
 /// Removes all gases except if in an underwater map, in which case the gas is set to be hot low pressure air.
-/datum/gas_mixture/proc/zero()
-	src.clear_trace_gases()
-	ZERO_BASE_GASES(src)
+/datum/gas_mixture/proc/reset_to_space_gas()
+	ZERO_GASES(src)
 	if (map_currently_underwater)
 		src.oxygen = MOLES_O2STANDARD * 0.5
 		src.nitrogen = MOLES_N2STANDARD * 0.5
 		src.temperature = OCEAN_TEMP
-
-/// Completely removes any gas.
-/datum/gas_mixture/proc/vacuum()
-	src.clear_trace_gases()
-	ZERO_BASE_GASES(src)
-
-/// Nulls all trace gases.
-/datum/gas_mixture/proc/clear_trace_gases()
-	src.trace_gases = null
-	src.trace_gas_refs = null
-
-/// Remove trace gas from a gas_mixture and handle clearing the trace_gases when applicable
-/datum/gas_mixture/proc/remove_trace_gas(datum/gas/trace_gas)
-	if(src.trace_gases)
-		src.trace_gases -= trace_gas
-		if(!length(src.trace_gases))
-			clear_trace_gases()
-		else
-			src.trace_gas_refs[trace_gas.type] = null
-
-/// Retrieve a gas or create a gas for a gas mixture based on the gas type
-/datum/gas_mixture/proc/get_or_add_trace_gas_by_type(type)
-	if(!trace_gases)
-		trace_gases = list()
-		trace_gas_refs = list()
-
-	var/datum/gas/trace_gas = src.trace_gas_refs[type]
-	if(!trace_gas)
-		trace_gas = new type()
-		trace_gases += trace_gas
-		trace_gas_refs[type] = trace_gas
-	. = trace_gas
-
-/// Retrieve a gas by type
-/datum/gas_mixture/proc/get_trace_gas_by_type(type)
-	if(trace_gas_refs) . = src.trace_gas_refs[type]
 
 /// Build bitfield of overlays to use for a gas mixture and determine if graphic should be updated
 /datum/gas_mixture/proc/check_tile_graphic()
@@ -123,59 +62,49 @@ What are the archived variables for?
 
 	UPDATE_GAS_MIXTURE_GRAPHIC(graphic, GAS_IMG_PLASMA, toxins)
 	UPDATE_GAS_MIXTURE_GRAPHIC(graphic, GAS_IMG_RAD, radgas)
-	if(length(trace_gases))
-		// refs are accessed directly to optimize functions as trace_gases
-		// has already been asserted above instead of utilizing get_trace_gas_by_type()
-		var/datum/gas/sleeping_agent = src.trace_gas_refs[/datum/gas/sleeping_agent]
-		UPDATE_GAS_MIXTURE_GRAPHIC(graphic, GAS_IMG_N2O, sleeping_agent?.moles)
+	UPDATE_GAS_MIXTURE_GRAPHIC(graphic, GAS_IMG_N2O, nitrous_oxide)
+
 	. = graphic != graphic_archived
 	graphic_archived = graphic
 
 /// Process all reactions, return bitfield if notable reaction occurs.
-/datum/gas_mixture/proc/react(atom/dump_location)
+/datum/gas_mixture/proc/react(atom/dump_location, mult=1)
 	. = 0 //(used by pipe_network and hotspots)
 	var/reaction_rate
+	if(src.temperature > 900 && src.oxygen_agent_b > MINIMUM_REACT_QUANTITY && src.toxins > MINIMUM_REACT_QUANTITY && src.carbon_dioxide > MINIMUM_REACT_QUANTITY)
+		reaction_rate = min(src.carbon_dioxide*0.75, src.toxins*0.25, src.oxygen_agent_b*0.05)
+		reaction_rate = QUANTIZE(reaction_rate) * mult
 
-	if(length(src.trace_gases))
-		if(src.temperature > 900 && src.toxins > MINIMUM_REACT_QUANTITY && src.carbon_dioxide > MINIMUM_REACT_QUANTITY)
-			// refs are accessed directly to optimize functions as trace_gases
-			// has already been asserted above instead of utilizing get_trace_gas_by_type()
-			var/datum/gas/oxygen_agent_b/trace_gas = src.trace_gas_refs[/datum/gas/oxygen_agent_b/]
-			if(trace_gas?.moles > MINIMUM_REACT_QUANTITY )
-				reaction_rate = min(src.carbon_dioxide*0.75, src.toxins*0.25, trace_gas.moles*0.05)
-				reaction_rate = QUANTIZE(reaction_rate)
+		src.carbon_dioxide -= reaction_rate
+		src.oxygen += reaction_rate
+		src.oxygen_agent_b -= reaction_rate*0.05
 
-				src.carbon_dioxide -= reaction_rate
-				src.oxygen += reaction_rate
+		src.temperature += (reaction_rate*20000)/HEAT_CAPACITY(src)
 
-				trace_gas.moles -= reaction_rate*0.05
-
-				src.temperature += (reaction_rate*20000)/HEAT_CAPACITY(src)
-
-				if(reaction_rate > MINIMUM_REACT_QUANTITY)
-					. |= CATALYST_ACTIVE
-				. |= REACTION_ACTIVE
+		if(reaction_rate > MINIMUM_REACT_QUANTITY)
+			. |= CATALYST_ACTIVE
+		. |= REACTION_ACTIVE
 
 	if(src.temperature > 900 && src.farts > MINIMUM_REACT_QUANTITY && src.toxins > MINIMUM_REACT_QUANTITY && src.carbon_dioxide > MINIMUM_REACT_QUANTITY)
 		reaction_rate = min(src.carbon_dioxide*0.75, src.toxins*0.25, src.farts*0.05)
-		reaction_rate = QUANTIZE(reaction_rate)
+		reaction_rate = QUANTIZE(reaction_rate) * mult
 
 		src.carbon_dioxide -= reaction_rate
 		src.toxins += reaction_rate
-
 		src.farts -= reaction_rate*0.05
 
 		src.temperature += (reaction_rate*10000)/HEAT_CAPACITY(src)
 		. |= REACTION_ACTIVE
 
-	fuel_burnt = 0
+	src.fuel_burnt = 0
 	if(src.temperature > FIRE_MINIMUM_TEMPERATURE_TO_EXIST)
-		if(fire())
+		if(src.fire(mult))
 			. |= COMBUSTION_ACTIVE
 
 /// * Process fire combustion, pretty much just plasma combustion.
 /// * Returns: Rough amount of plasma and oxygen used. Inaccurate due to plasma usage lowering.
-/datum/gas_mixture/proc/fire()
+/datum/gas_mixture/proc/fire(mult=1)
+
 	var/energy_released = 0
 	var/old_heat_capacity = HEAT_CAPACITY(src)
 
@@ -196,6 +125,9 @@ What are the archived variables for?
 			else
 				plasma_burn_rate = (temperature_scale * (src.oxygen / PLASMA_OXYGEN_FULLBURN)) / 4
 			if(plasma_burn_rate > MINIMUM_REACT_QUANTITY)
+				plasma_burn_rate *= mult
+				oxygen_burn_rate *= mult
+
 				src.toxins -= QUANTIZE(plasma_burn_rate / 3) // Plasma usage lowered
 				src.oxygen -= QUANTIZE(plasma_burn_rate * oxygen_burn_rate)
 				src.carbon_dioxide += QUANTIZE(plasma_burn_rate / 3)
@@ -212,6 +144,43 @@ What are the archived variables for?
 	ASSERT(src.fuel_burnt >= 0)
 	return src.fuel_burnt
 
+/// Processes an interaction between a neutron and this gas mixture, altering the component gasses accordingly.
+/// Returns the resulting number of neutrons - 0 means that the reaction consumed the input neutron
+/datum/gas_mixture/proc/neutron_interact()
+	var/neutron_count = 1
+	if(neutron_count && src.toxins > 1) //plasma acts crazy, producing fallout and a random bunch of neutrons
+		//number of neutrons directly proportional to number of moles
+		//for every 100 mol, one extra neutron, with the remainder acting as a prob
+		//couple cans of plasma at room temp is about 50 mol in each gas channel with standard setup
+		var/plasma_react_count = round((src.toxins - (src.toxins % (NEUTRON_PLASMA_REACT_MOLS_PER_LITRE*src.volume)))/(NEUTRON_PLASMA_REACT_MOLS_PER_LITRE*src.volume)) + prob(src.toxins % (NEUTRON_PLASMA_REACT_MOLS_PER_LITRE*src.volume))
+		plasma_react_count = rand(0, plasma_react_count) //make it a little probabilistic
+		src.toxins -= 0.5 * plasma_react_count
+		src.radgas += 2 * plasma_react_count
+		neutron_count += plasma_react_count
+
+	if(neutron_count && src.carbon_dioxide > 1) //CO2 acts like a gaseous control rod
+		var/co2_react_count = round((src.carbon_dioxide - (src.carbon_dioxide % (NEUTRON_CO2_REACT_MOLS_PER_LITRE*src.volume)))/(NEUTRON_CO2_REACT_MOLS_PER_LITRE*src.volume)) + prob(src.carbon_dioxide % (NEUTRON_CO2_REACT_MOLS_PER_LITRE*src.volume))
+		co2_react_count = rand(0, co2_react_count) //make it a little probabilistic
+		src.temperature += 5*min(neutron_count, co2_react_count)
+		neutron_count -= min(neutron_count, co2_react_count)
+
+	if(neutron_count && src.radgas > 1)
+		//rare chance for radgas to decompose into a random gas when hit by a neutron
+		if(prob(src.radgas))
+			src.radgas -= 1
+			src.temperature += 5
+			switch(rand(1,5))
+				if(1)
+					src.oxygen += 0.5
+				if(2)
+					src.nitrogen += 0.5
+				if(3)
+					src.farts += 0.1
+				if(4)
+					src.nitrous_oxide += 0.1
+				if(5)
+					src.oxygen_agent_b += 0.1
+	return neutron_count
 
 #ifdef ATMOS_ARCHIVING
 /// Update archived versions of variables.
@@ -219,9 +188,6 @@ What are the archived variables for?
 	#define _ARCHIVE_GAS(GAS, ...) ARCHIVED(GAS) = GAS;
 	APPLY_TO_GASES(_ARCHIVE_GAS)
 	#undef _ARCHIVE_GAS
-	if(length(trace_gases))
-		for(var/datum/gas/trace_gas as anything in trace_gases)
-			trace_gas.ARCHIVED(moles) = trace_gas.moles
 	src.ARCHIVED(temperature) = src.temperature
 	src.graphic_archived = src.graphic
 #endif
@@ -238,12 +204,6 @@ What are the archived variables for?
 	#undef _ABOVE_SUSPEND_THRESHOLD
 	if(abs(giver.temperature - src.temperature) > MINIMUM_TEMPERATURE_DELTA_TO_SUSPEND)
 		return FALSE
-
-	if(length(giver.trace_gases))
-		for(var/datum/gas/trace_gas as anything in giver.trace_gases)
-			var/datum/gas/corresponding = src.get_trace_gas_by_type(trace_gas.type)
-			if((trace_gas.moles > MINIMUM_AIR_TO_SUSPEND) && (!corresponding || (trace_gas.moles >= corresponding.moles*MINIMUM_AIR_RATIO_TO_SUSPEND)))
-				return FALSE
 
 	return merge(giver)
 
@@ -269,11 +229,6 @@ What are the archived variables for?
 		APPLY_TO_GASES(_MERGE_GAS)
 		#undef _MERGE_GAS
 
-	if(length(giver.trace_gases))
-		for(var/datum/gas/trace_gas as anything in giver.trace_gases)
-			var/datum/gas/corresponding = src.get_or_add_trace_gas_by_type(trace_gas.type)
-			corresponding.moles += trace_gas.moles*giver.group_multiplier/src.group_multiplier
-
 	giver.dispose() // skip the qdel overhead
 	return TRUE
 
@@ -292,13 +247,6 @@ What are the archived variables for?
 		src.GAS -= removed.GAS/src.group_multiplier;
 	APPLY_TO_GASES(_REMOVE_GAS)
 	#undef _REMOVE_GAS
-
-	if(length(trace_gases))
-		for(var/datum/gas/trace_gas as anything in trace_gases)
-			var/datum/gas/corresponding = removed.get_or_add_trace_gas_by_type(trace_gas.type)
-
-			corresponding.moles = (trace_gas.moles/sum)*amount
-			trace_gas.moles -= corresponding.moles/src.group_multiplier
 
 	removed.temperature = src.temperature
 
@@ -319,12 +267,6 @@ What are the archived variables for?
 		src.GAS -= removed.GAS/src.group_multiplier;
 	APPLY_TO_GASES(_REMOVE_GAS_RATIO)
 	#undef _REMOVE_GAS_RATIO
-
-	if(length(trace_gases))
-		for(var/datum/gas/trace_gas as anything in trace_gases)
-			var/datum/gas/corresponding = removed.get_or_add_trace_gas_by_type(trace_gas.type)
-			corresponding.moles = trace_gas.moles*ratio
-			trace_gas.moles -= corresponding.moles/src.group_multiplier
 
 	removed.temperature = src.temperature
 
@@ -352,12 +294,6 @@ What are the archived variables for?
 	APPLY_TO_GASES(_COPY_GAS)
 	#undef _COPY_GAS
 
-	src.clear_trace_gases()
-	if(length(sample.trace_gases))
-		for(var/datum/gas/trace_gas as anything in sample.trace_gases)
-			var/datum/gas/corresponding = src.get_or_add_trace_gas_by_type(trace_gas.type)
-			corresponding.moles = trace_gas.moles
-
 	src.temperature = sample.temperature
 
 	return TRUE
@@ -367,11 +303,6 @@ What are the archived variables for?
 	#define _SUBTRACT_GAS(GAS, ...) GAS -= right_side.GAS;
 	APPLY_TO_GASES(_SUBTRACT_GAS)
 	#undef _SUBTRACT_GAS
-
-	if(length(right_side.trace_gases))
-		for(var/datum/gas/trace_gas as anything in right_side.trace_gases)
-			var/datum/gas/corresponding = src.get_or_add_trace_gas_by_type(trace_gas.type)
-			corresponding.moles -= trace_gas.moles
 
 /// * Checks if us and the sharer have a low enough delta and our combination's delta is small enough that group processing can be preserved.
 /// * Returns: [SELF_CHECK_FAIL] if the self-check failed, [SHARER_CHECK_FAIL] if sharer-check failed, [GROUP_CHECK_PASS] if both checks pass.
@@ -392,40 +323,10 @@ What are the archived variables for?
 	if(abs(delta_temperature) > MINIMUM_TEMPERATURE_DELTA_TO_SUSPEND)
 		return SELF_CHECK_FAIL
 
-	if(length(sharer.trace_gases))
-		if(!length(src.trace_gases))
-			return SELF_CHECK_FAIL
-		for(var/datum/gas/trace_gas as anything in sharer.trace_gases)
-			if(trace_gas.ARCHIVED(moles) > MINIMUM_AIR_TO_SUSPEND*4)
-				var/datum/gas/corresponding = src.get_trace_gas_by_type(trace_gas.type)
-				if(corresponding)
-					if(trace_gas.ARCHIVED(moles) >= corresponding.ARCHIVED(moles)*MINIMUM_AIR_RATIO_TO_SUSPEND*4)
-						return SELF_CHECK_FAIL
-				else
-					return SELF_CHECK_FAIL
-
-	if(length(src.trace_gases))
-		if(!length(sharer.trace_gases))
-			return SELF_CHECK_FAIL
-		for(var/datum/gas/trace_gas as anything in trace_gases)
-			if(trace_gas.ARCHIVED(moles) > MINIMUM_AIR_TO_SUSPEND*4)
-				if(!sharer.get_trace_gas_by_type(trace_gas.type))
-					return SELF_CHECK_FAIL
-
 	#define _ABOVE_SUSPEND_THRESHOLD(GAS, ...) ((abs(delta_##GAS) > MINIMUM_AIR_TO_SUSPEND) && (abs(delta_##GAS) >= sharer.GAS*MINIMUM_AIR_RATIO_TO_SUSPEND)) ||
 	if(APPLY_TO_ARCHIVED_GASES(_ABOVE_SUSPEND_THRESHOLD) FALSE) // the FALSE is there so the last || in the macro isnt left hanging
 		return SHARER_CHECK_FAIL
 	#undef _ABOVE_SUSPEND_THRESHOLD
-
-	if(length(src.trace_gases))
-		for(var/datum/gas/trace_gas as anything in trace_gases)
-			if(trace_gas.ARCHIVED(moles) > MINIMUM_AIR_TO_SUSPEND*4)
-				var/datum/gas/corresponding = sharer.get_trace_gas_by_type(trace_gas.type)
-				if(corresponding)
-					if(trace_gas.ARCHIVED(moles) >= corresponding.ARCHIVED(moles)*MINIMUM_AIR_RATIO_TO_SUSPEND*4)
-						return SHARER_CHECK_FAIL
-				else
-					return SHARER_CHECK_FAIL
 
 	return GROUP_CHECK_PASS
 
@@ -445,10 +346,6 @@ What are the archived variables for?
 	if(abs(delta_temperature) > MINIMUM_TEMPERATURE_DELTA_TO_SUSPEND)
 		return FALSE
 
-	if(length(src.trace_gases))
-		for(var/datum/gas/trace_gas as anything in src.trace_gases)
-			if(trace_gas.ARCHIVED(moles) > MINIMUM_AIR_TO_SUSPEND*4)
-				return FALSE
 	return TRUE
 
 /// * Performs air sharing calculations between two gas_mixtures assuming only 1 boundary length.
@@ -487,64 +384,6 @@ What are the archived variables for?
 	APPLY_TO_GASES(_SHARE_GAS)
 	#undef _SHARE_GAS
 
-	var/list/trace_types_considered
-
-	if(length(src.trace_gases))
-		trace_types_considered = list()
-
-		for(var/datum/gas/trace_gas as anything in src.trace_gases)
-
-			var/datum/gas/corresponding = sharer.get_or_add_trace_gas_by_type(trace_gas.type)
-			var/delta = 0 MOLES
-
-			if(corresponding.ARCHIVED(moles))
-				delta = QUANTIZE(trace_gas.ARCHIVED(moles) - corresponding.ARCHIVED(moles))/5
-			else
-				delta = trace_gas.ARCHIVED(moles)/5
-
-			trace_gas.moles -= delta/src.group_multiplier
-			corresponding.moles += delta/sharer.group_multiplier
-
-			if(delta)
-				var/individual_heat_capacity = trace_gas.specific_heat*delta
-				if(delta > 0)
-					heat_capacity_self_to_sharer += individual_heat_capacity
-				else
-					heat_capacity_sharer_to_self -= individual_heat_capacity
-
-			moved_moles += delta
-
-			trace_types_considered += trace_gas.type
-
-	if(length(sharer.trace_gases))
-		for(var/datum/gas/trace_gas as anything in sharer.trace_gases)
-			if(trace_types_considered && (trace_gas.type in trace_types_considered)) continue
-			else
-				var/datum/gas/corresponding
-				var/delta = 0
-
-				// This is using a simplified implementation of get_or_add_trace_gas_by_type()
-				// assumptions can be made to minimize decision points thereby minimize operations to perform
-				if(!trace_gases)
-					src.trace_gases = list()
-					src.trace_gas_refs = list()
-
-				corresponding = new trace_gas.type()
-				src.trace_gases += corresponding
-				src.trace_gas_refs[corresponding.type] = corresponding
-
-				delta = trace_gas.ARCHIVED(moles)/5
-
-				trace_gas.moles -= delta/sharer.group_multiplier
-				corresponding.moles += delta/src.group_multiplier
-
-				//Guaranteed transfer from sharer to self
-				var/individual_heat_capacity = trace_gas.specific_heat*delta
-				//heat_sharer_to_self += individual_heat_capacity*sharer.ARCHIVED(temperature)
-				heat_capacity_sharer_to_self += individual_heat_capacity
-
-				moved_moles += -delta
-
 	if(abs(delta_temperature) > MINIMUM_TEMPERATURE_DELTA_TO_CONSIDER)
 		var/new_self_heat_capacity = old_self_heat_capacity + heat_capacity_sharer_to_self - heat_capacity_self_to_sharer
 		var/new_sharer_heat_capacity = old_sharer_heat_capacity + heat_capacity_self_to_sharer - heat_capacity_sharer_to_self
@@ -569,6 +408,9 @@ What are the archived variables for?
 /// * Similar to [/datum/gas_mixture/proc/share], except the model is not modified.
 /// * Return: Moles of gas exchanged.
 /datum/gas_mixture/proc/mimic(turf/model, border_multiplier = 1)
+	if (!model)
+		return FALSE
+
 	#define _DELTA_GAS(GAS, ...) var/delta_##GAS = QUANTIZE(((src.ARCHIVED(GAS) - model.GAS)/5)*border_multiplier/src.group_multiplier);
 	APPLY_TO_GASES(_DELTA_GAS)
 	#undef _DELTA_GAS
@@ -599,21 +441,6 @@ What are the archived variables for?
 	APPLY_TO_GASES(_MIMIC_GAS)
 	#undef _MIMIC_GAS
 
-	if(length(trace_gases))
-		for(var/datum/gas/trace_gas as anything in trace_gases)
-			var/delta = 0 MOLES
-
-			delta = QUANTIZE((trace_gas.ARCHIVED(moles)/5)*border_multiplier/src.group_multiplier)
-
-			if (abs(delta) <= ATMOS_EPSILON) continue
-
-			trace_gas.moles = QUANTIZE(trace_gas.moles - delta)
-
-			var/heat_cap_transferred = delta*trace_gas.specific_heat
-			heat_transferred += heat_cap_transferred*src.ARCHIVED(temperature)
-			heat_capacity_transferred += heat_cap_transferred
-			moved_moles += delta
-
 	if(abs(delta_temperature) > MINIMUM_TEMPERATURE_DELTA_TO_CONSIDER)
 		var/new_self_heat_capacity = old_self_heat_capacity - heat_capacity_transferred
 		if(new_self_heat_capacity > MINIMUM_HEAT_CAPACITY)
@@ -622,7 +449,7 @@ What are the archived variables for?
 		src.temperature_mimic(model, model.thermal_conductivity, border_multiplier)
 
 	if((delta_temperature > MINIMUM_TEMPERATURE_TO_MOVE))
-		var/delta_pressure = src.ARCHIVED(temperature)*(TOTAL_MOLES(src) + moved_moles) - model.temperature*BASE_GASES_TOTAL_MOLES(model)
+		var/delta_pressure = src.ARCHIVED(temperature)*(TOTAL_MOLES(src) + moved_moles) - model.temperature*TOTAL_MOLES(model)
 		return (delta_pressure*R_IDEAL_GAS_EQUATION/volume)
 	else
 		return 0 MOLES
@@ -804,32 +631,11 @@ What are the archived variables for?
 			((temperature < (1-MINIMUM_TEMPERATURE_RATIO_TO_SUSPEND)*sample.temperature) || (temperature > (1+MINIMUM_TEMPERATURE_RATIO_TO_SUSPEND)*sample.temperature)))
 			return FALSE
 
-	if(length(sample.trace_gases))
-		for(var/datum/gas/trace_gas as anything in sample.trace_gases)
-			if(trace_gas.ARCHIVED(moles) > MINIMUM_AIR_TO_SUSPEND)
-				var/datum/gas/corresponding = src.get_trace_gas_by_type(trace_gas.type)
-				if(corresponding)
-					if((abs(trace_gas.moles - corresponding.moles) > MINIMUM_AIR_TO_SUSPEND) && \
-						((corresponding.moles < (1-MINIMUM_AIR_RATIO_TO_SUSPEND)*trace_gas.moles) || (corresponding.moles > (1+MINIMUM_AIR_RATIO_TO_SUSPEND)*trace_gas.moles)))
-						return FALSE
-				else
-					return FALSE
-
-	if(length(trace_gases))
-		for(var/datum/gas/trace_gas as anything in trace_gases)
-			if(trace_gas.moles > MINIMUM_AIR_TO_SUSPEND)
-				var/datum/gas/corresponding = sample.get_trace_gas_by_type(trace_gas.type)
-				if(corresponding)
-					if((abs(trace_gas.moles - corresponding.moles) > MINIMUM_AIR_TO_SUSPEND) && \
-						((trace_gas.moles < (1-MINIMUM_AIR_RATIO_TO_SUSPEND)*corresponding.moles) || (trace_gas.moles > (1+MINIMUM_AIR_RATIO_TO_SUSPEND)*corresponding.moles)))
-						return FALSE
-				else
-					return FALSE
 	return TRUE
 
 /// Checks for, ya know, if the mixture is potentially dangerous.
 /datum/gas_mixture/proc/check_if_dangerous()
-	if(TOTAL_MOLES(src) && (temperature > T100C || src.temperature < T0C || trace_gases || toxins || farts || carbon_dioxide || (nitrogen && !oxygen)))
+	if(TOTAL_MOLES(src) && (temperature > T100C || src.temperature < T0C || toxins || farts || carbon_dioxide || (nitrogen && !oxygen)))
 		return TRUE
 	else
 		return FALSE

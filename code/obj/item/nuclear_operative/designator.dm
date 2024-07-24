@@ -1,5 +1,3 @@
-#define DESIGNATOR_MAX_RANGE 30
-
 ////////// Laser Designator & Airstrikes //////////
 /obj/item/device/laser_designator
 	name = "Laser Designator"
@@ -10,8 +8,6 @@
 	w_class = W_CLASS_SMALL
 	/// How many times can this be used?
 	var/uses = 1
-	/// Movement controller for the designator's "scope"
-	var/datum/movement_controller/designatormove = null
 	/// TRUE if an air strike is waiting to happen/happening
 	var/in_use = FALSE
 	/// The gun that "fires" the shell
@@ -23,24 +19,14 @@
 
 	New()
 		..()
-		designatormove = new/datum/movement_controller/designator_look()
 		desc = "A handheld monocular device with a laser built into it, used for calling in fire support. It has [src.uses] charge left."
 		target_overlay = image('icons/effects/effects.dmi', "spinny_red")
+		AddComponent(/datum/component/holdertargeting/sniper_scope, 10, 1000, /datum/overlayComposition/sniper_scope, 'sound/weapons/scope.ogg')
 
 	disposing()
-		designatormove = null
 		linked_gun = null
 		target_overlay = null
 		..()
-
-	dropped(mob/M)
-		remove_self(M)
-		..()
-
-	move_callback(mob/living/M, turf/source, turf/target)
-		if (M.use_movement_controller)
-			if (source != target)
-				just_stop_designating(M)
 
 	proc/airstrike(atom/target, params, mob/user, reach)
 		uses -= 1
@@ -48,52 +34,6 @@
 		if(!linked_gun.bombard(target, user))
 			uses += 1
 		in_use = FALSE
-
-	proc/remove_self(mob/living/M)
-		if (islist(M.move_laying))
-			M.move_laying -= src
-		else
-			M.move_laying = null
-
-		if (ishuman(M))
-			M:special_sprint &= ~SPRINT_DESIGNATOR
-
-		just_stop_designating(M)
-
-	proc/just_stop_designating(mob/living/M) //removes overlay here
-		M.use_movement_controller = null
-		if (M.client)
-			M.client.pixel_x = 0
-			M.client.pixel_y = 0
-			M.keys_changed(0,0xFFFF) //This is necessary for the designator to work
-
-		M.removeOverlayComposition(/datum/overlayComposition/sniper_scope)
-
-	attack_hand(mob/user)
-		if (..() & ishuman(user))
-			user:special_sprint |= SPRINT_DESIGNATOR
-			var/mob/living/L = user
-
-			//set move callback (when user moves, designator go down)
-			if (islist(L.move_laying))
-				L.move_laying += src
-			else
-				if (L.move_laying)
-					L.move_laying = list(L.move_laying, src)
-				else
-					L.move_laying = list(src)
-
-	get_movement_controller()
-		.= designatormove
-
-/mob/living/proc/begin_designating() //adds the overlay + sound here
-	for (var/obj/item/device/laser_designator/laser_designator in equipped_list(check_for_magtractor = 0))
-		src.use_movement_controller = laser_designator
-		src.keys_changed(0,0xFFFF) //This is necessary for the designator to work
-		if(!src.hasOverlayComposition(/datum/overlayComposition/sniper_scope))
-			src.addOverlayComposition(/datum/overlayComposition/sniper_scope)
-		playsound(src, 'sound/weapons/scope.ogg', 50, 1)
-		break
 
 /obj/item/device/laser_designator/syndicate
 	name = "Laser Designator"
@@ -131,12 +71,10 @@
 
 		if(!src.linked_gun)
 			boutput(user, "<span class='alert'>The [src] makes a grumpy beep. It seems there's no artillery guns in position currently.</span>")
-			playsound(src, 'sound/machines/buzz-sigh.ogg', 50, 1)
+			playsound(src, 'sound/machines/buzz-sigh.ogg', 50, TRUE)
 			return FALSE
 
 		return src.airstrike(target, params, user, reach)
-
-
 
 /obj/machinery/broadside_gun //Thanks to Cogwerks for the sprites
 	name = "Broadside Gun Parent"
@@ -180,10 +118,10 @@
 		target_overlay = null
 
 /obj/machinery/broadside_gun/artillery_cannon
-	name = "Artillery Cannon"
+	name = "BlastoTek 12-inch Cannon"
 	icon = 'icons/obj/large/96x32.dmi'
 	icon_state = "152mm"
-	desc = "A 152 millimeter artillery cannon, used for heavy fire support."
+	desc = "A massive artillery cannon that breaks the terms of the Frontier Cruiser Treaty. Used for heavy fire support."
 	bound_width = 96
 	firingfrom = ""
 	ammo = -1
@@ -202,12 +140,12 @@
 		while(sound_offset_length > 0)
 			sound_turf = get_step(src, sound_offset_dir)
 			sound_offset_length--
-		playsound(user, 'sound/machines/whistlebeep.ogg', 50, 1)
-		playsound(sound_turf, 'sound/weapons/energy/howitzer_firing.ogg', 50, 1)
+		playsound(user, 'sound/machines/whistlebeep.ogg', 50, TRUE)
+		playsound(sound_turf, 'sound/weapons/energy/howitzer_firing.ogg', 50, TRUE)
 		sleep(2.5 SECONDS)
 		var/area/designated_area = get_area(target_turf)
 		command_alert("Heavy ordinace has been detected launching from the Cairngorm towards the [initial(designated_area.name)], ETA 5 seconds.","Central Command Alert")
-		flick("152mm_firing", src)
+		flick("152mm-firing", src)
 		firing_turf = get_step(firing_turf, WEST)
 		firing_turf = get_step(firing_turf, WEST)
 		var/atom/movable/overlay/animation = new /atom/movable/overlay(firing_turf)
@@ -217,7 +155,7 @@
 			flick("152mm-flash", animation)
 			sleep(1.2 SECONDS)
 			qdel(animation)
-		playsound(sound_turf, 'sound/weapons/energy/howitzer_shot.ogg', 50, 1)
+		playsound(sound_turf, 'sound/weapons/energy/howitzer_shot.ogg', 50, TRUE)
 		sleep(rand(3 SECONDS, 7 SECONDS))
 		if(!isnull(src.target_overlay))
 			target_turf.overlays -= src.target_overlay
@@ -231,11 +169,86 @@
 		firingfrom = "Cairngorm"
 
 		New()
-			..()
 			START_TRACKING_CAT(TR_CAT_NUKE_OP_STYLE)
+			..()
 
 		disposing()
 			STOP_TRACKING_CAT(TR_CAT_NUKE_OP_STYLE)
 			..()
 
-#undef DESIGNATOR_MAX_RANGE
+
+ADMIN_INTERACT_PROCS(/obj/machinery/broadside_gun/directfire, proc/fire)
+
+ABSTRACT_TYPE(/obj/machinery/broadside_gun/directfire)
+/obj/machinery/broadside_gun/directfire
+	name = "Shipscale Gun"
+	ammo = -1
+	dir = WEST
+	icon = 'icons/obj/large/96x32.dmi'
+	var/icon_firing = null
+	var/current_projectile = new/datum/projectile/bullet/rifle_762_NATO
+	var/muzzle_flash = null
+
+	proc/fire()
+		if(src.icon_firing)
+			flick(src.icon_firing, src)
+			src.visible_message(SPAN_ALERT("<b>[src] fires!</b>"))
+			shoot_projectile_DIR(src, current_projectile, dir)
+		if(src.muzzle_flash)
+			var/turf/firing_turf = get_turf(src)
+			firing_turf = get_step(get_step(firing_turf, WEST), WEST)
+			var/atom/movable/overlay/animation = new /atom/movable/overlay(firing_turf)
+			animation.icon = 'icons/obj/large/96x32.dmi'
+			animation.icon_state = "nothing"
+			SPAWN(0)
+				flick(src.muzzle_flash, animation)
+				sleep(1.2 SECONDS)
+				qdel(animation)
+			return
+
+	siege
+		name = "BlastoTek 12-inch Siege Gun"
+		desc = "An absolute behemoth of a gun. Usage is restricted to battleship- and battlecruiser-class vessels flying under military authorization. "
+		icon_state = "305mm"
+		icon_firing = "305mm-firing"
+		current_projectile = new/datum/projectile/bullet/howitzer/siege
+		muzzle_flash = "120mm-flash"
+
+	onetwentytwo
+		name = "Zvezda-122"
+		desc = "A hefty cannon firing 122mm standard Soviet howitzer rounds. Vast stockpiles of old munitions were recalled for service in the Martian Wars."
+		icon_state = "zvezda122"
+		icon_firing = "zvezda122-firing"
+		current_projectile = new/datum/projectile/bullet/howitzer
+		muzzle_flash = "120mm-flash"
+
+	onetwenty
+		name = "BlastoTek 120mm Howitzer"
+		desc = "A hefty cannon firing 4.7 inch high explosive rounds. Usage by armed merchant cruisers and convoy escorts is strictly regulated."
+		icon_state = "120mm"
+		icon_firing = "120mm-firing"
+		current_projectile = new/datum/projectile/bullet/howitzer
+		muzzle_flash = "120mm-flash"
+
+	fourty
+		name = "BlastoTek Dual 2-pdrs"
+		desc = "Two anti-spacecraft cannons on a tandem mount. Typically seen on convoy escorts, frigates, armed merchant cruisers, or in secondary batteries for larger warships."
+		icon_state = "40mm"
+		icon_firing = "40mm-firing"
+		current_projectile = new/datum/projectile/bullet/grenade_round/high_explosive/double
+
+	twenty
+		name = "BlastoTek 20mm Repeater Cannon"
+		desc = "A basic rapid-fire cannon for close-in defense, an easy solution to repel Martians, merchant raiders or deter space hazards and debris. Often used FOR raiding merchant convoys."
+		icon_state = "20mm"
+		icon_firing = "20mm-firing"
+		current_projectile = new/datum/projectile/bullet/cannon/burst
+		muzzle_flash = "20mm-flash"
+
+	molotok
+		name = "Auto-Molotok-4"
+		desc = "A burstfire AA cannon adapted by the Zvezda Design Bureau for the Martian Wars, capable of rapidly shredding Martian biomechanical ships."
+		icon_state = "molotok"
+		icon_firing = "molotok-firing"
+		current_projectile = new/datum/projectile/bullet/kuvalda_shrapnel/burst
+		muzzle_flash = "20mm-flash"

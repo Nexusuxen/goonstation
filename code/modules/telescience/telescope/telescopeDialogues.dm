@@ -191,6 +191,38 @@
 			else
 				return 0
 
+#ifdef ENABLE_ARTEMIS
+/* Artemis Dialogue */
+
+/datum/dialogueMaster/telescopeArtemis
+	dialogueName = "Artemis"
+	start = /datum/dialogueNode/telArtemisStart
+	visibleDialogue = 0
+
+/datum/dialogueNode
+	telArtemisStart
+		nodeImage = "static.png"
+		nodeText = "There appears to be a transponder signal from a NT science vessel."
+		linkText = "..."
+		links = list(/datum/dialogueNode/telArtemisEnable)
+
+	telArtemisEnable
+		linkText = "Save the location."
+		nodeText = "The location is now available at the long-range teleporter."
+
+		onActivate(var/client/C)
+			if(!special_places.Find("Artemis"))
+				special_places.Add("Artemis")
+			return
+
+		canShow(var/client/C)
+			if(!special_places.Find("Artemis"))
+				return 1
+			else
+				return 0
+#endif
+
+
 /* COW DINER DIALOGUE BELOW */
 
 /datum/dialogueMaster/telescopeCow
@@ -220,6 +252,34 @@
 			else
 				return 0
 
+/* WATCHFUL EYE SENSOR DIALOGUE */
+
+/datum/dialogueMaster/telescopeEye
+	dialogueName = "Watchful Eye Sensor"
+	start = /datum/dialogueNode/telEyeStart
+	visibleDialogue = 0
+
+/datum/dialogueNode
+	telEyeStart
+		nodeImage = "eye.png"
+		nodeText = "Periodic Signals emanate from this Satellite.<br>It seems awfully close to the purple giant."
+		linkText = "..."
+		links = list(/datum/dialogueNode/telEyeEnable)
+
+	telEyeEnable
+		linkText = "Save the location."
+		nodeText = "The location is now available at the long-range teleporter."
+
+		onActivate(var/client/C)
+			if(!special_places.Find("Watchful-Eye Sensor"))
+				special_places.Add("Watchful-Eye Sensor")
+			return
+
+		canShow(var/client/C)
+			if(!special_places.Find("Watchful-Eye Sensor"))
+				return 1
+			else
+				return 0
 
 /* GENERIC ASTEROID DIALOGUE BELOW */
 
