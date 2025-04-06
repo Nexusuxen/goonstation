@@ -3,8 +3,10 @@
 
 ABSTRACT_TYPE(/obj/machinery/power/power_wheel)
 TYPEINFO(/obj/machinery/power/power_wheel)
-	mats = list("CON-1"=5, "MET-1"=25, "INS-1"=3, "POW-2"=10)
-
+	mats = list("conductive" = 5,
+				"metal" = 25,
+				"insulated" = 3,
+				"energy_high" = 10)
 /obj/machinery/power/power_wheel
 	name = "Kinetic Generator"
 	desc = "A large wheel used to generate power."
@@ -49,7 +51,7 @@ TYPEINFO(/obj/machinery/power/power_wheel)
 			occupant.Attackhand(user)
 			if(user.a_intent == INTENT_DISARM || user.a_intent == INTENT_GRAB)
 				eject_occupant()
-			user.lastattacked = occupant
+			user.lastattacked = get_weakref(src)
 		else
 			. = ..()
 
@@ -72,7 +74,7 @@ TYPEINFO(/obj/machinery/power/power_wheel)
 				return
 		else if(src.occupant && W.force)
 			W.attack(src.occupant, user)
-			user.lastattacked = src
+			user.lastattacked = get_weakref(src)
 			if (occupant.hasStatus(list("knockdown", "unconscious", "stunned")))
 				eject_occupant()
 			W.visible_message(SPAN_ALERT("[user] swings at [src.occupant] with [W]!"))

@@ -269,19 +269,22 @@
 			boutput(user, SPAN_ALERT("Music is already playing, it'd be rude to interrupt!"))
 		else
 			var/obj/item/record/inserted_record = W
-			var/R = copytext(html_encode(tgui_input_text(user, "What is the name of this record?", "Record Name", inserted_record.record_name)), 1, MAX_MESSAGE_LEN)
-			if(!R)
+			var/record_name = copytext(tgui_input_text(user, "What is the name of this record?", "Record Name", inserted_record.record_name), 1, MAX_MESSAGE_LEN)
+			if(!record_name)
 				boutput(user, SPAN_NOTICE("You decide not to play this record."))
 				return
+			if(!(inserted_record in user.equipped_list()))
+				boutput(user, SPAN_ALERT("You have to be holding a record to place it in the player!"))
+				return
 			if(!in_interact_range(src, user))
-				boutput(user, "You're out of range of the [src.name]!")
+				boutput(user, SPAN_ALERT("You're out of range of the [src.name]!"))
 				return
 			if(is_music_playing()) // someone queuing up several input windows
 				return
-			phrase_log.log_phrase("record", R)
+			phrase_log.log_phrase("record", html_encode(record_name))
 			boutput(user, "You insert the record into the record player.")
 			src.visible_message(SPAN_NOTICE("<b>[user] inserts the record into the record player.</b>"))
-			user.drop_item()
+			user.drop_item(W)
 			W.set_loc(src)
 			src.record_inside = W
 			src.has_record = TRUE
@@ -295,10 +298,10 @@
 					boutput(user, SPAN_ALERT("You have no idea what happened but this record does not seem to work. Maybe call an admin."))
 					return	// guh????
 			else
-				user.client.play_music_radio(record_inside.song, R)
+				user.client.play_music_radio(record_inside.song, html_encode(record_name))
 			/// PDA message ///
 			var/datum/signal/pdaSignal = get_free_signal()
-			pdaSignal.data = list("address_1"="00000000", "command"="text_message", "sender_name"="RADIO-STATION", "sender"="00000000", "message"="Now playing: [R].", "group" = MGA_RADIO)
+			pdaSignal.data = list("address_1"="00000000", "command"="text_message", "sender_name"="RADIO-STATION", "sender"="00000000", "message"="Now playing: [record_name].", "group" = MGA_RADIO)
 			SEND_SIGNAL(src, COMSIG_MOVABLE_POST_RADIO_PACKET, pdaSignal, null, "pda")
 #ifdef UNDERWATER_MAP
 			EXTEND_COOLDOWN(global, "music", 500 SECONDS)
@@ -319,6 +322,22 @@
 		else
 			boutput(user, "You can feel heat emanating from the record player. You should probably wait a while before touching it. It's kinda old and you don't want to break it.")
 
+/obj/submachine/record_player/portable
+	name = "portable record player"
+	desc = "An old school record player, painted in a cool syndicate-red."
+	icon_state = "portable_record"
+	density = 0
+
+	New()
+		..()
+		src.AddComponent(/datum/component/foldable,/obj/item/objBriefcase/syndicate)
+		var/datum/component/foldable/fold_component = src.GetComponent(/datum/component/foldable) //Fold up into a briefcase the first spawn
+		if(!fold_component?.the_briefcase)
+			return
+		var/obj/item/objBriefcase/briefcase = fold_component.the_briefcase
+		if (briefcase)
+			briefcase.set_loc(get_turf(src))
+			src.set_loc(briefcase)
 // Records
 /obj/item/record
 	name = "record"
@@ -612,6 +631,16 @@ ABSTRACT_TYPE(/obj/item/record/random/funk)
 	record_name = "Lunch4Laika"
 	song = 'sound/radio_station/music/lunch.ogg'
 
+/obj/item/record/random/funk/monkey_riot
+	name = "record - \"Monkey Riot\""
+	record_name = "Monkey Riot"
+	song = 'sound/radio_station/music/monkey_riot.ogg'
+
+/obj/item/record/random/funk/space_gardener
+	name = "record - \"Space Gardener\""
+	record_name = "Space Gardener"
+	song = 'sound/radio_station/music/space_gardener.ogg'
+
 ABSTRACT_TYPE(/obj/item/record/random/notaquario)
 /obj/item/record/random/notaquario
 	New()
@@ -844,6 +873,7 @@ ABSTRACT_TYPE(/obj/item/record/random/notaquario)
 	New()
 		. = ..()
 		START_TRACKING
+		MAKE_SENDER_RADIO_PACKET_COMPONENT(null, "pda", FREQ_PDA)
 
 	get_desc()
 		if(!src.can_play_tapes)
@@ -1059,7 +1089,7 @@ ABSTRACT_TYPE(/obj/item/record/random/notaquario)
 		/obj/item/radio_tape/audio_book/heisenbee)*/
 
 //Fake objects
-/obj/decal/fakeobjects/cpucontroller
+/obj/fakeobject/cpucontroller
 	name = "central processing unit"
 	desc = "The computing core of the mainframe."
 	icon = 'icons/obj/large/64x64.dmi'
@@ -1069,7 +1099,7 @@ ABSTRACT_TYPE(/obj/item/record/random/notaquario)
 	anchored = ANCHORED
 	density = 1
 
-/obj/decal/fakeobjects/vacuumtape
+/obj/fakeobject/vacuumtape
 	name = "vacuum column tape drive"
 	desc = "A large 9 track magnetic tape storage unit."
 	icon = 'icons/obj/large/32x64.dmi'
@@ -1079,7 +1109,7 @@ ABSTRACT_TYPE(/obj/item/record/random/notaquario)
 	anchored = ANCHORED
 	density = 1
 
-/obj/decal/fakeobjects/operatorconsole
+/obj/fakeobject/operatorconsole
 	name = "operator's console"
 	desc = "The computer operating console, covered in fancy toggle switches and register value lamps."
 	icon = 'icons/obj/large/32x64.dmi'
@@ -1089,14 +1119,14 @@ ABSTRACT_TYPE(/obj/item/record/random/notaquario)
 	anchored = ANCHORED
 	density = 1
 
-/obj/decal/fakeobjects/broadcastcomputer
+/obj/fakeobject/broadcastcomputer
 	name = "broadcast server"
 	icon = 'icons/obj/decoration.dmi'
 	icon_state = "gannets_machine11"
 	anchored = ANCHORED
 	density = 1
 
-/obj/decal/fakeobjects/tapedeck
+/obj/fakeobject/tapedeck
 	name = "reel to reel tape deck"
 	icon = 'icons/obj/decoration.dmi'
 	icon_state = "gannets_machine20"
@@ -1146,7 +1176,8 @@ ABSTRACT_TYPE(/obj/item/record/random/notaquario)
 	fields = strings("radioship/radioship_records.txt","log_2")
 
 
-
+TYPEINFO(/obj/item/device/radio/intercom/radiostation)
+	mats = 0
 /obj/item/device/radio/intercom/radiostation
 	name = "broadcast radio"
 	desc = "A powerful radio transmitter. Enable the microphone to begin broadcasting your radio show."

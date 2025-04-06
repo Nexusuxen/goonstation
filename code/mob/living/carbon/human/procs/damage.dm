@@ -327,6 +327,10 @@
 	if(src.traitHolder?.hasTrait("athletic"))
 		brute *=1.33
 
+	brute *= 1 - GET_ATOM_PROPERTY(src, PROP_MOB_TALISMAN_BRUTE_REDUCTION) / 100
+	burn *= 1 - GET_ATOM_PROPERTY(src, PROP_MOB_TALISMAN_BURN_REDUCTION) / 100
+	tox *= 1 - GET_ATOM_PROPERTY(src, PROP_MOB_TALISMAN_TOX_REDUCTION) / 100
+
 	if(src.mutantrace) //HOW
 		var/typemult
 		if(islist(src.mutantrace.typevulns))
@@ -424,7 +428,6 @@
 	TakeDamage(zone, max(brute, 0), max(burn, 0), 0, damage_type)
 
 /mob/living/carbon/human/HealDamage(zone, brute, burn, tox, var/bypass_reversal = FALSE)
-
 	if (src.traitHolder && src.traitHolder.hasTrait("reversal"))
 		src.TakeDamage(zone, brute, burn, tox, null, FALSE, TRUE)
 
@@ -475,18 +478,18 @@
 		if (src.organHolder)
 			var/datum/organHolder/O = src.organHolder
 			if (side == "right")
-				if (O.right_eye)
+				if (O.right_eye?.provides_sight)
 					O.right_eye.brute_dam = max(0, O.right_eye.brute_dam + amount)
 			else if (side == "left")
-				if (O.left_eye)
+				if (O.left_eye?.provides_sight)
 					O.left_eye.brute_dam = max(0, O.left_eye.brute_dam + amount)
 			else
-				if (O.right_eye && O.left_eye)
+				if (O.right_eye?.provides_sight && O.left_eye?.provides_sight)
 					O.right_eye.brute_dam = max(0, O.right_eye.brute_dam + (amount/2))
 					O.left_eye.brute_dam = max(0, O.left_eye.brute_dam + (amount/2))
-				else if (O.right_eye)
+				else if (O.right_eye?.provides_sight)
 					O.right_eye.brute_dam = max(0, O.right_eye.brute_dam + amount)
-				else if (O.left_eye)
+				else if (O.left_eye?.provides_sight)
 					O.left_eye.brute_dam = max(0, O.left_eye.brute_dam + amount)
 		else
 			src.eye_damage = max(0, src.eye_damage + amount)
@@ -525,7 +528,8 @@
 
 				if (prob(eye_dam - 25 + 1))
 					src.show_text("You go blind!", "red")
-					src.bioHolder.AddEffect("blind")
+					src.organHolder?.left_eye?.take_damage(100)
+					src.organHolder?.right_eye?.take_damage(100)
 				else
 					src.change_eye_blurry(rand(12,16))
 
@@ -646,3 +650,4 @@
 /mob/living/carbon/human/UpdateDamage()
 	..()
 	src.hud?.update_health_indicator()
+	src.update_health_monitor_icon()

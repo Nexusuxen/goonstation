@@ -96,6 +96,7 @@
 		src.add_ability(/datum/blob_ability/tutorial)
 		src.add_ability(/datum/blob_ability/help)
 		APPLY_ATOM_PROPERTY(src, PROP_MOB_INVISIBILITY, src, INVIS_SPOOKY)
+		APPLY_ATOM_PROPERTY(src, PROP_MOB_NIGHTVISION_WEAK, src)
 		src.sight |= SEE_TURFS | SEE_MOBS | SEE_OBJS | SEE_SELF
 		src.see_invisible = INVIS_SPOOKY
 		src.see_in_dark = SEE_DARK_FULL
@@ -310,7 +311,10 @@
 			src.update_buttons()
 			return
 		else
-			if(params["right"])
+			if(params["left"])
+				var/datum/blob_ability/spread_abil = src.get_ability(/datum/blob_ability/spread)
+				spread_abil?.onUse(T)
+			else if(params["right"])
 				if (T && (!isghostrestrictedz(T.z) || (isghostrestrictedz(T.z) && restricted_z_allowed(src, T)) || src.tutorial || (src.client && src.client.holder)))
 					if (src.tutorial)
 						if (!tutorial.PerformAction("clickmove", T))

@@ -49,7 +49,7 @@ proc/no_more_radio()
 	var/doesMapText = FALSE
 	// probably not too resource intensive but I'd be careful using this just in case
 
-	flags = FPRINT | TABLEPASS | CONDUCT
+	flags = TABLEPASS | CONDUCT
 	c_flags = ONBELT
 	throw_speed = 2
 	throw_range = 9
@@ -469,7 +469,7 @@ var/list/headset_channel_lookup
 
 		if (length(heard_masked))
 			if (ishuman(M))
-				if (M:wear_id)
+				if (M:wear_id && length(M:wear_id:registered))
 					rendered = "[part_a][M:wear_id:registered][part_b][M.say_quote(messages[1])][part_c]"
 				else
 					rendered = "[part_a]Unknown[part_b][M.say_quote(messages[1])][part_c]"
@@ -716,6 +716,17 @@ TYPEINFO(/obj/item/radiojammer)
 			STOP_TRACKING_CAT(TR_CAT_RADIO_JAMMERS)
 		..()
 
+/obj/item/device/radio/hall_monitor
+	name = "Hall monitor's radio"
+	desc = "So you can listen to(eavesdrop on) station security(drama)."
+	icon_state = "radio"
+	has_microphone = FALSE
+	frequency = R_FREQ_SECURITY
+	locked_frequency = TRUE
+	speaker_range = 0
+	secure_frequencies = list("g" = R_FREQ_SECURITY)
+	secure_classes = list("g" = RADIOCL_SECURITY)
+
 /obj/item/device/radio/beacon
 	name = "tracking beacon"
 	icon_state = "beacon"
@@ -790,11 +801,30 @@ TYPEINFO(/obj/item/radiojammer)
 	throw_speed = 1
 	throw_range = 3
 	w_class = W_CLASS_HUGE
-	flags = FPRINT | TABLEPASS | CONDUCT
+	flags = TABLEPASS | CONDUCT
 	c_flags = ONBACK
 	item_state = "electropack"
 	desc = "A device that, when signaled on the correct frequency, causes a disabling electric shock to be sent to the animal (or human) wearing it."
 	cant_self_remove = 1
+
+// ----------------------- Assembly-procs -----------------------
+
+
+/// shock kit construction
+/obj/item/device/radio/electropack/proc/shock_kit_assembly(var/atom/to_combine_atom, var/mob/user)
+	user.u_equip(src)
+	user.u_equip(to_combine_atom)
+	var/obj/item/shock_kit/new_shock_kit = new /obj/item/shock_kit(get_turf(user), to_combine_atom, src)
+	user.put_in_hand_or_drop(new_shock_kit)
+	// Since the assembly was done, return TRUE
+	return TRUE
+
+// ----------------------- -------------- -----------------------
+
+/obj/item/device/radio/electropack/New()
+	..()
+	// Electropack + sec helmet  -> shock kit
+	src.AddComponent(/datum/component/assembly, /obj/item/clothing/head/helmet, PROC_REF(shock_kit_assembly), TRUE)
 
 /obj/item/device/radio/electropack/update_icon()
 	src.icon_state = "electropack[src.on]"
@@ -823,19 +853,6 @@ TYPEINFO(/obj/item/radiojammer)
 			. = TRUE
 			UpdateIcon()
 
-/obj/item/device/radio/electropack/attackby(obj/item/W, mob/user)
-	if (istype(W, /obj/item/clothing/head/helmet))
-		var/obj/item/assembly/shock_kit/A = new /obj/item/assembly/shock_kit(user, W, src)
-		W.set_loc(A)
-		W.layer = initial(W.layer)
-		user.u_equip(W)
-		user.put_in_hand_or_drop(A)
-		src.layer = initial(src.layer)
-		user.u_equip(src)
-		src.set_loc(A)
-		src.add_fingerprint(user)
-	return
-
 /obj/item/device/radio/electropack/receive_signal(datum/signal/signal)
 	if (!signal || !signal.data || ("[signal.data["code"]]" != "[code]"))//(signal.encryption != code))
 		return
@@ -853,11 +870,6 @@ TYPEINFO(/obj/item/radiojammer)
 #else
 			M.changeStatus("knockdown", 10 SECONDS)
 #endif
-			if(istype(M, /mob/living/carbon/human))
-				var/mob/living/carbon/human/H = M
-				for (var/uid in H.pathogens)
-					var/datum/pathogen/P = H.pathogens[uid]
-					P.onshocked(35, 500)
 
 	if ((src.master && src.wires & WIRE_SIGNAL))
 		src.master.receive_signal()
@@ -1014,6 +1026,7 @@ TYPEINFO(/obj/item/device/radio/intercom/loudspeaker)
 	anchored = ANCHORED
 	speaker_range = 0
 	chat_class = RADIOCL_INTERCOM
+	locked_frequency = TRUE
 	//Best I can figure, you need broadcasting and listening to both be TRUE for it to make a signal and send the words spoken next to it. Why? Fuck whoever named these, that's why.
 	broadcasting = 0
 	listening = 0		//maybe this doesn't need to be on. It shouldn't be relaying signals.
@@ -1033,18 +1046,24 @@ TYPEINFO(/obj/item/device/radio/intercom/loudspeaker)
 	. = ..()
 	. += "[src] is[src.broadcasting ? " " : " not "]active!\nIt is tuned to [format_frequency(src.frequency)]Hz."
 
-/obj/item/device/radio/intercom/loudspeaker/attack_self(mob/user as mob)
+/obj/item/device/radio/intercom/loudspeaker/proc/toggle_broadcast_mode(mob/user)
 	if (!broadcasting)
 		broadcasting = 1
 		src.icon_state = "transmitter-on"
-		boutput(user, "Now transmitting.")
+		src.visible_message("The [src] clicks on and begins transmitting.")
 	else
 		broadcasting = 0
 		src.icon_state = "transmitter"
-		boutput(user, "No longer transmitting.")
+		src.visible_message("The [src] whirrs down and stops transmitting.")
+
+/obj/item/device/radio/intercom/loudspeaker/attack_hand(mob/user)
+	. = ..()
+	src.toggle_broadcast_mode(user)
+
+/obj/item/device/radio/intercom/loudspeaker/attack_self(mob/user as mob)
+	src.toggle_broadcast_mode(user)
 
 /obj/item/device/radio/intercom/loudspeaker/initialize()
-
 	set_frequency(frequency)
 	if(src.secure_frequencies)
 		set_secure_frequencies()
@@ -1062,9 +1081,12 @@ TYPEINFO(/obj/item/device/radio/intercom/loudspeaker/speaker)
 	listening = 1
 	chat_class = RADIOCL_INTERCOM
 	frequency = R_FREQ_LOUDSPEAKERS
+	locked_frequency = TRUE
 	rand_pos = 0
 	density = 0
 	desc = "A Loudspeaker."
+
+	HELP_MESSAGE_OVERRIDE("")
 
 	New()
 		..()
@@ -1092,14 +1114,12 @@ TYPEINFO(/obj/item/device/radio/intercom/loudspeaker/speaker)
 /obj/item/device/radio/intercom/loudspeaker/speaker/hear_talk()
 	return
 
-	//listening seems to refer to the device listening to the signals, not listening to voice
-
 /obj/item/device/radio/intercom/loudspeaker/speaker/send_hear()
 	var/list/hear = ..()
 
 	for (var/mob/M in hear)
 
-		flick("loudspeaker-transmitting",src)
+		FLICK("loudspeaker-transmitting",src)
 		playsound(src.loc, 'sound/misc/talk/speak_1.ogg', 50, 1)
 	return hear
 

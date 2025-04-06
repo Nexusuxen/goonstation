@@ -121,7 +121,7 @@
 	var/perlin_zoom = 65
 	var/lava_percent = 40
 	wall_turf_type	= /turf/simulated/wall/auto/asteroid/mountain/lavamoon
-	floor_turf_type = /turf/simulated/floor/plating/airless/asteroid/lavamoon
+	floor_turf_type = /turf/unsimulated/floor/plating/asteroid/lavamoon
 
 	var/lava_noise = null
 	var/datum/spatial_hashmap/manual/near_station
@@ -168,6 +168,8 @@
 		var/datum/biome/selected_biome
 		if(length(near_station?.get_nearby(gen_turf, range=6)))
 			selected_biome = /datum/biome/lavamoon
+		else if(flags & MAPGEN_FLOOR_ONLY)
+			selected_biome = /datum/biome/lavamoon
 		else if(lava_value)
 			selected_biome = /datum/biome/lavamoon/lava
 		else if(height <= 0.85) //If height is less than 0.85, we generate biomes based on the heat and humidity of the area.
@@ -200,30 +202,22 @@
 		selected_biome = biomes[selected_biome]
 		selected_biome.generate_turf(gen_turf, flags)
 
-		if (current_state >= GAME_STATE_PLAYING)
-			LAGCHECK(LAG_LOW)
-		else
-			LAGCHECK(LAG_HIGH)
+		src.lag_check(flags)
 
 	for(var/turf/unsimulated/floor/lava/L in turfs)
 		L.update_neighbors()
 
-		if (current_state >= GAME_STATE_PLAYING)
-			LAGCHECK(LAG_LOW)
-		else
-			LAGCHECK(LAG_HIGH)
+		src.lag_check(flags)
 
 ///for the mapgen mountains, temp until we get something better
 /turf/simulated/wall/auto/asteroid/mountain/lavamoon
 	name = "silicate wall"
 	desc = "You're inside a matrix of silicate. Neat."
 	fullbright = 0
-	replace_type = /turf/simulated/floor/plating/airless/asteroid/lavamoon
+	replace_type = /turf/unsimulated/floor/plating/asteroid/lavamoon
 	color = "#998E4E"
 	stone_color = "#998E4E"
 	carbon_dioxide = 20
-	nitrogen = 0
-	oxygen = 0
 	temperature = FIRE_MINIMUM_TEMPERATURE_TO_EXIST-1
 
 	destroy_asteroid(var/dropOre=1)
@@ -231,11 +225,11 @@
 			default_ore = /datum/material/crystal/gemstone
 		. = ..()
 
-/turf/simulated/floor/plating/airless/asteroid/lavamoon
+/turf/unsimulated/floor/plating/asteroid/lavamoon
 	name = "floor"
 	desc = "A tunnel through the silicate. This doesn't seem to be water ice..."
 	carbon_dioxide = 20
-	nitrogen = 0
-	oxygen = 0
+	oxygen = MOLES_O2STANDARD
+	nitrogen = MOLES_N2STANDARD
 	temperature = FIRE_MINIMUM_TEMPERATURE_TO_EXIST-1
 	fullbright = 0

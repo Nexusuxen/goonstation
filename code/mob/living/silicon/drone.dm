@@ -3,7 +3,7 @@
 	desc = "Allows the user to remotely operate a drone."
 	icon_state = "matanalyzer"
 	var/signal_tag = "mining"
-	flags = FPRINT | TABLEPASS | CONDUCT
+	flags = TABLEPASS | CONDUCT
 	var/list/drone_list = list()
 
 	attack_self(var/mob/user as mob)
@@ -196,7 +196,7 @@
 			if (equipped)
 				equipped.AfterAttack(target, src, reach)
 
-			if (src.lastattacked == target && use_delay) //If lastattacked was set, this must be a combat action!! Use combat click delay.
+			if (src.lastattacked?.deref() == target && use_delay) //If lastattacked was set, this must be a combat action!! Use combat click delay.
 				src.next_click = world.time + (equipped ? max(equipped.click_delay,src.combat_click_delay) : src.combat_click_delay)
 				src.lastattacked = null
 

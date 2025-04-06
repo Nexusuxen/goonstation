@@ -134,7 +134,7 @@
 	fluid_g = 255
 	transparency = 5
 	addiction_prob = 1
-	addiction_min = 10
+	addiction_min = 50
 	depletion_rate = 0.05 // ethanol depletes slower but is formed in smaller quantities
 	overdose = 100 // ethanol poisoning
 	thirst_value = -0.02
@@ -190,9 +190,8 @@
 						step(H, pick(cardinal))
 					if(prob(4))
 						H.change_misstep_chance(20 * mult)
-					if(probmult(6))
-						var/vomit_message = SPAN_ALERT("[H] pukes all over [himself_or_herself(H)].")
-						H.vomit(0, null, vomit_message)
+					if(probmult(10 + (ethanol_amt / 4)))
+						H.nauseate(1)
 					if(prob(15))
 						H.make_dizzy(5 * mult)
 				if (ethanol_amt >= 60)
@@ -251,6 +250,14 @@
 				H.contract_disease(/datum/ailment/malady/heartdisease,null,null,1)
 			..()
 
+	handle_addiction(var/mob/M, var/rate, var/addProb)
+		if (isliving(M))
+			var/mob/living/H = M
+			if (isalcoholresistant(H))
+				addProb /= 4
+				rate /= 4
+		..(M, rate, addProb)
+
 /datum/reagent/hydrogen
 	name = "hydrogen"
 	id = "hydrogen"
@@ -281,7 +288,6 @@
 	fluid_b = 135
 	transparency = 255
 	overdose = 20
-	pathogen_nutrition = list("iron")
 
 	on_mob_life(var/mob/living/H, var/mult = 1)
 		..()
@@ -290,15 +296,9 @@
 			if(prob(10))
 				H.take_oxygen_deprivation(-1 * mult)
 	do_overdose(var/severity, var/mob/M, var/mult = 1)
-		M.take_toxin_damage(1 * mult) // Iron overdose fucks you up bad
-		if(probmult(5))
-			if (M.nutrition > 10) // Not good for your stomach either
-				var/vomit_message = SPAN_ALERT("[M] vomits on the floor profusely!")
-				M.vomit(0, null, vomit_message)
-				M.nutrition -= rand(3,5)
-				M.take_toxin_damage(10) // im bad
-				M.setStatusMin("stunned", 3 SECONDS * mult)
-				M.setStatusMin("knockdown", 3 SECONDS * mult)
+		M.take_toxin_damage(2 * mult) // Iron overdose fucks you up bad
+		if(probmult(30))
+			M.nauseate(2)
 
 /datum/reagent/lithium
 	name = "lithium"
@@ -380,7 +380,6 @@
 	fluid_g = 254
 	fluid_b = 252
 	transparency = 20
-	pathogen_nutrition = list("nitrogen")
 
 /datum/reagent/oxygen
 	name = "oxygen"
@@ -498,7 +497,9 @@
 	fluid_g = 200
 	fluid_b = 200
 	transparency = 255
+	overdose = 30
 	taste = "metallic"
+	var/finaltone = rgb(108, 125, 183)
 
 	reaction_obj(var/obj/item/I, var/volume)
 		if (I.material && I.material.getID() == "silver")
@@ -519,6 +520,20 @@
 				I.setMaterial(getMaterial("silver"))
 				holder.remove_reagent(src.id, 50)
 				.= 0
+	do_overdose(severity, mob/M, mult) //turns your skin blue
+		. = ..()
+		if (ishuman(M))
+			var/mob/living/carbon/human/H = M
+			var/currenttone = H.bioHolder?.mobAppearance.s_tone
+			if(currenttone && color_dist(currenttone, finaltone) >= 5000) //these numbers might need tweaking
+				var/newtone = BlendRGB(currenttone, finaltone, 0.04)
+				H.bioHolder.mobAppearance.s_tone = newtone
+				H.set_face_icon_dirty()
+				H.set_body_icon_dirty()
+				if (H.limbs)
+					H.limbs.reset_stone()
+				H.update_colorful_parts()
+
 
 /datum/reagent/sulfur
 	name = "sulfur"
@@ -542,7 +557,6 @@
 	overdose = 200
 	hunger_value = 0.098
 	thirst_value = -0.098
-	pathogen_nutrition = list("sugar")
 	taste = "sweet"
 	stun_resist = 6
 	threshold = THRESHOLD_INIT
@@ -564,7 +578,7 @@
 		M.make_jittery(2 )
 		M.changeStatus("drowsy", -10 SECONDS)
 		if(prob(4))
-			M.reagents.add_reagent("epinephrine", 1.2 * mult) // let's not metabolize into meth anymore
+			M.reagents.add_reagent("epinephrine", 3 * src.calculate_depletion_rate(M, mult)) // let's not metabolize into meth anymore
 		//if(prob(2))
 			//M.reagents.add_reagent("cholesterol", rand(1,3))
 		..()
@@ -694,7 +708,6 @@
 	fluid_g = 200
 	fluid_b = 200
 	transparency = 255
-	pathogen_nutrition = list("sodium")
 	fluid_flags = FLUID_STACKING_BANNED
 
 /datum/reagent/uranium
@@ -725,7 +738,6 @@
 	fluid_g = 165
 	fluid_b = 254
 	transparency = 80
-	pathogen_nutrition = list("water")
 	thirst_value = 0.8909
 	hygiene_value = 1.33
 	bladder_value = -0.2
@@ -747,6 +759,11 @@
 			var/mob/living/carbon/human/H = L
 			if (H.organHolder)
 				H.organHolder.heal_organs(1*mult, 0, 1*mult, target_organs, 10)
+				var/obj/item/toy/sponge_capsule/capsule = locate() in H.organHolder?.stomach?.stomach_contents
+				if (capsule)
+					capsule.add_water()
+					L.visible_message(SPAN_ALERT("[L] vomits up a rapidly expanding sponge capsule!"))
+					H.reagents?.remove_reagent("water", 10)
 		L.nutrition += 1  * mult
 
 	reaction_temperature(exposed_temperature, exposed_volume) //Just an example.
@@ -806,7 +823,7 @@
 				for(var/mob/O in AIviewers(M, null))
 					O.show_message(SPAN_ALERT("<b>[M] begins to crisp and burn!</b>"), 1)
 				boutput(M, SPAN_ALERT("Holy Water! It burns!"))
-				var/burndmg = raw_volume * 1.25 / length(covered) //the sanctification inflicts the pain, not the water that carries it.
+				var/burndmg = raw_volume * 1.25 / (length(covered) || 1) //the sanctification inflicts the pain, not the water that carries it.
 				burndmg = min(burndmg, 80) //cap burn at 110(80 now >:) so we can't instant-kill vampires. just crit em ok.
 				M.TakeDamage("chest", 0, burndmg, 0, DAMAGE_BURN)
 				M.change_vampire_blood(-burndmg)

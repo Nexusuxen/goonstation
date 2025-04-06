@@ -321,14 +321,15 @@
 			else
 				src.owner?.remove_ability_holder(src)
 
-	proc/pointCheck(cost)
+	proc/pointCheck(cost, quiet = FALSE)
 		if (!usesPoints)
 			return 1
 		if (src.points < 0) // Just-in-case fallback.
 			logTheThing(LOG_DEBUG, usr, "'s ability holder ([src.type]) was set to an invalid value (points less than 0), resetting.")
 			src.points = 0
 		if (cost > points)
-			boutput(owner, notEnoughPointsMessage)
+			if (!quiet)
+				boutput(owner, notEnoughPointsMessage)
 			return 0
 		return 1
 
@@ -684,9 +685,13 @@
 			else
 				point_overlay.maptext = "<span class='sh vb r ps2p'>[owner.pointCost]</span>"
 		else
-			src.maptext = null
+			point_overlay.maptext = null
 
-		if (on_cooldown > 0)
+		if (!owner.allowcast())
+			newcolor = rgb(64, 64, 64)
+			point_overlay.maptext = "<span class='sh vb r ps2p' style='color: #cc2222;'>X</span>"
+			point_overlay.alpha = 255
+		else if (on_cooldown > 0)
 			newcolor = rgb(96, 96, 96)
 			cooldown_overlay.alpha = 255
 			cooldown_overlay.maptext = "<span class='sh vb c ps2p'>[min(999, on_cooldown)]</span>"
@@ -916,10 +921,12 @@
 				doCooldown()
 			afterCast()
 
+		/// Handle actual ability effects. This is the one you want to override.
+		/// Returns for this proc can be found in defines/abilities.dm.
 		cast(atom/target)
 			SHOULD_CALL_PARENT(TRUE)
-			if(do_logs)
-				logTheThing(LOG_COMBAT, src.holder?.owner, "uses [src] on [constructTarget(target, "combat")] at [log_loc(target)]")
+			if (do_logs)
+				logCast(target)
 			if(interrupt_action_bars)
 				actions.interrupt(holder.owner, INTERRUPT_ACT)
 
@@ -985,6 +992,13 @@
 				if (!.)
 					localholder.deductPoints(pointCost)
 
+		logCast(atom/target)
+			if (src.targeted)
+				if (!isnull(target))
+					logTheThing(LOG_COMBAT, src.holder?.owner, "uses [src.name] on [constructTarget(target, "combat")] at [log_loc(target)]")
+			else
+				logTheThing(LOG_COMBAT, src.holder?.owner, "uses [src.name] at [log_loc(src.holder?.owner)]")
+
 		updateObject()
 			return
 
@@ -993,6 +1007,13 @@
 			src.last_cast = world.time + src.cooldown
 			if(!QDELETED(localholder))
 				localholder.updateButtons()
+
+		/// Passive cast checking. Returns TRUE if the cast can proceed.
+		/// This fires every update, and is currently only used to gray out buttons/indicate to players that the ability is unusable.
+		/// Useful for things like different point requirements or only allowing casts under certain conditions.
+		/// Actual logic to prevent the cast from firing should be done in the cast() override too!
+		allowcast()
+			return 1
 
 		castcheck(atom/target)
 			return 1
@@ -1314,7 +1335,7 @@
 				return R
 		return null
 
-	pointCheck(cost)
+	pointCheck(cost, quiet = FALSE)
 		return 1
 
 	deepCopy()

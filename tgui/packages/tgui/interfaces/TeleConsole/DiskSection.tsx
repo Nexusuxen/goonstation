@@ -5,7 +5,7 @@
  * @license ISC
  */
 
-import { Button, Section } from '../../components';
+import { Button, Section } from 'tgui-core/components';
 
 interface DiskSectionProps {
   isDiskPresent: boolean;
@@ -16,21 +16,17 @@ interface DiskSectionProps {
 export const DiskSection = (props: DiskSectionProps) => {
   const { isDiskPresent, onScanDisk, onEjectDisk } = props;
 
+  if (!isDiskPresent) {
+    return null;
+  }
   return (
-    (isDiskPresent) && (
-      <Section title="Disk Controls">
-        <Button
-          icon="upload"
-          onClick={onScanDisk}>
-          Read from Disk
-        </Button>
-        <Button
-          icon="eject"
-          color="bad"
-          onClick={onEjectDisk}>
-          Eject Disk
-        </Button>
-      </Section>
-    )
+    <Section title="Disk Controls">
+      <Button icon="upload" onClick={onScanDisk}>
+        Read from Disk
+      </Button>
+      <Button icon="eject" color="bad" onClick={onEjectDisk}>
+        Eject Disk
+      </Button>
+    </Section>
   );
 };

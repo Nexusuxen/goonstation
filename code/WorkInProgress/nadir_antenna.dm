@@ -166,7 +166,7 @@ TYPEINFO(/obj/machinery/communications_dish/transception)
 		src.is_transceiving = TRUE
 		use_power(ARRAY_TELECOST)
 		playsound(src.loc, 'sound/effects/mag_forcewall.ogg', 50, 0)
-		flick("beam",src.telebeam)
+		FLICK("beam",src.telebeam)
 		SPAWN(TRANSCEPTION_COOLDOWN)
 			src.is_transceiving = FALSE
 		return TRUE
@@ -517,7 +517,7 @@ TYPEINFO(/obj/machinery/communications_dish/transception)
 	desc = "Endpoint for status reporting and configuration for a nearby transception array."
 
 	icon = 'icons/obj/computer.dmi'
-	icon_state = "alert:0"
+	icon_state = "atmos"
 	flags = TGUI_INTERACTIVE
 	deconstruct_flags = DECON_SCREWDRIVER | DECON_WRENCH | DECON_WIRECUTTERS | DECON_MULTITOOL
 
@@ -626,8 +626,9 @@ TYPEINFO(/obj/machinery/communications_dish/transception)
 #define INTERLINK_RANGE 100
 
 TYPEINFO(/obj/machinery/transception_pad)
-	mats = list("MET-2"=5,"CON-2"=2,"CON-1"=5)
-
+	mats = list("metal_dense" = 5,
+				"conductive_high" = 2,
+				"conductive" = 5)
 /obj/machinery/transception_pad
 	icon = 'icons/obj/stationobjs.dmi'
 	icon_state = "neopad"
@@ -759,7 +760,7 @@ TYPEINFO(/obj/machinery/transception_pad)
 		src.is_transceiving = TRUE
 		playsound(src.loc, 'sound/effects/ship_alert_minor.ogg', 50, 0) //outgoing cargo warning (stand clear)
 		SPAWN(2 SECONDS)
-			flick("neopad_activate",src)
+			FLICK("neopad_activate",src)
 			SPAWN(0.3 SECONDS)
 				var/obj/thing2send
 				var/list/oofed_nerds = list()
@@ -808,7 +809,7 @@ TYPEINFO(/obj/machinery/transception_pad)
 			shippingmarket.pending_crates.Remove(thing2get) //avoid received thing being queued into multiple pads at once
 		playsound(src.loc, 'sound/effects/ship_alert_minor.ogg', 50, 0) //incoming cargo warning (stand clear)
 		SPAWN(2 SECONDS)
-			flick("neopad_activate",src)
+			FLICK("neopad_activate",src)
 			SPAWN(0.4 SECONDS)
 				var/tele_obstructed = FALSE
 				var/turf/receive_turf = get_turf(src)
@@ -878,7 +879,7 @@ TYPEINFO(/obj/machinery/transception_pad)
 			src.is_transceiving = TRUE
 			src.visible_message(SPAN_ALERT("<B>[src]</B> emits a buffer error alert!"))
 			playsound(src.loc, 'sound/machines/pod_alarm.ogg', 30, 0)
-			flick("neopad_activate",src)
+			FLICK("neopad_activate",src)
 			SPAWN(0.4 SECONDS)
 				M.set_loc(src.loc)
 				showswirl(src.loc)
@@ -887,7 +888,7 @@ TYPEINFO(/obj/machinery/transception_pad)
 				src.is_transceiving = FALSE
 
 /obj/machinery/computer/transception
-	name = "\improper Transception Interlink"
+	name = "transception interlink"
 	desc = "A console capable of remotely connecting to and operating cargo transception pads."
 	icon = 'icons/obj/computer.dmi'
 	icon_state = "QMpad"

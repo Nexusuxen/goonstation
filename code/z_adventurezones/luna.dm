@@ -617,6 +617,10 @@ Contents:
 
 	tour17
 		location = "tour17"
+		codes_txt = "tour;next_tour=tour18;desc=And that concludes the tour session.  Please visit the gift shop on your way out."
+
+	tour18
+		location = "tour18"
 		codes_txt = "tour;"
 
 #define NT_DISCOUNT   (1<<0)
@@ -727,7 +731,7 @@ Contents:
 						END_NEAT
 					return
 
-				if (!(src.neat_things & NT_PONZI) && (locate(/obj/item/currency/spacecash/buttcoin) in AM.contents))
+				if (!(src.neat_things & NT_PONZI) && (locate(/obj/item/currency/buttcoin) in AM.contents))
 					FOUND_NEAT(NT_PONZI)
 						speak_with_maptext("Um, I'm sorry [AM], we do not accept blockchain-based cryptocurrency as payment.  You aren't one of those guys who yell about gold on the apollo flag or something, right?")
 						H.unlock_medal("To the Moon!",1)
@@ -836,7 +840,7 @@ Contents:
 	name = "security door"
 	desc = "A security door used to separate museum compartments."
 	autoclose = FALSE
-	req_access_txt = ""
+	req_access = null
 	object_flags = BOTS_DIRBLOCK
 
 /obj/machinery/door/poddoor/blast/lunar/tour
@@ -859,7 +863,7 @@ Contents:
 
 		if(!src.operating) //in case of emag
 			src.operating = 1
-		flick("bdoor[doordir]c0", src)
+		FLICK("bdoor[doordir]c0", src)
 		src.icon_state = "bdoor[doordir]0"
 		SPAWN(1 SECOND)
 			src.set_density(0)
@@ -888,7 +892,7 @@ Contents:
 			SPAWN(0)
 				tourDoor.close(src)
 
-		flick("bdoor[doordir]c1", src)
+		FLICK("bdoor[doordir]c1", src)
 		src.icon_state = "bdoor[doordir]1"
 		src.set_density(1)
 		if (src.visible)
@@ -914,7 +918,7 @@ Contents:
 	opacity = 1
 	autoclose = FALSE
 	cant_emag = TRUE
-	req_access_txt = "999"
+	req_access = list(access_impossible)
 
 	var/broken = 0
 
@@ -937,7 +941,7 @@ Contents:
 
 		playsound(src.loc, 'sound/machines/airlock_break_very_temp.ogg', 50, 1)
 		SPAWN(0)
-			flick("breakairlock1", src)
+			FLICK("breakairlock1", src)
 			src.icon_state = "breakairlock2"
 			sleep (2)
 			src.set_opacity(0)
@@ -981,7 +985,7 @@ Contents:
 		somebody_fucked_up = 1
 
 
-/obj/decal/fakeobjects/moon_on_a_stick
+/obj/fakeobject/moon_on_a_stick
 	name = "Moon model"
 	desc = "A really large mockup of the Earth's moon."
 	icon = 'icons/misc/lunar64.dmi'
@@ -1000,7 +1004,7 @@ Contents:
 		stand.layer = OBJ_LAYER
 		src.underlays += stand
 
-/obj/decal/fakeobjects/lunar_lander
+/obj/fakeobject/lunar_lander
 	name = "Lunar module descent stage"
 	desc = "The descent stage of the Apollo 11 lunar module, which landed the first astronauts on the moon."
 	anchored = ANCHORED
@@ -1011,7 +1015,7 @@ Contents:
 	bound_width = 64
 
 
-/obj/decal/fakeobjects/moonrock
+/obj/fakeobject/moonrock
 	name = "moon rock"
 	desc = "A piece of regolith. Or something. It is a heavy rock from the moon.  These used to be worth more."
 	icon = 'icons/misc/lunar.dmi'
@@ -2131,7 +2135,7 @@ obj/machinery/embedded_controller/radio/maintpanel/mnx
 	icon_state = "bball"
 	item_state = "bbmoon"
 
-/obj/decal/fakeobjects/junction_box
+/obj/fakeobject/junction_box
 	name = "junction box"
 	desc = "A large, wall-mounted metal box with several burly cables moving from it to the floor.  The front panel is locked.  A label on the panel reads 'FED FROM XFMR 210.  DANGER:  15 kV.  ARC FLASH HAZARD, DO NOT OPEN OR OPERATE CONTROLS WITHOUT APPROPRIATE PPE.'"
 	icon = 'icons/misc/lunar.dmi'

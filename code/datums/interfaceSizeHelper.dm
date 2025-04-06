@@ -23,7 +23,7 @@
 	proc/load()
 		if (!cdn)
 			src.owner.loadResourcesFromList(list(
-				"browserassets/js/interfaceSizeHelper.js"
+				"browserassets/src/js/interfaceSizeHelper.js"
 			))
 
 		var/html = src.get_html()
@@ -43,7 +43,9 @@
 	//fetches the computed data from the interface
 	proc/getData()
 		if (!src.loaded || !src.owner || !src.interface || !src.dataProp) return
-		src.lastData = json_decode(winget(src.owner, src.interface, src.dataProp))
+		var/json = winget(src.owner, src.interface, src.dataProp)
+		if (!rustg_json_is_valid(json)) return
+		src.lastData = json_decode(json)
 		return src.lastData
 
 	//register procs to run after interface loaded

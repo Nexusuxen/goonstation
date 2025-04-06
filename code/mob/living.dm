@@ -48,7 +48,8 @@
 
 	var/datum/organHolder/organHolder = null //Not all living mobs will use organholder. Instantiate on New() if you want one.
 
-	var/list/skin_process = list() //digesting patches
+	/// all applied patches (ex. medical patches)
+	var/list/applied_patches = list()
 
 	var/sound_burp = 'sound/voice/burp.ogg'
 	var/sound_scream = 'sound/voice/screams/robot_scream.ogg' // for silicon mobs
@@ -103,6 +104,9 @@
 	var/list/bandaged = list()
 	var/being_staunched = 0 // is someone currently putting pressure on their wounds?
 
+	/// completely immune to catching and spreading disease/medical-like ailments
+	var/ailment_immune = FALSE
+
 	var/co2overloadtime = null
 	var/temperature_resistance = T0C+75
 
@@ -123,7 +127,7 @@
 	var/void_mindswappable = FALSE //! are we compatible with the void mindswapper?
 	var/do_hurt_slowdown = TRUE //! do we slow down when hurt?
 
-/mob/living/New(loc, datum/appearanceHolder/AH_passthru, datum/preferences/init_preferences, ignore_randomizer=FALSE)
+/mob/living/New(loc, datum/appearanceHolder/AH_passthru, datum/preferences/init_preferences, ignore_randomizer=FALSE, role_for_traits)
 	START_TRACKING_CAT(TR_CAT_GHOST_OBSERVABLES)
 	src.create_mob_silhouette()
 	..()
@@ -149,10 +153,11 @@
 	if (src.isFlying)
 		APPLY_ATOM_PROPERTY(src, PROP_ATOM_FLOATING, src)
 
+	sleep_bubble.appearance_flags = RESET_TRANSFORM | PIXEL_SCALE
+
 	SPAWN(0)
-		sleep_bubble.appearance_flags = RESET_TRANSFORM | PIXEL_SCALE
 		if(!ishuman(src))
-			init_preferences?.apply_post_new_stuff(src)
+			init_preferences?.apply_post_new_stuff(src, role_for_traits)
 
 
 /mob/living/flash(duration)
@@ -164,6 +169,8 @@
 	ai_target_old.len = 0
 	move_laying = null
 
+	QDEL_NULL(src.vision)
+
 	if(use_stamina)
 		STOP_TRACKING_CAT(TR_CAT_STAMINA_MOBS)
 
@@ -172,9 +179,9 @@
 			thishud.remove_object(stamina_bar)
 		stamina_bar = null
 
-	for (var/atom/A as anything in skin_process)
+	for (var/atom/A as anything in src.applied_patches)
 		qdel(A)
-	skin_process = null
+	src.applied_patches = null
 
 	for(var/mob/living/intangible/aieye/E in src.contents)
 		E.cancel_camera()
@@ -192,11 +199,13 @@
 	..()
 
 /mob/living/death(gibbed)
-	#define VALID_MOB(M) (!isVRghost(M) && !isghostcritter(M) && !inafterlife(M))
+	#define VALID_MOB(M) (!isVRghost(M) && !isghostcritter(M) && !inafterlife(M) && !M.hasStatus("in_afterlife"))
 	src.remove_ailments()
 	src.lastgasp(allow_dead = TRUE)
 	if (src.ai) src.ai.disable()
-	if (src.key)
+	if (src.isFlying)
+		REMOVE_ATOM_PROPERTY(src, PROP_ATOM_FLOATING, src)
+	if (src.key && VALID_MOB(src))
 		var/datum/eventRecord/Death/deathEvent = new
 		deathEvent.buildAndSend(src, gibbed)
 	#ifndef NO_SHUTTLE_CALLS
@@ -346,7 +355,7 @@
 	return ..()
 
 /mob/living/detach_hud(datum/hud/hud)
-	if (observers.len) //Wire note: Attempted fix for BUG: Bad ref (f:410976) in IncRefCount(DM living.dm:132)
+	if (length(observers)) //Wire note: Attempted fix for BUG: Bad ref (f:410976) in IncRefCount(DM living.dm:132)
 		for (var/mob/dead/target_observer/observer in observers)
 			observer.detach_hud(hud)
 	return ..()
@@ -362,7 +371,7 @@
 /mob/living/proc/hand_range_attack(atom/target, params, location, control, origParams)
 	var/datum/limb/L = src.equipped_limb()
 	if (L && L.attack_range(target, src, params))
-		src.lastattacked = src
+		src.lastattacked = get_weakref(src)
 		return TRUE
 	return FALSE
 
@@ -381,7 +390,7 @@
 	if (!QDELETED(W) && (equipped() == W || usingInner))
 		var/pixelable = isturf(target)
 		if (!pixelable)
-			if (istype(target, /atom/movable) && isturf(target.loc))
+			if (istype(target, /atom/movable) && (isturf(target.loc) || !reach))
 				pixelable = TRUE
 		if (pixelable)
 			if (!W.pixelaction(target, params, src, reach))
@@ -526,29 +535,33 @@
 					hand_attack(target, params, location, control)
 
 				//If lastattacked was set, this must be a combat action!! Use combat click delay ||  the other condition is whether a special attack was just triggered.
-				if ((lastattacked != null && (src.lastattacked == target || src.lastattacked == equipped || src.lastattacked == src) && use_delay) || (equipped && equipped.special && equipped.special.last_use >= world.time - src.click_delay))
+				if ((lastattacked?.deref() != null && (src.lastattacked.deref() == target || src.lastattacked.deref() == equipped || src.lastattacked.deref() == src) && use_delay) || (equipped && equipped.special && equipped.special.last_use >= world.time - src.click_delay))
 					src.next_click = world.time + (equipped ? max(equipped.click_delay,src.combat_click_delay) : src.combat_click_delay)
 					src.lastattacked = null
 
 			else if (!equipped)
 				hand_range_attack(target, params, location, control)
 
-				if (lastattacked != null && (src.lastattacked == target || src.lastattacked == equipped || src.lastattacked == src) && use_delay)
+				if (lastattacked?.deref() != null && (src.lastattacked.deref() == target || src.lastattacked.deref() == equipped || src.lastattacked.deref() == src) && use_delay)
 					src.next_click = world.time + src.combat_click_delay
 					src.lastattacked = null
 
 		//Don't think I need the above, this should work here.
 		if (istype(src.loc, /obj/machinery/vehicle))
 			var/obj/machinery/vehicle/ship = src.loc
-			if (ship.sensors)
-				if (ship.sensors.active)
-					var/obj/machinery/vehicle/target_pod = target
-					if (src.loc != target_pod && istype(target_pod))
-						ship.sensors.end_tracking()
-						ship.sensors.quick_obtain_target(target_pod)
-				else
-					if (istype(target, /obj/machinery/vehicle))
-						boutput(src, SPAN_ALERT("Sensors are inactive, unable to target craft!"))
+			if (ship.pilot == src)
+				if (ship.sensors)
+					if (ship.sensors.active)
+						var/obj/machinery/vehicle/target_pod = target
+						if (src.loc != target_pod && istype(target_pod))
+							ship.sensors.end_tracking()
+							ship.sensors.quick_obtain_target(target_pod)
+					else
+						if (istype(target, /obj/machinery/vehicle))
+							boutput(src, SPAN_ALERT("Sensors are inactive, unable to target craft!"))
+			else if (istype(ship.sec_system, /obj/item/shipcomponent/secondary_system/gunner_support) && ship.sec_system.active)
+				var/obj/item/shipcomponent/secondary_system/gunner_support/support_gunner = ship.sec_system
+				support_gunner.fire_at(target, src)
 
 
 		if (src.next_click >= world.time) // since some of these attack functions go wild with modifying next_click, we implement the clicking grace window with a penalty instead of changing how next_click is set
@@ -604,18 +617,23 @@
 	if(src.client && !(target in view(src.client.view))) //don't point at things we can't see
 		return
 
-	var/obj/item/gun/G = src.equipped()
-	if(!istype(G) || !ismob(target))
+	var/obj/item/I = src.equipped()
+	var/gunpoint = FALSE
+	if(!cangunpoint(I) || !ismob(target))
 		src.visible_message(SPAN_EMOTE("<b>[src]</b> points to [target]."))
 	else
-		src.visible_message("<span style='font-weight:bold;color:#f00;font-size:120%;'>[src] points \the [G] at [target]!</span>")
+		src.visible_message("<span style='font-weight:bold;color:#f00;font-size:120%;'>[src] points \the [I] at [target]!</span>")
+		gunpoint = TRUE
 	if (!ON_COOLDOWN(src, "point", 0.5 SECONDS))
 		..()
-		make_point(target, pixel_x=pixel_x, pixel_y=pixel_y, color=get_symbol_color(), pointer=src)
+		var/obj/decal/point/point = make_point(target, pixel_x=pixel_x, pixel_y=pixel_y, color=get_symbol_color(), pointer=src)
+		if (gunpoint)
+			point.icon_state = "gun_point"
+			point.color = null
 
 /// Currently used for the color of pointing at things. Might be useful for other things that should have a color based off a mob.
 /mob/living/proc/get_symbol_color()
-	. = src.bioHolder.mobAppearance.customization_first_color
+	. = src.bioHolder.mobAppearance.customizations["hair_bottom"].color
 
 /mob/living/proc/set_burning(var/new_value)
 	setStatus("burning", new_value SECONDS)
@@ -911,15 +929,15 @@
 
 	if(my_client)
 		if(singing)
-			phrase_log.log_phrase("sing", message, user = src, strip_html = TRUE)
+			phrase_log.log_phrase("sing", message, user = my_client.mob, strip_html = TRUE)
 		else if(message_mode)
-			phrase_log.log_phrase("radio", message, user = src, strip_html = TRUE)
+			phrase_log.log_phrase("radio", message, user = my_client.mob, strip_html = TRUE)
 		else
-			phrase_log.log_phrase("say", message, user = src, strip_html = TRUE)
+			phrase_log.log_phrase("say", message, user = my_client.mob, strip_html = TRUE)
 
 	last_words = message
 
-	if (src.stuttering)
+	if (src.stuttering && !isrobot(src))
 		message = stutter(message)
 
 	if (src.get_brain_damage() >= 60)
@@ -1148,8 +1166,7 @@
 	if (!message_range && speechpopups && src.chat_text)
 		var/heard_name = src.get_heard_name(just_name_itself=TRUE)
 		if(!last_heard_name || heard_name != src.last_heard_name)
-			var/num = hex2num(copytext(md5(heard_name), 1, 7))
-			src.last_chat_color = hsv2rgb(num % 360, (num / 360) % 10 + 18, num / 360 / 10 % 15 + 85)
+			src.last_chat_color = living_maptext_color(heard_name)
 			src.last_heard_name = heard_name
 
 		var/turf/T = get_turf(say_location)
@@ -1497,6 +1514,10 @@
 	if (!isalive(src)) //can't resist when dead or unconscious
 		return
 
+	if (src.hasStatus("paralysis"))
+		src.show_text("You are completely paralysed and can't resist!", "red")
+		return
+
 	if (src.last_resist > world.time)
 		return
 	src.last_resist = world.time + 20
@@ -1566,6 +1587,7 @@
 		src.animate_lying(src.lying)
 		src.p_class = initial(src.p_class) + src.lying // 2 while standing, 3 while lying
 		actions.interrupt(src, INTERRUPT_ACT) // interrupt actions
+		SEND_SIGNAL(src, COMSIG_MOB_LAYDOWN_STANDUP, src.lying)
 
 /mob/living/proc/animate_lying(lying)
 	animate_rest(src, !lying)
@@ -1575,7 +1597,7 @@
 	if (!M || !src) //Apparently M could be a meatcube and this causes HELLA runtimes.
 		return
 
-	M.lastattacked = src
+	M.lastattacked = get_weakref(src)
 
 	attack_particle(M,src)
 
@@ -1749,10 +1771,7 @@
 	if (m_intent == "walk")
 		. += WALK_DELAY_ADD
 
-	if (src.nodamage)
-		return .
-
-	if (src.do_hurt_slowdown)
+	if (src.do_hurt_slowdown && !src.nodamage)
 		var/health_deficiency = 0
 		if (src.max_health > 0)
 			health_deficiency = ((src.max_health-src.health)/src.max_health)*100 + health_deficiency_adjustment // cogwerks // let's treat this like pain
@@ -1766,7 +1785,7 @@
 
 	. = min(., maximum_slowdown)
 
-	if (pushpull_multiplier != 0) // if we're not completely ignoring pushing/pulling
+	if (pushpull_multiplier != 0 && !src.nodamage) // if we're not completely ignoring pushing/pulling
 		if (src.pulling)
 			if (istype(src.pulling, /atom/movable) && !(src.is_hulk() || (src.bioHolder && src.bioHolder.HasEffect("strong"))))
 				var/atom/movable/A = src.pulling
@@ -1774,6 +1793,8 @@
 				if (GET_DIST(src,A) > 0 && GET_DIST(move_target,A) > 0) //i think this is mbc dist stuff for if we're actually stepping away and pulling the thing or not?
 					if(pull_slowing)
 						. *= max(A.p_class, 1)
+					else if (A.always_slow_pull)
+						. *= lerp(1, max(A.p_class, 1), mob_pull_multiplier)
 					else
 						if(istype(A,/obj/machinery/nuclearbomb)) //can't speed off super fast with the nuke, it's heavy
 							. *= max(A.p_class, 1)
@@ -1793,8 +1814,6 @@
 								. *= lerp(1, max(A.p_class, 1), mob_pull_multiplier)
 							else if (locate(/obj/item/gang_loot) in A.contents)
 								. *= lerp(1, max(A.p_class, 1), mob_pull_multiplier)
-						else if (A.always_slow_pull)
-							. *= lerp(1, max(A.p_class, 1), mob_pull_multiplier)
 
 			. = lerp(1, . , pushpull_multiplier)
 
@@ -1829,8 +1848,11 @@
 		if (pulling) minSpeed = base_speed // not so fast, fucko
 		. = min(., minSpeed + (. - minSpeed) * runScaling) // i don't know what I'm doing, help
 
+	if (src.nodamage)
+		return .
+
 	var/turf/T = get_turf(src)
-	if (T?.turf_flags & CAN_BE_SPACE_SAMPLE)
+	if (istype(T, /turf/space))
 		. = max(., base_speed)
 
 
@@ -1858,31 +1880,35 @@
 	var/stop_here = SEND_SIGNAL(src, COMSIG_MOB_SPRINT)
 	if (stop_here)
 		return
-	if (HAS_ATOM_PROPERTY(src, PROP_MOB_CANTSPRINT))
-		return
 	if (src.client && src.special_sprint?.can_sprint(src))
 		src.special_sprint.do_sprint(src)
+		src.do_sprint_boost()
+		return
 	if (src.special_sprint?.overrides_sprint)
 		return
+	if (HAS_ATOM_PROPERTY(src, PROP_MOB_CANTSPRINT))
+		return
 	else if (src.use_stamina)
-		if (!next_step_delay && world.time >= next_sprint_boost)
-			if (!(HAS_ATOM_PROPERTY(src, PROP_MOB_CANTMOVE) || GET_COOLDOWN(src, "lying_bullet_dodge_cheese") || GET_COOLDOWN(src, "unlying_speed_cheesy")))
-				//if (src.hasStatus("blocking"))
-				//	for (var/obj/item/grab/block/G in src.equipped_list(check_for_magtractor = 0)) //instant break blocks when we start a sprint
-				//		qdel(G)
+		src.do_sprint_boost()
+		return
 
-				var/last = src.loc
-				var/force_puff = world.time < src.next_move + 0.5 SECONDS //assume we are still in a movement mindset even if we didnt change tiles
+/mob/living/proc/do_sprint_boost()
+	if (!src.special_sprint?.no_sprint_boost && !next_step_delay && world.time >= src.next_sprint_boost)
+		if (!(HAS_ATOM_PROPERTY(src, PROP_MOB_CANTMOVE) || GET_COOLDOWN(src, "lying_bullet_dodge_cheese") || GET_COOLDOWN(src, "unlying_speed_cheesy")))
 
-				next_step_delay = max(src.next_move - world.time,0) //slows us on the following step by the amount of movement we just skipped over with our instant-step
-				src.next_move = world.time
-				attempt_move(src)
-				next_sprint_boost = world.time + max(src.next_move - world.time,BASE_SPEED) * 2
+			var/last = src.loc
+			var/force_puff = world.time < src.next_move + 0.5 SECONDS //assume we are still in a movement mindset even if we didnt change tiles
 
-				if ((src.loc != last || force_puff) && !HAS_ATOM_PROPERTY(src, PROP_MOB_NO_MOVEMENT_PUFFS)) //ugly check to prevent stationary sprint weirds
-					sprint_particle(src, last)
-					if (!isFlying)
-						playsound(src.loc, 'sound/effects/sprint_puff.ogg', 29, 1,extrarange = -4)
+			next_step_delay = max(src.next_move - world.time,0) //slows us on the following step by the amount of movement we just skipped over with our instant-step
+			src.next_move = world.time
+			attempt_move(src)
+
+			src.next_sprint_boost = world.time + max(src.next_move - world.time,BASE_SPEED) * 2
+
+			if ((src.loc != last || force_puff) && !HAS_ATOM_PROPERTY(src, PROP_MOB_NO_MOVEMENT_PUFFS)) //ugly check to prevent stationary sprint weirds
+				sprint_particle(src, last)
+				if (!isFlying)
+					playsound(src.loc, 'sound/effects/sprint_puff.ogg', 29, 1,extrarange = -4)
 
 // cogwerks - fix for soulguard and revive
 /mob/living/proc/remove_ailments()
@@ -1976,15 +2002,8 @@
 
 
 		var/list/shield_amt = list()
-		var/shield_multiplier = 1
 
-		switch(P.proj_data.damage_type)
-			if(D_KINETIC, D_SLASHING, D_TOXIC)
-				shield_multiplier = 0.5
-			if(D_ENERGY, D_RADIOACTIVE)
-				shield_multiplier = 2
-
-		SEND_SIGNAL(src, COMSIG_MOB_SHIELD_ACTIVATE, P.power * shield_multiplier, shield_amt)
+		SEND_SIGNAL(src, COMSIG_MOB_SHIELD_ACTIVATE, P.power, shield_amt)
 		damage *= max(0, (1-shield_amt["shield_strength"]))
 		stun *= max(0, (1-shield_amt["shield_strength"]))
 
@@ -2001,7 +2020,7 @@
 					src.do_disorient(clamp(stun*4, P.proj_data.stun*2, stun+80), knockdown = stun*2, stunned = 0, disorient = 0, remove_stamina_below_zero = 0, target_type = DISORIENT_NONE)
 
 				src.TakeDamage("chest", (damage/rangedprot_mod), 0, 0, P.proj_data.hit_type)
-				if (isalive(src))
+				if (damage > 0 && isalive(src))
 					lastgasp()
 
 			if (D_PIERCING)
@@ -2009,7 +2028,7 @@
 					src.do_disorient(clamp(stun*4, P.proj_data.stun*2, stun+80), knockdown = stun*2, stunned = 0, disorient = 0, remove_stamina_below_zero = 0, target_type = DISORIENT_NONE)
 
 				src.TakeDamage("chest", damage/rangedprot_mod, 0, 0, P.proj_data.hit_type)
-				if (isalive(src))
+				if (damage > 0 && isalive(src))
 					lastgasp()
 
 			if (D_SLASHING)
@@ -2063,12 +2082,12 @@
 					src.take_toxin_damage(damage)
 
 	if (!P.proj_data.silentshot)
-		src.visible_message(SPAN_COMBAT("<b>[src] is hit by the [P.name]!</b>"), SPAN_COMBAT("<b>You are hit by the [P.name][armor_msg]</b>!"))
+		boutput(src, SPAN_COMBAT("<b>You are hit by the [P.name][armor_msg]</b>!"))
 
 	var/mob/M = null
 	if (ismob(P.shooter))
 		M = P.shooter
-		src.lastattacker = M
+		src.lastattacker = get_weakref(M)
 		src.lastattackertime = world.time
 	src.was_harmed(M)
 
@@ -2117,13 +2136,6 @@
 	else
 		shock_damage = 1 * prot
 
-	if (H)
-		for (var/uid in H.pathogens)
-			var/datum/pathogen/P = H.pathogens[uid]
-			shock_damage = P.onshocked(shock_damage, wattage)
-			if (!shock_damage)
-				return 0
-
 	if (src.bioHolder?.HasEffect("resist_electric_heal"))
 		var/healing = 0
 		healing = shock_damage / 3
@@ -2146,7 +2158,7 @@
 			src.apply_flash(60, 0, 10)
 			if (H)
 				var/hair_type = pick(/datum/customization_style/hair/gimmick/xcom,/datum/customization_style/hair/gimmick/bart,/datum/customization_style/hair/gimmick/zapped)
-				H.bioHolder.mobAppearance.customization_first = new hair_type
+				H.bioHolder.mobAppearance.customizations["hair_bottom"].style = new hair_type
 				H.set_face_icon_dirty()
 		if (100 to INFINITY)  // cogwerks - here are the big fuckin murderflashes
 			playsound(src.loc, 'sound/effects/elec_bigzap.ogg', 40, 1)
@@ -2154,7 +2166,7 @@
 			src.flash(60)
 			if (H)
 				var/hair_type = pick(/datum/customization_style/hair/gimmick/xcom,/datum/customization_style/hair/gimmick/bart,/datum/customization_style/hair/gimmick/zapped)
-				H.bioHolder.mobAppearance.customization_first = new hair_type
+				H.bioHolder.mobAppearance.customizations["hair_bottom"].style = new hair_type
 				H.set_face_icon_dirty()
 
 			var/turf/T = get_turf(src)
@@ -2195,6 +2207,8 @@
 			. = 'sound/impact_sounds/Flesh_Stab_3.ogg'
 			if(thr?.user)
 				src.was_harmed(thr.user, AM)
+	if (AM.throwforce > 5) //number
+		src.changeStatus("staggered", 5 SECONDS)
 	..()
 
 /mob/living/proc/check_singing_prefix(var/message)
@@ -2292,6 +2306,12 @@
 			src.say(message)
 		src.stat = old_stat // back to being dead 😌
 
+
+/// Returns a multiplier for how much chems to deplete from their reagent holder per Life()
+/// This will be multiplied by that chems corresponding depletion rate
+/mob/living/proc/get_chem_depletion_multiplier()
+	return 1
+
 /// Returns the rate of blood to absorb from the reagent holder per Life()
 /mob/living/proc/get_blood_absorption_rate()
 	return 1 + GET_ATOM_PROPERTY(src, PROP_MOB_BLOOD_ABSORPTION_RATE) // that's the standard absorption rate
@@ -2332,3 +2352,62 @@
 			helper.tri_message(src, SPAN_NOTICE("<b>[helper]</b> barely slows [src == helper ? "[his_or_her(src)]" : "[src]'s"] bleeding!"),\
 				SPAN_NOTICE("You barely slow [src == helper ? "your" : "[src]'s"] bleeding!"),\
 				SPAN_NOTICE("[helper == src ? "You stop" : "<b>[helper]</b> stops"] your bleeding with little success!"))
+
+///helper proc to return a new bioholder to be used for blood reagent data
+/mob/living/proc/get_blood_bioholder()
+	var/datum/bioHolder/unlinked/bloodHolder = new/datum/bioHolder/unlinked(null)
+	bloodHolder.CopyOther(src.bioHolder)
+	bloodHolder.ownerName = src.real_name
+	bloodHolder.ownerType = src.type
+	bloodHolder.weak_owner = get_weakref(src)
+	return bloodHolder
+
+/mob/living/proc/meson(atom/source)
+	if (!source)
+		CRASH("meson proc called without a source!!")
+	src.vision.set_scan(1)
+	APPLY_ATOM_PROPERTY(src, PROP_MOB_MESONVISION, source)
+	get_image_group(CLIENT_IMAGE_GROUP_MECHCOMP).add_mob(src)
+
+/mob/living/proc/unmeson(atom/source)
+	REMOVE_ATOM_PROPERTY(src, PROP_MOB_MESONVISION, source)
+	get_image_group(CLIENT_IMAGE_GROUP_MECHCOMP).remove_mob(src)
+	if (ishuman(src))
+		var/mob/living/carbon/human/H = src
+		if (istype(H.glasses, /obj/item/clothing/glasses/visor))
+			return
+	src.vision.set_scan(0)
+
+/mob/living/vomit(var/nutrition=0, var/specialType=null, var/flavorMessage="[src] vomits!", var/selfMessage = null)
+	. = ..()
+	if(.)
+		var/returnItem = src.organHolder?.stomach?.vomit()
+		if(returnItem)
+			. = returnItem
+		src.lastgasp(FALSE, grunt = pick("BLARGH", "blblbl", "BLUH", "BLURGH"))
+
+/// makes mob auto pick up the highest weight item on a turf. if multiple have that weight, last one in the order of contents var is picked
+/mob/living/proc/auto_pickup_item(atom/target_loc)
+	var/turf/T = get_turf(target_loc)
+	if (!T)
+		return
+	var/obj/item/picked_item
+	for (var/obj/item/I in T.contents)
+		if (I.anchored)
+			continue
+		if (I.w_class >= picked_item?.w_class) // order of contents is roughly random
+			picked_item = I
+	if (picked_item)
+		picked_item.pick_up_by(src)
+		return TRUE
+
+/mob/living/clamp_act()
+	if (isintangible(src))
+		return FALSE
+	src.TakeDamage("All", 6)
+	src.emote("scream", FALSE)
+	playsound(src.loc, 'sound/impact_sounds/Flesh_Tear_1.ogg', 40, 1)
+	return TRUE
+
+/mob/living/HealBleeding(amt)
+	src.bleeding = max(src.bleeding - amt, 0)

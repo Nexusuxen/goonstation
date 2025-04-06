@@ -19,7 +19,7 @@
 	#endif
 
 	area = /area/space
-	movement_mode = TILE_MOVEMENT_MODE
+	movement_mode = TILE_MOVEMENT_MODE //Touching this will almost certainly break all glides. DO NOT TOUCH THIS unless you are willing to shoulder an absolute mountain of work.
 
 	view = "15x15"
 
@@ -34,7 +34,7 @@
 	var/list/statsus = list()
 
 	if (config?.server_name)
-		statsus += "<b><a href=\"https://goonhub.com\">[config.server_name]</a></b>"
+		statsus += "<b><a href=\"[config.goonhub_url]\">[config.server_name]</a></b>"
 	else
 		statsus += "<b>SERVER NAME HERE</b>"
 

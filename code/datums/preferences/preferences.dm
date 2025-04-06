@@ -1,4 +1,11 @@
 var/list/bad_name_characters = list("_", "'", "\"", "<", ">", ";", "\[", "\]", "{", "}", "|", "\\", "/")
+var/regex/emoji_regex = regex(@{"([^\u0020-\u8000]+)"})
+
+proc/remove_bad_name_characters(string)
+	for (var/char in bad_name_characters)
+		string = replacetext(string, char, "")
+	return emoji_regex.Replace_char(string, "")
+
 var/list/removed_jobs = list(
 	// jobs that have been removed or replaced (replaced -> new name, removed -> null)
 	"Barman" = "Bartender",
@@ -14,6 +21,7 @@ var/list/removed_jobs = list(
 	var/name_first
 	var/name_middle
 	var/name_last
+	var/hyphenate_name
 	var/robot_name
 	var/gender = MALE
 	var/age = 30
@@ -117,6 +125,10 @@ var/list/removed_jobs = list(
 			src.custom_parts = list(
 				"l_arm" = "arm_default_left",
 				"r_arm" = "arm_default_right",
+				"l_leg" = "leg_default_left",
+				"r_leg" = "leg_default_right",
+				"left_eye" = "eye_default_left",
+				"right_eye" = "eye_default_right",
 			)
 
 	ui_state(mob/user)
@@ -215,6 +227,7 @@ var/list/removed_jobs = list(
 			"nameFirst" = src.name_first,
 			"nameMiddle" = src.name_middle,
 			"nameLast" = src.name_last,
+			"hyphenateName" = src.hyphenate_name,
 			"robotName" = src.robot_name,
 			"randomName" = src.be_random_name,
 			"gender" = src.gender == MALE ? "Male" : "Female",
@@ -235,12 +248,12 @@ var/list/removed_jobs = list(
 			"skinTone" = src.AH.s_tone_original,
 			"specialStyle" = src.AH.special_style,
 			"eyeColor" = src.AH.e_color,
-			"customColor1" = src.AH.customization_first_color,
-			"customStyle1" = src.AH.customization_first.name,
-			"customColor2" = src.AH.customization_second_color,
-			"customStyle2" = src.AH.customization_second.name,
-			"customColor3" = src.AH.customization_third_color,
-			"customStyle3" = src.AH.customization_third.name,
+			"customColor1" = src.AH.customizations["hair_bottom"].color,
+			"customStyle1" = src.AH.customizations["hair_bottom"].style.name,
+			"customColor2" = src.AH.customizations["hair_middle"].color,
+			"customStyle2" = src.AH.customizations["hair_middle"].style.name,
+			"customColor3" = src.AH.customizations["hair_top"].color,
+			"customStyle3" = src.AH.customizations["hair_top"].style.name,
 			"underwearColor" = src.AH.u_color,
 			"underwearStyle" = src.AH.underwear,
 			"randomAppearance" = src.be_random_look,
@@ -353,26 +366,30 @@ var/list/removed_jobs = list(
 						tgui_alert(usr, "The name must be between 3 and [MOB_NAME_MAX_LENGTH] letters!", "Letter count out of range")
 					else
 						var/ret = src.cloudsave_save(usr.client, new_name)
-						if (istext(ret))
+						if (!ret)
 							boutput( usr, SPAN_ALERT("Failed to save savefile: [ret]") )
 						else
 							boutput( usr, SPAN_NOTICE("Savefile saved!") )
+							return TRUE
 
 			if ("cloud-save")
 				var/ret = src.cloudsave_save(client, params["name"])
-				if (istext(ret))
+				if (!ret)
 					boutput(usr, SPAN_ALERT("Failed to save savefile: [ret]"))
 				else
 					boutput(usr, SPAN_NOTICE("Savefile saved!"))
 					return TRUE
 
 			if ("cloud-load")
+				var/profilenum_old = src.profile_number
 				var/ret = src.cloudsave_load(client, params["name"])
+				src.profile_number = profilenum_old
 				if (istext(ret))
 					boutput(usr, SPAN_ALERT("Failed to load savefile: [ret]"))
 				else
 					boutput(usr, SPAN_NOTICE("Savefile loaded!"))
 					src.traitPreferences.traitDataDirty = TRUE
+					src.profile_modified = TRUE
 					src.update_preview_icon()
 					return TRUE
 
@@ -383,6 +400,13 @@ var/list/removed_jobs = list(
 				else
 					boutput(usr, SPAN_NOTICE("Savefile deleted!"))
 					return TRUE
+
+			if ("profile-file-export")
+				src.profile_export()
+
+			if ("profile-file-import")
+				src.profile_import()
+				return TRUE
 
 			if ("update-profileName")
 				var/new_profile_name = tgui_input_text(usr, "New profile name:", "Character Generation", src.profile_name)
@@ -409,8 +433,7 @@ var/list/removed_jobs = list(
 				if (isnull(new_name))
 					return
 				new_name = trimtext(new_name)
-				for (var/c in bad_name_characters)
-					new_name = replacetext(new_name, c, "")
+				new_name = remove_bad_name_characters(new_name)
 				if (length(new_name) < NAME_CHAR_MIN)
 					tgui_alert(usr, "Your first name is too short. It must be at least [NAME_CHAR_MIN] characters long.", "Name too short")
 					return
@@ -427,23 +450,21 @@ var/list/removed_jobs = list(
 
 				if (new_name)
 					src.name_first = new_name
-					src.real_name = src.name_first + " " + src.name_last
+					src.set_real_name()
 					src.profile_modified = TRUE
 					return TRUE
 
 			if ("update-nameMiddle")
-				var/new_name = tgui_input_text(usr, "Please select a middle name:", "Character Generation", src.name_middle)
+				var/new_name = tgui_input_text(usr, "Please select a middle name:", "Character Generation", src.name_middle, allowEmpty = TRUE)
 				if (isnull(new_name))
-					return
+					new_name = ""
 				new_name = trimtext(new_name)
-				for (var/c in bad_name_characters)
-					new_name = replacetext(new_name, c, "")
+				new_name = remove_bad_name_characters(new_name)
 				if (length(new_name) > NAME_CHAR_MAX)
 					tgui_alert(usr, "Your middle name is too long. It must be no more than [NAME_CHAR_MAX] characters long.", "Name too long")
 					return
 				else if (is_blank_string(new_name) && new_name != "")
-					tgui_alert(usr, "Your middle name cannot contain only spaces.", "Blank name")
-					return
+					new_name = ""
 				new_name = capitalize(new_name)
 				src.name_middle = new_name // don't need to check if there is one in case someone wants no middle name I guess
 				src.profile_modified = TRUE
@@ -454,8 +475,7 @@ var/list/removed_jobs = list(
 				if (isnull(new_name))
 					return
 				new_name = trimtext(new_name)
-				for (var/c in bad_name_characters)
-					new_name = replacetext(new_name, c, "")
+				new_name = remove_bad_name_characters(new_name)
 				if (length(new_name) < NAME_CHAR_MIN)
 					tgui_alert(usr, "Your last name is too short. It must be at least [NAME_CHAR_MIN] characters long.", "Name too short")
 					return
@@ -472,9 +492,15 @@ var/list/removed_jobs = list(
 
 				if (new_name)
 					src.name_last = new_name
-					src.real_name = src.name_first + " " + src.name_last
+					src.set_real_name()
 					src.profile_modified = TRUE
 					return TRUE
+
+			if ("toggle-hyphenation")
+				src.hyphenate_name = !src.hyphenate_name
+				src.set_real_name()
+				src.profile_modified = TRUE
+				return TRUE
 
 			if ("update-robotName")
 				var/new_name = tgui_input_text(usr, "Your preferred cyborg name, leave empty for random.", "Character Generation", src.robot_name)
@@ -548,10 +574,10 @@ var/list/removed_jobs = list(
 			if ("update-flavorText")
 				var/new_text = tgui_input_text(usr, "Please enter new flavor text (appears when examining you):", "Character Generation", html_decode(src.flavor_text), multiline = TRUE, allowEmpty=TRUE)
 				if (!isnull(new_text))
-					new_text = html_encode(new_text)
 					if (length(new_text) > FLAVOR_CHAR_LIMIT)
 						tgui_alert(usr, "Your flavor text is too long. It must be no more than [FLAVOR_CHAR_LIMIT] characters long. The current text will be trimmed down to meet the limit.", "Flavor text too long")
 						new_text = copytext(new_text, 1, FLAVOR_CHAR_LIMIT+1)
+					new_text = html_encode(new_text)
 					src.flavor_text = new_text || null
 					src.profile_modified = TRUE
 					return TRUE
@@ -559,10 +585,10 @@ var/list/removed_jobs = list(
 			if ("update-securityNote")
 				var/new_text = tgui_input_text(usr, "Please enter new flavor text (appears when examining your security record):", "Character Generation", html_decode(src.security_note), multiline = TRUE, allowEmpty=TRUE)
 				if (!isnull(new_text))
-					new_text = html_encode(new_text)
 					if (length(new_text) > FLAVOR_CHAR_LIMIT)
 						tgui_alert(usr, "Your flavor text is too long. It must be no more than [FLAVOR_CHAR_LIMIT] characters long. The current text will be trimmed down to meet the limit.", "Flavor text too long")
 						new_text = copytext(new_text, 1, FLAVOR_CHAR_LIMIT+1)
+					new_text = html_encode(new_text)
 					src.security_note = new_text || null
 					src.profile_modified = TRUE
 					return TRUE
@@ -570,10 +596,10 @@ var/list/removed_jobs = list(
 			if ("update-medicalNote")
 				var/new_text = tgui_input_text(usr, "Please enter new flavor text (appears when examining your medical record):", "Character Generation", html_decode(src.medical_note), multiline = TRUE, allowEmpty=TRUE)
 				if (!isnull(new_text))
-					new_text = html_encode(new_text)
 					if (length(new_text) > FLAVOR_CHAR_LIMIT)
 						tgui_alert(usr, "Your flavor text is too long. It must be no more than [FLAVOR_CHAR_LIMIT] characters long. The current text will be trimmed down to meet the limit.", "Flavor text too long")
 						new_text = copytext(new_text, 1, FLAVOR_CHAR_LIMIT+1)
+					new_text = html_encode(new_text)
 					src.medical_note = new_text || null
 					src.profile_modified = TRUE
 					return TRUE
@@ -581,10 +607,10 @@ var/list/removed_jobs = list(
 			if ("update-syndintNote")
 				var/new_text = tgui_input_text(usr, "Please enter new information Syndicate agents have gathered on you (visible to traitors and spies):", "Character Generation", html_decode(src.synd_int_note), multiline = TRUE, allowEmpty=TRUE)
 				if (!isnull(new_text))
-					new_text = html_encode(new_text)
 					if (length(new_text) > LONG_FLAVOR_CHAR_LIMIT)
 						tgui_alert(usr, "Your flavor text is too long. It must be no more than [LONG_FLAVOR_CHAR_LIMIT] characters long. The current text will be trimmed down to meet the limit.", "Flavor text too long")
 						new_text = copytext(new_text, 1, LONG_FLAVOR_CHAR_LIMIT+1)
+					new_text = html_encode(new_text)
 					src.synd_int_note = new_text || null
 					src.profile_modified = TRUE
 					return TRUE
@@ -688,22 +714,22 @@ var/list/removed_jobs = list(
 				var/current_color
 				switch (params["id"])
 					if ("custom1")
-						current_color = src.AH.customization_first_color
+						current_color = src.AH.customizations["hair_bottom"].color
 					if ("custom2")
-						current_color = src.AH.customization_second_color
+						current_color = src.AH.customizations["hair_middle"].color
 					if ("custom3")
-						current_color = src.AH.customization_third_color
+						current_color = src.AH.customizations["hair_top"].color
 					if ("underwear")
 						current_color = src.AH.u_color
 				var/new_color = tgui_color_picker(usr, "Please select a color.", "Character Generation", current_color)
 				if (new_color)
 					switch (params["id"])
 						if ("custom1")
-							src.AH.customization_first_color = new_color
+							src.AH.customizations["hair_bottom"].color = new_color
 						if ("custom2")
-							src.AH.customization_second_color = new_color
+							src.AH.customizations["hair_middle"].color = new_color
 						if ("custom3")
-							src.AH.customization_third_color = new_color
+							src.AH.customizations["hair_top"].color = new_color
 						if ("underwear")
 							src.AH.u_color = new_color
 					src.update_preview_icon()
@@ -720,11 +746,11 @@ var/list/removed_jobs = list(
 				if (new_style)
 					switch (params["id"])
 						if ("custom1")
-							src.AH.customization_first = new_style
+							src.AH.customizations["hair_bottom"].style = new_style
 						if ("custom2")
-							src.AH.customization_second = new_style
+							src.AH.customizations["hair_middle"].style = new_style
 						if ("custom3")
-							src.AH.customization_third = new_style
+							src.AH.customizations["hair_top"].style = new_style
 						if ("underwear")
 							src.AH.underwear = new_style
 					src.update_preview_icon()
@@ -739,11 +765,11 @@ var/list/removed_jobs = list(
 
 				switch (params["id"])
 					if ("custom1")
-						current_style = src.AH.customization_first.type
+						current_style = src.AH.customizations["hair_bottom"].style.type
 					if ("custom2")
-						current_style = src.AH.customization_second.type
+						current_style = src.AH.customizations["hair_middle"].style.type
 					if ("custom3")
-						current_style = src.AH.customization_third.type
+						current_style = src.AH.customizations["hair_top"].style.type
 					if ("underwear")
 						current_style = src.AH.underwear
 
@@ -768,11 +794,11 @@ var/list/removed_jobs = list(
 				if (new_style)
 					switch (params["id"])
 						if ("custom1")
-							src.AH.customization_first = new new_style
+							src.AH.customizations["hair_bottom"].style = new new_style
 						if ("custom2")
-							src.AH.customization_second = new new_style
+							src.AH.customizations["hair_middle"].style = new new_style
 						if ("custom3")
-							src.AH.customization_third = new new_style
+							src.AH.customizations["hair_top"].style = new new_style
 						if ("underwear")
 							src.AH.underwear = new_style
 					src.update_preview_icon()
@@ -812,7 +838,7 @@ var/list/removed_jobs = list(
 					src.font_size = initial(src.font_size)
 					return TRUE
 				else
-					var/new_font_size = tgui_input_number(usr, "Desired font size (in percent):", "Font setting", src.font_size || 100, 100, 1)
+					var/new_font_size = tgui_input_number(usr, "Desired font size (in percent):", "Font setting", src.font_size || 100, 200, 1)
 					if (!isnull(new_font_size))
 						src.font_size = new_font_size
 						src.profile_modified = TRUE
@@ -971,14 +997,14 @@ var/list/removed_jobs = list(
 				src.AH.gender = MALE
 				src.randomize_name()
 
-				src.AH.customization_first = new /datum/customization_style/hair/short/short
-				src.AH.customization_second = new /datum/customization_style/none
-				src.AH.customization_third = new /datum/customization_style/none
+				src.AH.customizations["hair_bottom"].style = new /datum/customization_style/hair/short/short
+				src.AH.customizations["hair_middle"].style = new /datum/customization_style/none
+				src.AH.customizations["hair_top"].style = new /datum/customization_style/none
 				src.AH.underwear = "No Underwear"
 
-				src.AH.customization_first_color = initial(src.AH.customization_first_color)
-				src.AH.customization_second_color = initial(src.AH.customization_second_color)
-				src.AH.customization_third_color = initial(src.AH.customization_third_color)
+				src.AH.customizations["hair_bottom"].color = initial(src.AH.customizations["hair_bottom"].color)
+				src.AH.customizations["hair_middle"].color = initial(src.AH.customizations["hair_middle"].color)
+				src.AH.customizations["hair_top"].color = initial(src.AH.customizations["hair_top"].color)
 				src.AH.e_color = "#101010"
 				src.AH.u_color = "#FEFEFE"
 
@@ -1028,6 +1054,45 @@ var/list/removed_jobs = list(
 				src.update_preview_icon()
 				return TRUE
 
+#ifndef SECRETS_ENABLED
+#define CHAR_EXPORT_SECRET "input_validation_is_hell_sorry"
+#endif
+
+	proc/profile_export()
+		var/savefile/message = src.savefile_save(usr.ckey, 1, 1)
+		var/fname
+		message["1_profile_name"] >> fname
+		fname = "[usr.ckey]_[fname].sav"
+		if(fexists(fname))
+			fdel(fname)
+		var/F = file(fname)
+		message["hash"] << null
+		var/hash = sha1("[sha1(message.ExportText("/"))][usr.ckey][CHAR_EXPORT_SECRET]")
+		message["hash"] << hash
+		message.ExportText("/", F)
+		usr << ftp(F, fname)
+		SPAWN(15 SECONDS)
+			var/tries = 0
+			while((fdel(fname) == 0) && tries++ < 10)
+				sleep(30 SECONDS)
+
+	proc/profile_import()
+		var/F = input(usr) as file|null
+		if(!F)
+			return
+		var/savefile/message = new()
+		message.ImportText("/", file2text(F))
+		var/hash
+		message["hash"] >> hash
+		message["hash"] << null
+		if(hash == sha1("[sha1(message.ExportText("/"))][usr.ckey][CHAR_EXPORT_SECRET]"))
+			var/profilenum_old = profile_number
+			savefile_load(usr.client, 1, message)
+			src.profile_modified = TRUE
+			src.profile_number = profilenum_old
+			src.traitPreferences.traitDataDirty = TRUE
+
+
 	proc/preview_sound(var/sound/S)
 		// tgui kinda adds the ability to spam stuff very fast. This just limits people to spam sound previews.
 		if (!ON_COOLDOWN(usr, "preferences_preview_sound", 0.5 SECONDS))
@@ -1046,7 +1111,7 @@ var/list/removed_jobs = list(
 				src.name_middle = capitalize(pick_string_autokey("names/first_female.txt"))
 		if (last)
 			src.name_last = capitalize(pick_string_autokey("names/last.txt"))
-		src.real_name = src.name_first + " " + src.name_last
+		src.set_real_name()
 
 	proc/randomizeLook() // im laze
 		if (!src.AH)
@@ -1058,26 +1123,33 @@ var/list/removed_jobs = list(
 		src.update_preview_icon()
 
 	proc/sanitize_name()
-		for (var/c in bad_name_characters)
-			src.name_first = replacetext(src.name_first, c, "")
-			src.name_middle = replacetext(src.name_middle, c, "")
-			src.name_last = replacetext(src.name_last, c, "")
+		src.name_first = remove_bad_name_characters(src.name_first)
+		src.name_middle = remove_bad_name_characters(src.name_middle)
+		src.name_last = remove_bad_name_characters(src.name_last)
 
 		if (length(src.name_first) < NAME_CHAR_MIN || length(src.name_first) > NAME_CHAR_MAX || is_blank_string(src.name_first) || !character_name_validation.Find(src.name_first))
 			src.randomize_name(1, 0, 0)
 
-		if (length(src.name_middle) > NAME_CHAR_MAX || is_blank_string(src.name_middle))
+		if (length(src.name_middle) > NAME_CHAR_MAX)
 			src.randomize_name(0, 1, 0)
 
 		if (length(src.name_last) < NAME_CHAR_MIN || length(src.name_last) > NAME_CHAR_MAX || is_blank_string(src.name_last) || !character_name_validation.Find(src.name_last))
 			src.randomize_name(0, 0, 1)
 
-		src.real_name = src.name_first + " " + src.name_last
+		src.set_real_name()
+
+	proc/set_real_name()
+		if (!src.name_middle)
+			src.real_name = src.name_first + (!src.hyphenate_name ? " " : "-") + src.name_last
+		else
+			src.real_name = src.name_first + (!src.hyphenate_name ? " " : "-[src.name_middle]-") + src.name_last
 
 
 	proc/update_preview_icon()
 		if (!src.AH)
 			logTheThing(LOG_DEBUG, usr ? usr : null, null, "a preference datum's appearence holder is null!")
+			return
+		if (!src.preview)
 			return
 
 		var/datum/mutantrace/mutantRace = /datum/mutantrace/human
@@ -1087,21 +1159,23 @@ var/list/removed_jobs = list(
 				mutantRace = T.mutantRace
 				break
 
+		var/mob/living/carbon/human/H = src.preview.preview_thing
 		src.AH.mutant_race = mutantRace
 		var/s_orig = src.AH.s_tone_original
+		if (src.traitPreferences.traits_selected.Find("mutant_hair") && mutantRace)
+			H.hair_override = TRUE
+		else
+			H.hair_override = FALSE
 		src.preview?.update_appearance(src.AH, mutantRace, src.spessman_direction, name = src.real_name)
 		src.AH.s_tone_original = s_orig // refuse any edits made by mutantrace setting/etc
 		// bald trait preview stuff
-		if (!src.preview)
-			return
-		var/mob/living/carbon/human/H = src.preview.preview_thing
 		var/ourWig = H.head
 		if (ourWig)
 			H.u_equip(ourWig)
 			qdel(ourWig)
 
 		if (src.traitPreferences.traits_selected.Find("bald") && mutantRace)
-			H.equip_if_possible(H.create_wig(), SLOT_HEAD)
+			H.equip_if_possible(H.create_wig(keep_hair = TRUE), SLOT_HEAD)
 
 		for (var/slot_id in src.custom_parts)
 			var/datum/part_customization/customization = get_part_customization(src.custom_parts[slot_id])
@@ -1117,16 +1191,12 @@ var/list/removed_jobs = list(
 		src.jobs_low_priority = list()
 		src.jobs_unwanted = list()
 		for (var/datum/job/J in job_controls.staple_jobs)
-			if (istype(J, /datum/job/daily))
-				continue
 			if (jobban_isbanned(user, J.name) || (J.needs_college && !user.has_medal("Unlike the director, I went to college")) || (J.requires_whitelist && !NT.Find(ckey(user.mind.key))))
 				src.jobs_unwanted += J.name
 				continue
-			if (J.rounds_needed_to_play && (user.client && user.client.player))
-				var/round_num = user.client.player.get_rounds_participated() //if this list is null, the api query failed, so we just let it happen
-				if (!isnull(round_num) && round_num < J.rounds_needed_to_play) //they havent played enough rounds!
-					src.jobs_unwanted += J.name
-					continue
+			if (user.client && !J.has_rounds_needed(user.client.player))
+				src.jobs_unwanted += J.name
+				continue
 			src.jobs_med_priority += J.name
 		return
 
@@ -1136,16 +1206,12 @@ var/list/removed_jobs = list(
 		src.jobs_low_priority = list()
 		src.jobs_unwanted = list()
 		for (var/datum/job/J in job_controls.staple_jobs)
-			if (istype(J, /datum/job/daily))
-				continue
 			if (jobban_isbanned(user,J.name) || (J.needs_college && !user.has_medal("Unlike the director, I went to college")) || (J.requires_whitelist && !NT.Find(ckey(user.mind.key))))
 				src.jobs_unwanted += J.name
 				continue
-			if (J.rounds_needed_to_play && (user.client && user.client.player))
-				var/round_num = user.client.player.get_rounds_participated()
-				if (!isnull(round_num) && round_num < J.rounds_needed_to_play) //they havent played enough rounds!
-					src.jobs_unwanted += J.name
-					continue
+			if (user.client && !J.has_rounds_needed(user.client.player))
+				src.jobs_unwanted += J.name
+				continue
 			src.jobs_low_priority += J.name
 		return
 
@@ -1155,8 +1221,6 @@ var/list/removed_jobs = list(
 		src.jobs_low_priority = list()
 		src.jobs_unwanted = list()
 		for (var/datum/job/J in job_controls.staple_jobs)
-			if (istype(J, /datum/job/daily))
-				continue
 			if (J.cant_allocate_unwanted)
 				src.jobs_low_priority += J.name
 			else
@@ -1169,16 +1233,12 @@ var/list/removed_jobs = list(
 		src.jobs_low_priority = list()
 		src.jobs_unwanted = list()
 		for (var/datum/job/J in job_controls.staple_jobs)
-			if (istype(J, /datum/job/daily))
-				continue
 			if (jobban_isbanned(user,J.name) || (J.needs_college && !user.has_medal("Unlike the director, I went to college")) || (J.requires_whitelist && !NT.Find(user.ckey || ckey(user.mind?.key))) || istype(J, /datum/job/command) || istype(J, /datum/job/civilian/AI) || istype(J, /datum/job/civilian/cyborg) || istype(J, /datum/job/security/security_officer))
 				src.jobs_unwanted += J.name
 				continue
-			if (J.rounds_needed_to_play && (user.client && user.client.player))
-				var/round_num = user.client.player.get_rounds_participated()
-				if (!isnull(round_num) && round_num < J.rounds_needed_to_play) //they havent played enough rounds!
-					src.jobs_unwanted += J.name
-					continue
+			if (user.client && !J.has_rounds_needed(user.client.player))
+				src.jobs_unwanted += J.name
+				continue
 			src.jobs_low_priority += J.name
 		return
 
@@ -1217,8 +1277,6 @@ var/list/removed_jobs = list(
 							src.jobs_unwanted |= J.name
 #else
 			for (var/datum/job/J in job_controls.staple_jobs)
-				if (istype(J, /datum/job/daily))
-					continue
 				if (src.job_favorite != J.name && !(J.name in src.jobs_med_priority) && !(J.name in src.jobs_low_priority))
 					src.jobs_unwanted |= J.name
 #endif
@@ -1344,9 +1402,16 @@ var/list/removed_jobs = list(
 				src.jobs_unwanted += J_Fav.name
 				src.job_favorite = null
 			else if (J_Fav.rounds_needed_to_play && (user.client && user.client.player))
-				var/round_num = user.client.player.get_rounds_participated()
-				if (!isnull(round_num) && round_num < J_Fav.rounds_needed_to_play) //they havent played enough rounds!
-					boutput(user, SPAN_ALERT("<b>You cannot play [J_Fav.name].</b> You've only played </b>[round_num]</b> rounds and need to play more than <b>[J_Fav.rounds_needed_to_play].</b>"))
+				if (!J_Fav.has_rounds_needed(user.client.player))
+					var/played_rounds = user.client.player.get_rounds_participated()
+					var/needed_rounds = J_Fav.rounds_needed_to_play
+					var/allowed_rounds = J_Fav.rounds_allowed_to_play
+					var/reason_msg = ""
+					if (allowed_rounds && !needed_rounds)
+						reason_msg =  "You've already played </b>[played_rounds]</b> rounds, but this job has a cap of <b>[allowed_rounds] allowed rounds. You should be experienced enough!</b>"
+					else if (needed_rounds)
+						reason_msg =  "You've only played </b>[played_rounds]</b> rounds and need to play <b>[needed_rounds].</b>"
+					boutput(user, SPAN_ALERT("<b>You cannot play [J_Fav.name].</b> [reason_msg]"))
 					src.jobs_unwanted += J_Fav.name
 					src.job_favorite = null
 				else
@@ -1412,7 +1477,7 @@ var/list/removed_jobs = list(
 				<div>
 					<a href="byond://?src=\ref[src];preferences=1;occ=[level];job=[JD.name];level=[level - 1]" class="arrow" style="left: 0;">&lt;</a>
 					[level < (4 - (JD.cant_allocate_unwanted ? 1 : 0)) ? {"<a href="byond://?src=\ref[src];preferences=1;occ=[level];job=[JD.name];level=[level + 1]" class="arrow" style="right: 0;">&gt;</a>"} : ""]
-					<a href="byond://?src=\ref[src];preferences=1;occ=[level];job=[JD.name];level=0" class="job" style="color: [JD.linkcolor];" title="[hover_text]">
+					<a href="byond://?src=\ref[src];preferences=1;occ=[level];job=[JD.name];level=0" class="job" style="color: [JD.linkcolor];[istype(JD, /datum/job/civilian/clown) ? "font-family: Comic Sans MS;" : ""]" title="[hover_text]">
 					[JD.name]</a>
 				</div>
 				"}
@@ -1421,7 +1486,7 @@ var/list/removed_jobs = list(
 
 		HTML += "<td valign='top' class='antagprefs'>"
 #ifdef LIVE_SERVER
-		if (user?.client?.player.get_rounds_participated() < TEAM_BASED_ROUND_REQUIREMENT)
+		if ((user?.client?.player.get_rounds_participated() < TEAM_BASED_ROUND_REQUIREMENT) && !user?.client?.player.cloudSaves.getData("bypass_round_reqs"))
 			HTML += "You need to play at least [TEAM_BASED_ROUND_REQUIREMENT] rounds to play group-based antagonists."
 			src.be_syndicate = FALSE
 			src.be_syndicate_commander = FALSE
@@ -1499,9 +1564,9 @@ var/list/removed_jobs = list(
 				//
 		//works for now, maybe move this to something on game mode to decide proper jobs... -kyle
 #if defined(MAP_OVERRIDE_POD_WARS)
-		if (!find_job_in_controller_by_string(job,0))
+		if (!find_job_in_controller_by_string(job,0,TRUE))
 #else
-		if (!find_job_in_controller_by_string(job,1))
+		if (!find_job_in_controller_by_string(job,1,TRUE))
 #endif
 			boutput(user, SPAN_ALERT("<b>The game could not find that job in the internal list of jobs.</b>"))
 			switch (occ)
@@ -1536,17 +1601,23 @@ var/list/removed_jobs = list(
 #else
 		var/datum/job/temp_job = find_job_in_controller_by_string(job,1)
 #endif
-		if (temp_job.rounds_needed_to_play && (user.client && user.client.player))
-			var/round_num = user.client.player.get_rounds_participated()
-			if (!isnull(round_num) && round_num < temp_job.rounds_needed_to_play) //they havent played enough rounds!
-				boutput(user, SPAN_ALERT("<b>You cannot play [temp_job.name].</b> You've only played </b>[round_num]</b> rounds and need to play more than <b>[temp_job.rounds_needed_to_play].</b>"))
-				if (occ != 4)
-					switch (occ)
-						if (1) src.job_favorite = null
-						if (2) src.jobs_med_priority -= job
-						if (3) src.jobs_low_priority -= job
-					src.jobs_unwanted += job
-				return
+		if (user.client && !temp_job.has_rounds_needed(user.client.player))
+			var/played_rounds = user.client.player.get_rounds_participated()
+			var/needed_rounds = temp_job.rounds_needed_to_play
+			var/allowed_rounds = temp_job.rounds_allowed_to_play
+			var/reason_msg = ""
+			if (allowed_rounds && !needed_rounds)
+				reason_msg =  "You've already played </b>[played_rounds]</b> rounds, but this job has a cap of <b>[allowed_rounds] allowed rounds. You should be experienced enough!</b>"
+			else if (needed_rounds)
+				reason_msg =  "You've only played </b>[played_rounds]</b> rounds and need to play <b>[needed_rounds].</b>"
+			boutput(user, SPAN_ALERT("<b>You cannot play [temp_job.name].</b> [reason_msg]"))
+			if (occ != 4)
+				switch (occ)
+					if (1) src.job_favorite = null
+					if (2) src.jobs_med_priority -= job
+					if (3) src.jobs_low_priority -= job
+				src.jobs_unwanted += job
+			return
 
 		src.antispam = TRUE
 
@@ -1777,7 +1848,7 @@ var/list/removed_jobs = list(
 					src.copy_to(character, user, TRUE) // apply the other stuff again but with the random name
 
 		//character.real_name = real_name
-		src.real_name = src.name_first + " " + src.name_last
+		src.set_real_name()
 		character.real_name = src.real_name
 		phrase_log.log_phrase("name-human", character.real_name, no_duplicates=TRUE)
 
@@ -1810,14 +1881,15 @@ var/list/removed_jobs = list(
 			if (H.mutantrace?.voice_override) //yass TODO: find different way of handling this
 				H.voice_type = H.mutantrace.voice_override
 
-	proc/apply_post_new_stuff(mob/living/character)
+	proc/apply_post_new_stuff(mob/living/character, var/role_for_traits)
+		if (src.traitPreferences.isValid(src.traitPreferences.traits_selected, src.custom_parts) && character.traitHolder)
+			character.traitHolder.mind_role_fallback = role_for_traits
+			for (var/T in src.traitPreferences.traits_selected)
+				character.traitHolder.addTrait(T)
 		for (var/slot_id in src.custom_parts)
 			var/part_id = src.custom_parts[slot_id]
 			var/datum/part_customization/customization = get_part_customization(part_id)
 			customization.try_apply(character, src.custom_parts)
-		if (src.traitPreferences.isValid(src.traitPreferences.traits_selected, src.custom_parts) && character.traitHolder)
-			for (var/T in src.traitPreferences.traits_selected)
-				character.traitHolder.addTrait(T)
 
 	proc/sanitize_null_values()
 		if (!src.gender || !(src.gender == MALE || src.gender == FEMALE))
@@ -1826,18 +1898,18 @@ var/list/removed_jobs = list(
 			src.AH = new
 		if (src.AH.gender != src.gender)
 			src.AH.gender = src.gender
-		if (src.AH.customization_first_color == null)
-			src.AH.customization_first_color = "#101010"
-		if (src.AH.customization_first == null)
-			src.AH.customization_first = new  /datum/customization_style/none
-		if (src.AH.customization_second_color == null)
-			src.AH.customization_second_color = "#101010"
-		if (src.AH.customization_second == null)
-			src.AH.customization_second = new /datum/customization_style/none
-		if (src.AH.customization_third_color == null)
-			src.AH.customization_third_color = "#101010"
-		if (src.AH.customization_third == null)
-			src.AH.customization_third = new /datum/customization_style/none
+		if (src.AH.customizations["hair_bottom"].color == null)
+			src.AH.customizations["hair_bottom"].color = "#101010"
+		if (src.AH.customizations["hair_bottom"].style == null)
+			src.AH.customizations["hair_bottom"].style = new  /datum/customization_style/none
+		if (src.AH.customizations["hair_middle"].color == null)
+			src.AH.customizations["hair_middle"].color = "#101010"
+		if (src.AH.customizations["hair_middle"].style == null)
+			src.AH.customizations["hair_middle"].style = new /datum/customization_style/none
+		if (src.AH.customizations["hair_top"].color == null)
+			src.AH.customizations["hair_top"].color = "#101010"
+		if (src.AH.customizations["hair_top"].style == null)
+			src.AH.customizations["hair_top"].style = new /datum/customization_style/none
 		if (src.AH.e_color == null)
 			src.AH.e_color = "#101010"
 		if (src.AH.u_color == null)

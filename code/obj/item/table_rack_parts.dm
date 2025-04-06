@@ -13,7 +13,7 @@ ABSTRACT_TYPE(/obj/item/furniture_parts)
 	icon = 'icons/obj/furniture/table.dmi'
 	icon_state = "table_parts"
 	inhand_image_icon = 'icons/mob/inhand/hand_tools.dmi'
-	flags = FPRINT | TABLEPASS | CONDUCT
+	flags = TABLEPASS | CONDUCT
 	stamina_damage = 35
 	stamina_cost = 22
 	stamina_crit_chance = 10
@@ -22,14 +22,10 @@ ABSTRACT_TYPE(/obj/item/furniture_parts)
 	var/furniture_name = "table"
 	var/reinforced = 0
 	var/build_duration = 50
-	var/obj/contained_storage = null // used for desks' drawers atm, if src is deconstructed it'll dump its contents on the ground and be deleted
 	var/density_check = TRUE //! Do we want to prevent building on turfs with something dense there?
 
-	New(loc, obj/storage_thing)
+	New(loc)
 		..()
-		if (storage_thing)
-			src.contained_storage = storage_thing
-			src.contained_storage.set_loc(src)
 		BLOCK_SETUP(BLOCK_LARGE)
 
 	proc/construct(mob/user as mob, turf/T as turf)
@@ -40,7 +36,7 @@ ABSTRACT_TYPE(/obj/item/furniture_parts)
 			if (!T) // buh??
 				return
 		if (ispath(src.furniture_type))
-			newThing = new src.furniture_type(T, src.contained_storage ? src.contained_storage : null)
+			newThing = new src.furniture_type(T)
 		else
 			stack_trace("[user] tries to build a piece of furniture from [identify_object(src)] but its furniture_type is null and it is being deleted.")
 			user.u_equip(src)
@@ -58,14 +54,6 @@ ABSTRACT_TYPE(/obj/item/furniture_parts)
 		return newThing
 
 	proc/deconstruct(var/reinforcement = 0)
-		if (src.contained_storage && length(src.contained_storage.contents))
-			var/turf/T = get_turf(src)
-			for (var/atom/movable/A in src.contained_storage)
-				A.set_loc(T)
-			var/obj/O = src.contained_storage
-			src.contained_storage = null
-			qdel(O)
-
 		var/obj/item/sheet/A = new /obj/item/sheet(get_turf(src))
 		if (src.material)
 			A.setMaterial(src.material)
@@ -97,16 +85,6 @@ ABSTRACT_TYPE(/obj/item/furniture_parts)
 		. = ..()
 		if (HAS_ATOM_PROPERTY(usr, PROP_MOB_CAN_CONSTRUCT_WITHOUT_HOLDING) && isturf(target))
 			actions.start(new /datum/action/bar/icon/furniture_build(src, src.furniture_name, src.build_duration, target), usr)
-
-	disposing()
-		if (src.contained_storage && length(src.contained_storage.contents))
-			var/turf/T = get_turf(src)
-			for (var/atom/movable/A in src.contained_storage)
-				A.set_loc(T)
-			var/obj/O = src.contained_storage
-			src.contained_storage = null
-			qdel(O)
-		..()
 
 /* ---------- Table Parts ---------- */
 #define TABLE_WARNING(user) boutput(user, SPAN_ALERT("You can't build a table under yourself! You'll have to build it somewhere adjacent instead."))
@@ -207,6 +185,18 @@ TYPEINFO(/obj/item/furniture_parts/table/wood)
 	desc = "A collection of parts that can be used to make a table with a sturdy blue glass top."
 	icon = 'icons/obj/furniture/table_nanotrasen.dmi'
 	furniture_type = /obj/table/nanotrasen/auto
+
+/obj/item/furniture_parts/table/sleek
+	name = "sleek table parts"
+	desc = "A collection of parts that can be used to make a sleek table."
+	icon = 'icons/obj/furniture/table_sleek.dmi'
+	furniture_type = /obj/table/sleek/auto
+
+/obj/item/furniture_parts/table/monodesk
+	name = "monochrome desk parts"
+	desc = "A collection of parts that can be used to make a monochrome desk."
+	icon = 'icons/obj/furniture/table_monochrome_desk.dmi'
+	furniture_type = /obj/table/monodesk/auto
 
 /* ---------- Glass Table Parts ---------- */
 TYPEINFO(/obj/item/furniture_parts/table/glass)
@@ -419,6 +409,13 @@ TYPEINFO(/obj/item/furniture_parts/woodenstool)
 	furniture_type = /obj/stool/neon
 	furniture_name = "neon bar stool"
 
+/obj/item/furniture_parts/stool/sleek
+	name = "sleek bar stool parts"
+	desc = "A collection of parts that can be used to make a sleek bar stool."
+	icon = 'icons/obj/furniture/chairs.dmi'
+	icon_state = "sleek_stool_parts"
+	furniture_type = /obj/stool/sleek
+	furniture_name = "sleek bar stool"
 /* ---------- Bench Parts ---------- */
 /obj/item/furniture_parts/bench
 	name = "bench parts"
@@ -588,6 +585,15 @@ TYPEINFO(/obj/item/furniture_parts/woodenstool)
 	furniture_type = /obj/stool/chair/comfy/throne_gold
 	furniture_name = "golden throne"
 
+/obj/item/furniture_parts/sleekchair
+	name = "comfy sleek chair parts"
+	desc = "A collection of parts that can be used to make a sleek and stylish chair."
+	icon = 'icons/obj/furniture/chairs.dmi'
+	icon_state = "comf_sleek_parts"
+	stamina_damage = 15
+	stamina_cost = 15
+	furniture_type = /obj/stool/chair/comfy/sleek
+	furniture_name = "sleek chair"
 /* ---------- Bed Parts ---------- */
 /obj/item/furniture_parts/bed
 	name = "bed parts"

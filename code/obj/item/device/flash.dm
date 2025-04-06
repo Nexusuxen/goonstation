@@ -1,6 +1,7 @@
 TYPEINFO(/obj/item/device/flash)
-	mats = list("MET-1" = 3, "CON-1" = 5, "CRY-1" = 5)
-
+	mats = list("metal" = 3,
+				"conductive" = 5,
+				"crystal" = 5)
 /obj/item/device/flash
 	name = "flash"
 	desc = "A device that emits a complicated strobe when used, causing disorientation. Useful for stunning people or starting a dance party."
@@ -11,7 +12,7 @@ TYPEINFO(/obj/item/device/flash)
 	throw_speed = 4
 	throw_range = 10
 	click_delay = COMBAT_CLICK_DELAY
-	flags = FPRINT | TABLEPASS | CONDUCT | ATTACK_SELF_DELAY
+	flags = TABLEPASS | CONDUCT | ATTACK_SELF_DELAY
 	c_flags = ONBELT
 	object_flags = NO_GHOSTCRITTER
 	item_state = "electronic"
@@ -145,12 +146,12 @@ TYPEINFO(/obj/item/device/flash)
 			animation.icon_state = "blank"
 			animation.icon = 'icons/mob/mob.dmi'
 			animation.master = user
-			flick("blspell", animation)
+			FLICK("blspell", animation)
 			sleep(0.5 SECONDS)
 			qdel(animation)
 
 	playsound(src, 'sound/weapons/flash.ogg', 100, TRUE)
-	flick(src.animation_type, src)
+	FLICK(src.animation_type, src)
 	if (!src.turboflash)
 		src.use++
 
@@ -202,8 +203,8 @@ TYPEINFO(/obj/item/device/flash)
 		src.process_burnout(user)
 
 	// Some after attack stuff.
-	user.lastattacked = M
-	M.lastattacker = user
+	user.lastattacked = get_weakref(M)
+	M.lastattacker = get_weakref(user)
 	M.lastattackertime = world.time
 
 	return
@@ -240,7 +241,7 @@ TYPEINFO(/obj/item/device/flash)
 
 	// Play animations.
 	playsound(src, 'sound/weapons/flash.ogg', 100, TRUE)
-	flick(src.animation_type, src)
+	FLICK(src.animation_type, src)
 
 	if (isrobot(user))
 		SPAWN(0)
@@ -249,7 +250,7 @@ TYPEINFO(/obj/item/device/flash)
 			animation.icon_state = "blank"
 			animation.icon = 'icons/mob/mob.dmi'
 			animation.master = user
-			flick("blspell", animation)
+			FLICK("blspell", animation)
 			sleep(0.5 SECONDS)
 			qdel(animation)
 
@@ -399,12 +400,11 @@ TYPEINFO(/obj/item/device/flash/turbo)
 			return
 		if (iswrenchingtool(W) && !(src.secure))
 			boutput(user, "You disassemble [src]!")
-			src.cell.set_loc(get_turf(src))
-			var/obj/item/device/flash/F = new /obj/item/device/flash( get_turf(src) )
+			var/obj/item/device/flash/F = new /obj/item/device/flash(get_turf(src))
 			if(!src.status)
 				F.status = 0
 				F.set_icon_state("flash3")
-			qdel(src)
+			src.cell.set_loc(get_turf(src)) //Do this last as removing the cell deletes the turboflash
 		else if (isscrewingtool(W))
 			boutput(user, SPAN_NOTICE("You [src.secure ? "unscrew" : "secure"] the access panel."))
 			secure = !secure

@@ -18,9 +18,15 @@ ABSTRACT_TYPE(/obj/item/turret_deployer)
 	var/associated_turret = null //what kind of turret should this spawn?
 	var/turret_health = 100
 
-	New()
+	New(newLoc, forensics_id)
 		..()
 		icon_state = "[src.icon_tag]_deployer"
+		if (!src.forensic_ID)
+			if (forensics_id)
+				src.forensic_ID = forensics_id
+			else
+				src.forensic_ID = src.CreateID()
+				forensic_IDs.Add(src.forensic_ID)
 
 	get_desc()
 		. = "<br>[SPAN_NOTICE("It looks [damage_words]")]"
@@ -75,8 +81,10 @@ ABSTRACT_TYPE(/obj/item/turret_deployer)
 		..()
 
 TYPEINFO(/obj/item/turret_deployer/riot)
-	mats = list("INS-1"=10, "CON-1"=10, "CRY-1"=3, "MET-2"=2)
-
+	mats = list("insulated" = 10,
+				"conductive" = 10,
+				"crystal" = 3,
+				"metal_dense" = 2)
 /obj/item/turret_deployer/riot
 	name = "N.A.R.C.S. Deployer"
 	desc = "A Nanotrasen Automatic Riot Control System Deployer. Use it in your hand to deploy."
@@ -107,6 +115,7 @@ ADMIN_INTERACT_PROCS(/obj/deployable_turret, proc/admincmd_shoot, proc/admincmd_
 	name = "fucked up abstract turret that should never exist"
 	desc = "why did you do this"
 	icon = 'icons/obj/deployableturret.dmi'
+	icon_state = "maphelper" //this gets set properly in new
 	anchored = UNANCHORED
 	density = 1
 	var/health = 250
@@ -132,11 +141,19 @@ ADMIN_INTERACT_PROCS(/obj/deployable_turret, proc/admincmd_shoot, proc/admincmd_
 	var/associated_deployer = null //what kind of turret deployer should this deconstruct to?
 	var/deconstructable = TRUE
 	var/can_toggle_activation = TRUE // whether you can enable or disable the turret with a screwdriver, used for map setpiece turrets
+	var/emagged = FALSE
 
-	New(loc, direction)
+	New(loc, direction, forensics_id)
 		..()
 		src.set_dir(direction || src.dir) // don't set the dir if we weren't passed one
 		src.set_initial_angle()
+
+		if (!src.forensic_ID)
+			if (forensics_id)
+				src.forensic_ID = forensics_id
+			else
+				src.forensic_ID = src.CreateID()
+				forensic_IDs.Add(src.forensic_ID)
 
 		src.icon_state = "[src.icon_tag]_base"
 		src.appearance_flags |= RESET_TRANSFORM
@@ -154,6 +171,14 @@ ADMIN_INTERACT_PROCS(/obj/deployable_turret, proc/admincmd_shoot, proc/admincmd_
 		#ifdef LOW_SECURITY
 		START_TRACKING_CAT(TR_CAT_DELETE_ME)
 		#endif
+
+	emag_act(mob/user, obj/item/card/emag/E)
+		if (src.emagged)
+			return
+		src.emagged = TRUE
+		boutput(user, SPAN_ALERT("You short out [src]'s targeting systems."))
+		src.visible_message(SPAN_ALERT(SPAN_BOLD("[src] buzzes oddly!")))
+		playsound(src, "sound/effects/sparks[rand(1, 6)].ogg", 40, 1, extrarange = -10)
 
 	disposing()
 		processing_items.Remove(src)
@@ -191,9 +216,25 @@ ADMIN_INTERACT_PROCS(/obj/deployable_turret, proc/admincmd_shoot, proc/admincmd_
 
 	proc/shoot(target)
 		SPAWN(0)
+			var/list/casing_turfs
+			var/turf/picked_turf
+			if (src.current_projectile.casing)
+				casing_turfs = list()
+				for (var/direction in alldirs)
+					var/turf/T = get_step(src, direction)
+					if (T && !T.density)
+						casing_turfs += T
 			for(var/i in 1 to src.current_projectile.shot_number) //loop animation until finished
-				flick("[src.icon_tag]_fire",src)
+				FLICK("[src.icon_tag]_fire",src)
 				muzzle_flash_any(src, 0, "muzzle_flash")
+				if (src.current_projectile.casing)
+					picked_turf = pick(casing_turfs)
+					var/obj/item/casing/turret_casing = new src.current_projectile.casing(picked_turf, src.forensic_ID)
+					// prevent infinite casing stacks
+					if (length(picked_turf.contents) > 10)
+						SPAWN(30 SECONDS)
+							if (!QDELETED(turret_casing) && get_turf(turret_casing) == picked_turf)
+								qdel(turret_casing)
 				sleep(src.current_projectile.shot_delay)
 		shoot_projectile_ST_pixel_spread(src, current_projectile, target, 0, 0 , spread)
 
@@ -210,7 +251,7 @@ ADMIN_INTERACT_PROCS(/obj/deployable_turret, proc/admincmd_shoot, proc/admincmd_
 					src.shoot(target)
 
 	attackby(obj/item/W, mob/user)
-		user.lastattacked = src
+		user.lastattacked = get_weakref(src)
 		if (isweldingtool(W) && !(src.active))
 			if(!W:try_weld(user, 1))
 				return
@@ -279,6 +320,8 @@ ADMIN_INTERACT_PROCS(/obj/deployable_turret, proc/admincmd_shoot, proc/admincmd_
 				user.show_message(SPAN_ALERT("The activation switch is protected! You can't toggle the power!"))
 				return
 
+		else if (istype(W, /obj/item/card/emag)) //emags should be sneaky
+			..()
 		else
 			src.health = src.health - W.force
 			playsound(get_turf(src), 'sound/impact_sounds/Generic_Hit_Heavy_1.ogg', 25, 1)
@@ -353,7 +396,7 @@ ADMIN_INTERACT_PROCS(/obj/deployable_turret, proc/admincmd_shoot, proc/admincmd_
 		qdel(src)
 
 	proc/spawn_deployer()
-		var/obj/item/turret_deployer/deployer = new src.associated_deployer(src.loc)
+		var/obj/item/turret_deployer/deployer = new src.associated_deployer(src.loc, src.forensic_ID)
 		deployer.turret_health = src.health // NO FREE REPAIRS, ASSHOLES
 		deployer.damage_words = src.damage_words
 		deployer.quick_deploy_fuel = src.quick_deploy_fuel
@@ -409,7 +452,7 @@ ADMIN_INTERACT_PROCS(/obj/deployable_turret, proc/admincmd_shoot, proc/admincmd_
 			var/mob/living/carbon/human/H = C
 			if (H.hasStatus(list("resting", "knockdown", "stunned", "unconscious"))) // stops it from uselessly firing at people who are already suppressed. It's meant to be a suppression weapon!
 				return FALSE
-		if (is_friend(C))
+		if (is_friend(C) && !src.emagged)
 			return FALSE
 
 		var/angle = get_angle(get_turf(src),get_turf(C))
@@ -506,7 +549,7 @@ ADMIN_INTERACT_PROCS(/obj/deployable_turret, proc/admincmd_shoot, proc/admincmd_
 		..()
 
 	is_friend(var/mob/living/C)
-		return istype(C.get_id(), /obj/item/card/id/syndicate) || (C.faction && (FACTION_SYNDICATE in C.faction)) //dumb lazy
+		return istype(C.get_id(), /obj/item/card/id/syndicate) || (FACTION_SYNDICATE in C.faction) //dumb lazy
 
 /obj/deployable_turret/syndicate/active
 	anchored = ANCHORED
@@ -555,6 +598,9 @@ ADMIN_INTERACT_PROCS(/obj/deployable_turret, proc/admincmd_shoot, proc/admincmd_
 	icon_tag = "op"
 	quick_deploy_fuel = 0
 	associated_deployer = /obj/item/turret_deployer/outpost
+
+	is_friend(var/mob/living/C)
+		return (FACTION_MERCENARY in C.faction)
 
 /obj/deployable_turret/outpost/active
 	can_toggle_activation = FALSE // for map placement so people don't cheese them by rushing them with a screwdriver
@@ -631,7 +677,7 @@ ADMIN_INTERACT_PROCS(/obj/deployable_turret, proc/admincmd_shoot, proc/admincmd_
 /obj/item/paper/nast_manual
 	name = "paper- 'Nuclear Agent Sentry Turret Manual'"
 	info = {"<h4>Nuclear Agent Sentry Turret Manual</h4>
-	Congratulations, on your purchase of a Nuclear Agent Sentry Turret!<br>
+	Congratulations on your purchase of a Nuclear Agent Sentry Turret!<br>
 	This a turret that fires at non-syndicate threats in a 30 degree arc.<br>
 	Press its deploy button while it is your hand to deploy it.<br>
 	The turret will start out facing the direction you are facing.<br>
@@ -647,7 +693,7 @@ ADMIN_INTERACT_PROCS(/obj/deployable_turret, proc/admincmd_shoot, proc/admincmd_
 /obj/item/paper/narcs_manual
 	name = "paper- 'Nanotrasen Automatic Riot Control System'"
 	info = {"<h4>Nanotrasen Automatic Riot Control System</h4>
-	Congratulations, on your purchase of a Nanotrasen Automatic Riot Control System!<br>
+	Congratulations on your purchase of a Nanotrasen Automatic Riot Control System!<br>
 	This a turret that fires at non-security and non-command threats in a 60 degree arc.<br>
 	Press its deploy button while it is your hand to deploy it.<br>
 	The turret will start out facing the direction you are facing.<br>

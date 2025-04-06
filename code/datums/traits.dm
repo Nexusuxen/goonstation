@@ -24,6 +24,9 @@
 		"nopug",
 		"cloner_stuff",
 		"hemophilia",
+		"nohair",
+		"nowig",
+		"infrared",
 	)
 
 	var/list/traitData = list()
@@ -127,7 +130,7 @@
 
 			. += C
 
-	proc/generateTraitData(/mob/user)
+	proc/generateTraitData(mob/user)
 		if(traitDataDirty)
 			traitData = list()
 			for (var/datum/trait/trait as anything in src.getTraits(user))
@@ -144,6 +147,8 @@
 	var/list/traits = list()
 	var/list/moveTraits = list() // differentiate movement traits for Move()
 	var/mob/owner = null
+	/// Role used to prevent addition of specific traits, in case of owner not (yet?) having a mind
+	var/mind_role_fallback = null
 
 	New(var/mob/ownerMob)
 		owner = ownerMob
@@ -161,7 +166,7 @@
 		for(var/id in traits)
 			other.addTrait(id, traits[id])
 
-	proc/addTrait(id, datum/trait/trait_instance=null)
+	proc/addTrait(id, datum/trait/trait_instance=null, force_trait=FALSE)
 		if(!(id in traits))
 			var/datum/trait/T = null
 			if(isnull(trait_instance))
@@ -170,6 +175,9 @@
 			else
 				T = trait_instance
 			if(T.afterlife_blacklisted && inafterlifebar(owner))
+				return
+			var/resolved_role = owner?.mind?.assigned_role || src.mind_role_fallback
+			if (T.preventAddTrait(owner, resolved_role) && force_trait==FALSE)
 				return
 			traits[id] = T
 			if(!isnull(owner))
@@ -205,8 +213,9 @@
 	proc/getTraitWithCategory(var/cat)
 		for(var/id in traits)
 			var/datum/trait/T = traits[id]
-			if (T.category == cat)
-				. = T
+			for (var/heldcat in T.category)
+				if (heldcat == cat)
+					return T
 
 //Yes these are objs because grid control. Shut up. I don't like it either.
 /datum/trait
@@ -231,6 +240,9 @@
 		ASSERT(src.name)
 		..()
 
+	proc/preventAddTrait(mob/owner, var/resolved_role)
+		. = FALSE
+
 	proc/onAdd(var/mob/owner)
 		if(mutantRace && ishuman(owner))
 			var/mob/living/carbon/human/H = owner
@@ -239,6 +251,10 @@
 		return
 
 	proc/onRemove(var/mob/owner)
+		if(mutantRace && ishuman(owner))
+			var/mob/living/carbon/human/H = owner
+			H.default_mutantrace = /datum/mutantrace/human
+			H.set_mutantrace(H.default_mutantrace)
 		return
 
 	proc/onLife(var/mob/owner, var/mult)
@@ -253,6 +269,7 @@
 	name = "Adamantium Skeleton"
 	desc = "Halves the chance that an explosion will blow off your limbs."
 	id = "explolimbs"
+	icon_state = "adskeleton"
 	category = list("body")
 	points = -2
 
@@ -277,16 +294,8 @@
 		if(!owner.ear_disability)
 			owner.bioHolder.AddEffect("deaf", 0, 0, 0, 1)
 
-/datum/trait/nolegs
-	name = "Stumped"
-	desc = "Because of a freak accident involving a piano, a forklift, and lots of vodka, both of your legs had to be amputated. Fortunately, NT has kindly supplied you with a wheelchair out of the goodness of their heart. (due to regulations)"
-	id = "nolegs"
-	icon_state = "placeholder"
-	category = list("body")
-	points = 0
-	disability_type = TRAIT_DISABILITY_MAJOR
-	disability_name = "Legless"
-	disability_desc = "Legs have been severed"
+	onRemove(mob/owner)
+		owner.bioHolder?.RemoveEffect("deaf")
 
 /datum/trait/plasmalungs
 	name = "Plasma Lungs"
@@ -294,7 +303,7 @@
 	id = "plasmalungs"
 	icon_state = "plasmalungs"
 	category = list("body")
-	points = 1
+	points = 2
 	afterlife_blacklisted = TRUE
 	disability_type = TRAIT_DISABILITY_MAJOR
 	disability_name = "Plasma Lungs"
@@ -320,6 +329,51 @@
 
 			created_organ.donor = owner
 			owner.organHolder.receive_organ(created_organ, created_organ.organ_holder_name)
+
+	onRemove(mob/living/carbon/human/owner)
+		if (!istype(owner))
+			return
+		var/obj/item/organ/created_organ
+		var/obj/item/organ/lung/plasmatoid/left = owner?.organHolder?.left_lung
+		var/obj/item/organ/lung/plasmatoid/right = owner?.organHolder?.right_lung
+		if(istype(left))
+			created_organ = new /obj/item/organ/lung/left()
+			owner.organHolder.drop_organ(left.organ_holder_name)
+			qdel(left)
+
+			created_organ.donor = owner
+			owner.organHolder.receive_organ(created_organ, created_organ.organ_holder_name)
+
+		if(istype(right))
+			created_organ = new /obj/item/organ/lung/right()
+			owner.organHolder.drop_organ(right.organ_holder_name)
+			qdel(right)
+
+			created_organ.donor = owner
+			owner.organHolder.receive_organ(created_organ, created_organ.organ_holder_name)
+
+/datum/trait/stinky
+	name = "Stinky"
+	desc = "Your body has exceedingly sensitive sweat glands that overproduce, causing you to become stinky unless frequently showered."
+	id = "stinky"
+	icon_state = "stinky"
+	category = list("body")
+	points = 1
+
+	onAdd(var/mob/owner)
+		if(ishuman(owner))
+			var/mob/living/carbon/human/H = owner
+			if (!H.sims)
+				H.sims = new /datum/simsHolder(H)
+			H.sims.addMotive(/datum/simsMotive/hygiene)
+			H.sims.add_hud() // ensure hud has hygiene motive
+
+	onRemove(var/mob/owner)
+		if(ishuman(owner))
+			var/mob/living/carbon/human/H = owner
+			if (!H.sims)
+				H.sims = new /datum/simsHolder(H)
+			H.sims.removeMotive("Hygiene")
 
 // LANGUAGE - Yellow Border
 /datum/trait/swedish
@@ -391,8 +445,6 @@
 		return
 */
 
-
-
 /datum/trait/german
 	name = "German"
 	desc = "You're from somewhere in the middle of Texas. Prost y'all."
@@ -403,6 +455,7 @@
 
 	onAdd(var/mob/owner)
 		owner.bioHolder?.AddEffect("accent_german")
+
 /datum/trait/finnish
 	name = "Finnish Accent"
 	desc = "...and you thought space didn't have Finns?"
@@ -441,7 +494,14 @@
 	id = "infravision"
 	icon_state = "infravisionG"
 	points = -1
-	category = list("vision")
+	category = list("vision", "infrared")
+
+/datum/trait/wasitsomethingisaid
+	name = "Was It Something I Said?"
+	desc = "You did something to attract their ire, and the small robots of the station hate your guts!"
+	id = "wasitsomethingisaid"
+	icon_state = "wasitsomethingisaid"
+	points = 2
 
 /datum/trait/shortsighted
 	name = "Short-sighted"
@@ -464,6 +524,9 @@
 		if(owner.bioHolder && !owner.bioHolder.HasEffect("bad_eyesight"))
 			owner.bioHolder.AddEffect("bad_eyesight", 0, 0, 0, 1)
 
+	onRemove(mob/owner)
+		owner.bioHolder?.RemoveEffect("bad_eyesight")
+
 /datum/trait/blind
 	name = "Blind"
 	desc = "Spawn with permanent blindness and a VISOR."
@@ -485,22 +548,41 @@
 		if(owner.bioHolder && !owner.bioHolder.HasEffect("blind"))
 			owner.bioHolder.AddEffect("blind", 0, 0, 0, 1)
 
+	onRemove(mob/owner)
+		owner.bioHolder?.RemoveEffect("blind")
+
 // GENETICS - Blue Border
 
 /datum/trait/mildly_mutated
 	name = "Mildly Mutated"
-	desc = "A random mutation in your gene pool starts activated."
+	desc = "A random mutation in your gene pool starts activated and immune to mutadone."
 	id = "mildly_mutated"
 	icon_state = "mildly_mutatedB"
-	points = 0
+	points = 1
 	category = list("genetics")
 	afterlife_blacklisted = TRUE
+	disability_type = TRAIT_DISABILITY_MINOR
+	disability_name = "Genetic Deviation"
+	disability_desc = "Minor reinforced alteration from baseline genetic sequence"
+
+	preventAddTrait(mob/owner, resolved_role)
+		. = ..()
+		if (.)
+			return
+		if (resolved_role == "MODE")
+			logTheThing(LOG_COMBAT, owner, "prevented from being mildly mutated from the trait [name]: not for game mode roles.")
+			return TRUE
 
 	onAdd(var/mob/owner)
 		var/datum/bioHolder/B = owner.bioHolder
-		var/datum/bioEffect/E = pick(B.effectPool)
-		B.ActivatePoolEffect(B.effectPool[E], 1, 0)
+		var/bioEffectId = pick(B.effectPool)
+		var/datum/bioEffect/E = B.effectPool[bioEffectId]
+		B.ActivatePoolEffect(E, 1, 0)
 		SPAWN (1 SECOND) // This DOES NOT WORK at round start unless delayed but somehow the trait part is logged??
+			if (E)
+				E.curable_by_mutadone = FALSE
+				E.name = "Reinforced " + E.name
+				E.altered = 1 //don't let them combine the reinforced gene with another one
 			logTheThing(LOG_COMBAT, owner, "gets the bioeffect [E] from the trait [name].")
 
 /datum/trait/stablegenes
@@ -573,10 +655,17 @@
 	name = "Bald"
 	desc = "Start your shift with a wig instead of hair. I'm sure no one will be able to tell."
 	id = "bald"
-	icon_state = "placeholder"
+	icon_state = "bald"
 	points = 0
-	category = list("trinkets", "nopug")
+	category = list("trinkets", "nopug","nowig")
 
+/datum/trait/wheelchair
+	name = "Wheelchair"
+	desc = "Because of a freak accident involving a piano, a forklift, and lots of vodka, you have been placed on the disability list. Fortunately, NT has kindly supplied you with a wheelchair out of the goodness of their heart. (due to regulations)"
+	id = "wheelchair"
+	icon_state = "stumped"
+	category = list("trinkets")
+	points = 0
 
 // Skill - White Border
 
@@ -584,6 +673,7 @@
 	name = "Smooth talker"
 	desc = "Traders will tolerate 50% more when you are haggling with them."
 	id = "smoothtalker"
+	icon_state = "sale"
 	category = list("skill")
 	points = -1
 
@@ -591,13 +681,23 @@
 	name = "Matrix Flopout"
 	desc = "Flipping lets you dodge bullets and attacks for a higher stamina cost!"
 	id = "matrixflopout"
+	icon_state = "matrix"
 	category = list("skill")
 	points = -2
+
+/datum/trait/martyrdom
+	name = "Martyrdom"
+	id = "martyrdom"
+	desc = "If you have a grenade in-hand, arm it on death"
+	icon_state = "no"
+	category = list("skill")
+	points = -1
 
 /datum/trait/happyfeet
 	name = "Happyfeet"
 	desc = "Sometimes people can't help but dance along with you."
 	id = "happyfeet"
+	icon_state = "dance"
 	category = list("skill")
 	points = -1
 
@@ -608,6 +708,27 @@
 	icon_state = "claw"
 	category = list("skill")
 	points = -1
+
+/datum/trait/anti_headpat
+	name = "Touch Shy"
+	id = "touchshy"
+	desc = "You really don't like people touching your head (or anywhere else), and will reflexively shove anyone who tries."
+	icon_state = "touchshy"
+	category = list("skill")
+	points = -1
+
+	onAdd(mob/owner)
+		. = ..()
+		RegisterSignal(owner, COMSIG_ATTACKHAND, PROC_REF(defend_personal_space))
+
+	onRemove(mob/owner)
+		. = ..()
+		UnregisterSignal(owner, COMSIG_ATTACKHAND)
+
+	proc/defend_personal_space(mob/owner, mob/target)
+		if(owner != target && can_act(owner) && target.a_intent == INTENT_HELP)
+			owner.disarm(target, is_special = TRUE)
+			playsound(owner, 'sound/impact_sounds/Generic_Swing_1.ogg', 50, TRUE)
 
 /* Hey dudes, I moved these over from the old bioEffect/Genetics system so they work on clone */
 
@@ -681,6 +802,11 @@ ABSTRACT_TYPE(/datum/trait/job)
 	desc = "Subject is experienced in foodstuffs and their effects."
 	id = "training_chef"
 
+/datum/trait/job/bartender
+	name = "Bartender Training"
+	desc = "Subject has a keen mind for all things alcoholic."
+	id = "training_bartender"
+
 // bartender, detective, HoS
 /datum/trait/job/drinker
 	name = "Professional Drinker"
@@ -694,8 +820,8 @@ ABSTRACT_TYPE(/datum/trait/job)
 
 	onAdd(var/mob/owner)
 		owner.AddComponent(/datum/component/death_confetti)
-		owner.bioHolder?.AddEffect("accent_comic", magical = TRUE)
-		owner.bioHolder?.AddEffect("clumsy", magical = TRUE)
+		owner.bioHolder?.AddEffect("accent_comic", innate = TRUE)
+		owner.bioHolder?.AddEffect("clumsy", innate = TRUE)
 
 /datum/trait/job/mime
 	name = "Mime Training"
@@ -703,8 +829,8 @@ ABSTRACT_TYPE(/datum/trait/job)
 	id = "training_mime"
 
 	onAdd(var/mob/owner)
-		owner.bioHolder?.AddEffect("mute", magical = TRUE)
-		owner.bioHolder?.AddEffect("blankman", magical = TRUE)
+		owner.bioHolder?.AddEffect("mute", innate = TRUE)
+		owner.bioHolder?.AddEffect("blankman", innate = TRUE)
 
 /datum/trait/job/miner
 	name = "Miner Training"
@@ -716,6 +842,7 @@ ABSTRACT_TYPE(/datum/trait/job)
 	name = "Athletic"
 	desc = "Great stamina! Frail body."
 	id = "athletic"
+	icon_state = "athletic"
 	category = list("stats")
 	points = -2
 
@@ -725,10 +852,17 @@ ABSTRACT_TYPE(/datum/trait/job)
 			H.add_stam_mod_max("trait", STAMINA_MAX * 0.1)
 			APPLY_ATOM_PROPERTY(H, PROP_MOB_STAMINA_REGEN_BONUS, "trait", STAMINA_REGEN * 0.1)
 
+	onRemove(mob/owner)
+		if(ishuman(owner))
+			var/mob/living/carbon/human/H = owner
+			H.remove_stam_mod_max("trait", STAMINA_MAX * 0.1)
+			REMOVE_ATOM_PROPERTY(H, PROP_MOB_STAMINA_REGEN_BONUS, "trait")
+
 /datum/trait/bigbruiser
 	name = "Big Bruiser"
 	desc = "Stronger punches but higher stamina cost!"
 	id = "bigbruiser"
+	icon_state = "bruiser"
 	category = list("stats")
 	points = -2
 
@@ -736,6 +870,7 @@ ABSTRACT_TYPE(/datum/trait/job)
 	name = "Slow Strider"
 	desc = "What's the rush? You can't sprint anymore."
 	id = "slowstrider"
+	icon_state = "slow"
 	category = list("stats")
 	points = 2
 	afterlife_blacklisted = TRUE
@@ -745,6 +880,11 @@ ABSTRACT_TYPE(/datum/trait/job)
 			var/mob/living/carbon/human/H = owner
 			APPLY_ATOM_PROPERTY(H, PROP_MOB_CANTSPRINT, "trait")
 
+	onRemove(mob/owner)
+		if(ishuman(owner))
+			var/mob/living/carbon/human/H = owner
+			REMOVE_ATOM_PROPERTY(H, PROP_MOB_CANTSPRINT, "trait")
+
 //Category: Background.
 
 /datum/trait/stowaway
@@ -753,7 +893,8 @@ ABSTRACT_TYPE(/datum/trait/job)
 	id = "stowaway"
 	icon_state = "stowaway"
 	category = list("background")
-	points = 1
+	points = 0
+	unselectable = TRUE
 
 /datum/trait/pilot
 	name = "Pilot"
@@ -768,6 +909,7 @@ ABSTRACT_TYPE(/datum/trait/job)
 	name = "Heavy Sleeper"
 	desc = "You always sleep through the start of the shift, and wake up in a random bed."
 	id = "sleepy"
+	icon_state = "sleepy"
 	category = list("background")
 	points = 0
 	spawn_delay = 10 SECONDS
@@ -810,6 +952,7 @@ TYPEINFO(/datum/trait/partyanimal)
 	name = "Hemophilia"
 	desc = "You bleed more easily and you bleed more."
 	id = "hemophilia"
+	icon_state = "hemophilia"
 	points = 1
 	category = list("hemophilia")
 	disability_type = TRAIT_DISABILITY_MINOR
@@ -820,6 +963,7 @@ TYPEINFO(/datum/trait/partyanimal)
 	name = "Frail Constitution"
 	desc = "Your internal organs (brain included) are extremely vulnerable to damage."
 	id = "weakorgans"
+	icon_state = "frailc"
 	points = 2
 	disability_type = TRAIT_DISABILITY_MINOR
 	disability_name = "Organ Sensitivity"
@@ -829,6 +973,7 @@ TYPEINFO(/datum/trait/partyanimal)
 	name = "Slow Metabolism"
 	desc = "Any chemicals in you body deplete much more slowly."
 	id = "slowmetabolism"
+	icon_state = "slowm"
 	points = 0
 
 /datum/trait/alcoholic
@@ -841,12 +986,16 @@ TYPEINFO(/datum/trait/partyanimal)
 	onAdd(var/mob/owner)
 		owner.bioHolder?.AddEffect("resist_alcohol", 0, 0, 0, 1)
 
+	onRemove(mob/owner)
+		owner.bioHolder?.RemoveEffect("resist_alcohol")
+
+
 /datum/trait/random_allergy
 	name = "Allergy"
 	desc = "You're allergic to... something. You can't quite remember, but how bad could it possibly be?"
 	id = "randomallergy"
+	icon_state = "allergy"
 	points = 0
-	category = list("allergy")
 	afterlife_blacklisted = TRUE
 
 	var/allergen = null
@@ -874,8 +1023,8 @@ TYPEINFO(/datum/trait/partyanimal)
 	name = "Medical Allergy"
 	desc = "You're allergic to some medical chemical... but you can't remember which."
 	id = "medicalallergy"
+	icon_state = "medallergy"
 	points = 1
-	category = list("allergy")
 	afterlife_blacklisted = TRUE
 
 	allergen_id_list = list("spaceacillin","morphine","teporone","salicylic_acid","calomel","synthflesh","omnizine","saline","anti_rad","smelling_salt",\
@@ -886,7 +1035,7 @@ TYPEINFO(/datum/trait/partyanimal)
 	name = "Addict"
 	desc = "You spawn with a random addiction. Once cured there is a small chance that you will suffer a relapse."
 	id = "addict"
-	icon_state = "syringe"
+	icon_state = "addict"
 	points = 2
 	afterlife_blacklisted = TRUE
 	var/selected_reagent = "ethanol"
@@ -911,14 +1060,18 @@ TYPEINFO(/datum/trait/partyanimal)
 					if(A.associated_reagent == selected_reagent) return
 			addAddiction(owner)
 
-	proc/addAddiction(var/mob/owner)
-		var/mob/living/M = owner
-		var/datum/ailment_data/addiction/AD = new
+	proc/addAddiction(var/mob/living/owner)
+		var/datum/ailment_data/addiction/AD = get_disease_from_path(/datum/ailment/addiction).setup_strain()
 		AD.associated_reagent = selected_reagent
 		AD.last_reagent_dose = world.timeofday
 		AD.name = "[selected_reagent] addiction"
-		AD.affected_mob = M
-		M.ailments += AD
+		AD.affected_mob = owner
+		owner.contract_disease(/datum/ailment/addiction, null, AD, TRUE)
+
+	onRemove(mob/owner)
+		for(var/datum/ailment_data/addiction/AD in owner.ailments)
+			if(AD.associated_reagent == selected_reagent)
+				owner.ailments -= AD
 
 /datum/trait/strongwilled
 	name = "Strong willed"
@@ -993,12 +1146,14 @@ TYPEINFO(/datum/trait/partyanimal)
 	name = "Chem resistant"
 	desc = "You are more resistant to chem overdoses."
 	id = "chemresist"
+	icon_state = "chemresist"
 	points = -2
 
 /datum/trait/puritan
 	name = "Puritan"
 	desc = "You can not be cloned or revived except by cyborgification. Any attempt will end badly."
 	id = "puritan"
+	icon_state = "puritan"
 	points = 2
 	category = list("cloner_stuff")
 	disability_type = TRAIT_DISABILITY_MAJOR
@@ -1009,6 +1164,7 @@ TYPEINFO(/datum/trait/partyanimal)
 	name = "Survivalist"
 	desc = "Food will heal you even if you are badly injured."
 	id = "survivalist"
+	icon_state = "survivalist"
 	points = -1
 
 /datum/trait/smoker
@@ -1040,6 +1196,21 @@ TYPEINFO(/datum/trait/partyanimal)
 	icon_state = "onfire"
 	points = 2
 
+/datum/trait/spontaneous_combustion
+	name = "Spontaneous Combustion"
+	desc = "You very, VERY rarely spontaneously light on fire."
+	id = "spontaneous_combustion"
+	icon_state = "onfire"
+	points = 0
+
+	onLife(mob/owner, mult)
+		. = ..()
+		if(probmult(0.01))
+			owner.setStatus("burning", 100 SECONDS, 60 SECONDS)
+			playsound(owner.loc, 'sound/effects/mag_fireballlaunch.ogg', 50, 0)
+			logTheThing(LOG_COMBAT, owner, "gets set on fire by their spontaneous combustion trait")
+			owner.visible_message(SPAN_ALERT("<b>[owner.name]</b> suddenly bursts into flames!"))
+
 /datum/trait/carpenter
 	name = "Carpenter"
 	desc = "You can construct things more quickly than other people."
@@ -1051,11 +1222,20 @@ TYPEINFO(/datum/trait/partyanimal)
 	name = "Kleptomaniac"
 	desc = "You will sometimes randomly pick up nearby items."
 	id = "kleptomaniac"
+	icon_state = "klepto"
 	points = 1
 	afterlife_blacklisted = TRUE
 
 	onLife(var/mob/owner, var/mult)
 		if(!owner.stat && !owner.lying && can_act(owner) && !owner.equipped() && probmult(6))
+			if(istype(owner, /mob/living/carbon/human))
+				var/mob/living/carbon/human/H = owner
+				if (H.hand == LEFT_HAND)
+					if (H.limbs?.l_arm && !H.limbs.l_arm.can_hold_items)
+						return
+				else
+					if (H.limbs?.r_arm && !H.limbs.r_arm.can_hold_items)
+						return
 			for(var/obj/item/I in oview(1, owner))
 				if(!I.anchored && !I.cant_drop && isturf(I.loc) && can_reach(owner, I) && !HAS_ATOM_PROPERTY(I, PROP_MOVABLE_KLEPTO_IGNORE))
 					I.Attackhand(owner)
@@ -1066,6 +1246,7 @@ TYPEINFO(/datum/trait/partyanimal)
 	name = "Clutz"
 	desc = "When interacting with anything you have a chance to interact with something different instead."
 	id = "clutz"
+	icon_state = "clutz"
 	points = 2
 	afterlife_blacklisted = TRUE
 
@@ -1073,6 +1254,7 @@ TYPEINFO(/datum/trait/partyanimal)
 	name = "Two left feet"
 	desc = "Every now and then you'll stumble in a random direction."
 	id = "leftfeet"
+	icon_state = "twoleft"
 	points = 1
 	afterlife_blacklisted = TRUE
 
@@ -1080,6 +1262,7 @@ TYPEINFO(/datum/trait/partyanimal)
 	name = "Trippy"
 	desc = "You have a tendency to randomly trip while moving."
 	id = "trippy"
+	icon_state = "trip"
 	points = 1
 	afterlife_blacklisted = TRUE
 
@@ -1094,9 +1277,8 @@ TYPEINFO(/datum/trait/partyanimal)
 	name = "Hyperallergic"
 	desc = "You have a severe sensitivity to allergens and are liable to slip into anaphylactic shock upon exposure."
 	id = "allergic"
-	icon_state = "placeholder"
+	icon_state = "hypeallergy"
 	points = 1
-	category = list("allergy")
 	disability_type = TRAIT_DISABILITY_MINOR
 	disability_name = "Anaphylactic"
 	disability_desc = "Acute response to allergens"
@@ -1105,12 +1287,14 @@ TYPEINFO(/datum/trait/partyanimal)
 	name="All ears"
 	desc = "You lost your headset on the way to work."
 	id = "allears"
+	icon_state = "allears"
 	points = 0
 
 /datum/trait/atheist
 	name = "Atheist"
 	desc = "In this moment, you are euphoric. You cannot receive faith healing, and prayer makes you feel silly."
 	id = "atheist"
+	icon_state = "atheist"
 	points = 0
 
 	onAdd(mob/living/owner)
@@ -1132,7 +1316,7 @@ TYPEINFO(/datum/trait/partyanimal)
 	desc = "You are an abhorrent humanoid reptile, cold-blooded and ssssibilant."
 	id = "lizard"
 	points = -1
-	category = list("species")
+	category = list("species", "infrared")
 	mutantRace = /datum/mutantrace/lizard
 
 /datum/trait/cow
@@ -1150,7 +1334,7 @@ TYPEINFO(/datum/trait/partyanimal)
 	desc = "Compress all of your skin and flesh into your bones, making you resemble a skeleton. Not as uncomfortable as it sounds."
 	id = "skeleton"
 	points = -1
-	category = list("species", "cloner_stuff")
+	category = list("species", "cloner_stuff", "nohair")
 	mutantRace = /datum/mutantrace/skeleton
 
 /datum/trait/roach
@@ -1159,7 +1343,7 @@ TYPEINFO(/datum/trait/partyanimal)
 	desc = "One space-morning, on the shuttle-ride to the station, you found yourself transformed in your seat into a horrible vermin. A cockroach, specifically."
 	id = "roach"
 	points = -1
-	category = list("species")
+	category = list("species", "infrared")
 	mutantRace = /datum/mutantrace/roach
 
 /datum/trait/pug
@@ -1168,12 +1352,41 @@ TYPEINFO(/datum/trait/partyanimal)
 	desc = "Should a pug really be on a space station? They aren't suited for space at all. They're practically a liability to the compan... Aw, look at those little ears!"
 	id = "pug"
 	points = -4 //Subject to change- -3 feels too low as puritan is relatively common. Though Puritan Pug DOES make for a special sort of Hard Modes
-	category = list("species", "nopug")
+	category = list("species", "nopug", "nohair")
 	mutantRace = /datum/mutantrace/pug
+
+/datum/trait/random_species
+	name = "Random Species"
+	icon_state = "randomspecies"
+	desc = "You feel like something's different today, but you can't quite put your finger/tail/hoof/antennae on it."
+	id = "random_species"
+	points = -1
+	category = list("species", "infrared", "cloner_stuff", "nohair", "hemophilia")
+
+	onAdd(mob/owner)
+		if (ishuman(owner))
+			var/mob/living/carbon/human/H = owner
+			var/datum/mutantrace/new_mutantrace_type = null
+			if (prob(1) && prob(1)) // 0.01% chance of a weird mutantrace
+				new_mutantrace_type = pick(filtered_concrete_typesof(/datum/mutantrace, /proc/safe_mutantrace_nogenepool_filter))
+			else // otherwise, pick any -1 point mutrace
+				new_mutantrace_type = pick(/datum/mutantrace/lizard, /datum/mutantrace/cow, /datum/mutantrace/skeleton,	/datum/mutantrace/roach)
+			if (isnull(new_mutantrace_type)) // safety
+				logTheThing(LOG_DEBUG, src, "Failed to generate a random species for [owner].")
+				new_mutantrace_type = /datum/mutantrace/human
+			H.default_mutantrace = new_mutantrace_type
+			H.set_mutantrace(H.default_mutantrace)
+
+	onRemove(mob/owner)
+		if(ishuman(owner))
+			var/mob/living/carbon/human/H = owner
+			H.default_mutantrace = /datum/mutantrace/human
+			H.set_mutantrace(H.default_mutantrace)
 
 /datum/trait/super_slips
 	name = "Slipping Hazard"
 	id = "super_slips"
+	icon_state = "slip"
 	desc = "You never were good at managing yourself slipping."
 	points = 1
 
@@ -1215,6 +1428,20 @@ TYPEINFO(/datum/trait/partyanimal)
 				else
 					explanation_text += "and [ingredient]<br/>"
 
+/datum/trait/mutant_hair
+	name = "Hairy"
+	desc = "You will grow hair even if you usually would not (due to being a lizard or something)."
+	id = "mutant_hair"
+	points = 0
+	category = list("body", "nohair","nowig")
+	icon_state = "hair"
+
+	onAdd(mob/owner)
+		owner.bioHolder.AddEffect("hair_growth", innate = TRUE)
+
+	onRemove(mob/owner)
+		owner.bioHolder.RemoveEffect("hair_growth")
+
 //Infernal Contract Traits
 /datum/trait/hair
 	name = "Wickedly Good Hair"
@@ -1251,3 +1478,15 @@ TYPEINFO(/datum/trait/partyanimal)
 		if(ishuman(owner) && prob(10))
 			var/mob/living/carbon/human/H = owner
 			randomize_mob_limbs(H)
+
+// organ removal associated traits
+// removal is handled in part customization, tracked here for equipping sensory item
+/datum/trait/missing_left_eye
+	name = "Missing Left Eye"
+	id = "eye_missing_left"
+	unselectable = TRUE
+
+/datum/trait/missing_right_eye
+	name = "Missing Right Eye"
+	id = "eye_missing_right"
+	unselectable = TRUE

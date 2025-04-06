@@ -3,7 +3,7 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 /obj/item/gun
 	name = "gun"
 	inhand_image_icon = 'icons/mob/inhand/hand_guns.dmi'
-	flags =  FPRINT | TABLEPASS | CONDUCT | USEDELAY | EXTRADELAY
+	flags =  TABLEPASS | CONDUCT | USEDELAY | EXTRADELAY
 	c_flags = ONBELT
 	object_flags = NO_GHOSTCRITTER
 	event_handler_flags = USE_GRAB_CHOKE | USE_FLUID_ENTER
@@ -29,12 +29,14 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 	var/list/projectiles = null
 	var/current_projectile_num = 1
 	var/silenced = 0
+	///the "out of ammo oh no" click
+	var/click_sound = 'sound/weapons/Gunclick.ogg'
+	var/click_msg = "*click* *click*"
 	var/can_dual_wield = 1
 
 	var/slowdown = 0 //Movement delay attack after attack
 	var/slowdown_time = 10 //For this long
 
-	var/forensic_ID = null
 	var/add_residue = 0 // Does this gun add gunshot residue when fired (Convair880)?
 
 	var/shoot_delay = 4
@@ -115,15 +117,6 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 		if (user.back.storage.check_can_hold(src) == STORAGE_CAN_HOLD)
 			user.back.Attackby(src, user)
 			return TRUE
-
-/obj/item/gun/proc/CreateID() //Creates a new tracking id for the gun and returns it.
-	. = ""
-
-	do
-		for(var/i = 1 to 10) // 20 characters are way too fuckin' long for anyone to care about
-			. += "[pick(numbersAndLetters)]"
-	while(. in forensic_IDs)
-
 
 ///CHECK_LOCK
 ///Call to run a weaponlock check vs the users implant
@@ -216,8 +209,8 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 	if (!target || !ismob(target)) //Wire note: Fix for Cannot modify null.lastattacker
 		return ..()
 
-	user.lastattacked = target
-	target.lastattacker = user
+	user.lastattacked = get_weakref(target)
+	target.lastattacker = get_weakref(user)
 	target.lastattackertime = world.time
 
 	if(user.a_intent != INTENT_HELP && isliving(target))
@@ -283,11 +276,12 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 			return
 
 	if (!canshoot(user))
-		if (!silenced)
-			target.visible_message(SPAN_ALERT("<B>[user] tries to shoot [user == target ? "[him_or_her(user)]self" : target] with [src] point-blank, but it was empty!</B>"))
-			playsound(user, 'sound/weapons/Gunclick.ogg', 60, TRUE)
-		else
-			user.show_text("*click* *click*", "red")
+		if (src.click_sound)
+			if (!silenced)
+				target.visible_message(SPAN_ALERT("<B>[user] tries to shoot [user == target ? "[him_or_her(user)]self" : target] with [src] point-blank, but it was empty!</B>"))
+				playsound(user, click_sound, 60, TRUE)
+			else
+				user.show_text(src.click_msg, "red")
 		return FALSE
 
 	if (ishuman(user) && src.add_residue) // Additional forensic evidence for kinetic firearms (Convair880).
@@ -369,11 +363,18 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 	if (isghostdrone(user))
 		user.show_text("<span class='combat bold'>Your internal law subroutines kick in and prevent you from using [src]!</span>")
 		return FALSE
+
+	if(!isturf(target))
+		target = get_turf(target)
+
+	if(isnull(target))
+		return FALSE
+
 	if (!canshoot(user))
-		if (ismob(user))
-			user.show_text("*click* *click*", "red") // No more attack messages for empty guns (Convair880).
+		if (ismob(user) && src.click_sound)
+			user.show_text(src.click_msg, "red") // No more attack messages for empty guns (Convair880).
 			if (!silenced)
-				playsound(user, 'sound/weapons/Gunclick.ogg', 60, TRUE)
+				playsound(user, click_sound, 60, TRUE)
 		return FALSE
 	if (!process_ammo(user))
 		return FALSE
@@ -381,9 +382,6 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 		return FALSE
 	if (!istype(src.current_projectile,/datum/projectile/))
 		return FALSE
-
-	if(!isturf(target))
-		target = get_turf(target)
 
 	if (src.muzzle_flash)
 		if (isturf(user.loc))
@@ -418,7 +416,7 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 	var/obj/projectile/P = shoot_projectile_ST_pixel_spread(user, current_projectile, target, POX, POY, spread, alter_proj = new/datum/callback(src, PROC_REF(alter_projectile)), called_target = called_target)
 	if (P)
 		P.forensic_ID = src.forensic_ID
-
+	P.spread = spread
 	if(user && !suppress_fire_msg)
 		if(!src.silenced)
 			for(var/mob/O in AIviewers(user, null))
@@ -456,9 +454,10 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 	return ..()
 
 /obj/item/gun/proc/process_ammo(var/mob/user)
-	boutput(user, SPAN_ALERT("*click* *click*"))
-	if (!src.silenced)
-		playsound(user, 'sound/weapons/Gunclick.ogg', 60, TRUE)
+	if (src.click_sound)
+		boutput(user, SPAN_ALERT(src.click_msg))
+		if (!src.silenced)
+			playsound(user, click_sound, 60, TRUE)
 	return 0
 
 // Could be useful in certain situations (Convair880).
@@ -490,7 +489,7 @@ var/list/forensic_IDs = new/list() //Global list of all guns, based on bioholder
 	if (new_dmg >= (dmg + 20)) // it did some appreciable amount of damage
 		user.TakeDamage("head", 500, 0)
 	else if (new_dmg < (dmg + 20))
-		user.visible_message(SPAN_ALERT("[user] hangs their head in shame because they chose such a weak gun."))
+		user.visible_message(SPAN_ALERT("[user] hangs [his_or_her(user)] head in shame because [he_or_she(user)] chose such a weak gun."))
 	return 1
 
 /obj/item/gun/on_spin_emote(var/mob/living/carbon/human/user as mob)

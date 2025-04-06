@@ -4,7 +4,9 @@
 
 // moves items/mobs/movables in set direction every ptick
 TYPEINFO(/obj/machinery/conveyor) {
-	mats = list("MET-1" = 1, "CON-1" = 1, "CRY-1" = 1)
+	mats = list("metal" = 1,
+				"conductive" = 1,
+				"crystal" = 1)
 }
 
 /obj/machinery/conveyor
@@ -50,6 +52,8 @@ TYPEINFO(/obj/machinery/conveyor) {
 	event_handler_flags = USE_FLUID_ENTER
 	/// list of conveyor_switches that have us in their conveyors list
 	var/list/linked_switches
+	/// Stored operating direction for conveyors without linked switches
+	var/stored_operating
 
 	New()
 		. = ..()
@@ -283,6 +287,10 @@ TYPEINFO(/obj/machinery/conveyor) {
 	..()
 
 /obj/machinery/conveyor/disposing()
+	src.was_deconstructed_to_frame()
+	..()
+
+/obj/machinery/conveyor/was_deconstructed_to_frame(mob/user)
 	for(var/obj/machinery/conveyor/C in range(1,src))
 		if (C.next_conveyor == src)
 			C.next_conveyor = null
@@ -291,7 +299,7 @@ TYPEINFO(/obj/machinery/conveyor) {
 	for (var/obj/machinery/conveyor_switch/S as anything in linked_switches) //conveyor switch could've been exploded
 		S.conveyors -= src
 	id = null
-	..()
+	src.operating = CONVEYOR_STOPPED
 
 /// set the dir and target turf depending on the operating direction
 /obj/machinery/conveyor/proc/setdir()
@@ -318,11 +326,11 @@ TYPEINFO(/obj/machinery/conveyor) {
 		operating = CONVEYOR_STOPPED
 	if(!operating || (status & NOPOWER))
 		power_usage = 0
-		for(var/atom/movable/A in loc.contents)
+		for(var/atom/movable/A in loc?.contents)
 			walk(A, 0)
 	else
 		power_usage = 100
-		for(var/atom/movable/A in loc.contents)
+		for(var/atom/movable/A in loc?.contents)
 			move_thing(A)
 
 	var/new_icon = "conveyor-"
@@ -423,7 +431,8 @@ TYPEINFO(/obj/machinery/conveyor) {
 		return
 	if(!loc)
 		return
-	if (!can_convey(AM))
+	if(!can_convey(AM))
+		walk(AM, 0)
 		return
 
 	if(src.next_conveyor && src.next_conveyor.loc == AM.loc)
@@ -444,8 +453,7 @@ TYPEINFO(/obj/machinery/conveyor) {
 
 /obj/machinery/conveyor/get_desc()
 	if (src.deconstructable)
-		. += " [SPAN_NOTICE("It's cover seems to be open.")]"
-
+		. += " [SPAN_NOTICE("Its cover seems to be open.")]"
 
 /obj/machinery/conveyor/mouse_drop(over_object, src_location, over_location)
 	if (!usr)
@@ -600,13 +608,17 @@ TYPEINFO(/obj/machinery/conveyor) {
 		return
 
 	if (src.deconstructable)
-		src.deconstruct_flags = null
+		src.deconstruct_flags = DECON_NONE
 		src.deconstructable = FALSE
 		M.show_text("You finish closing \the [src]'s panel.", "blue")
 		if (length(src.linked_switches))
 			var/obj/machinery/conveyor_switch/connected_switch = src.linked_switches[1]
 			src.operating = connected_switch.position
 			src.setdir()
+		else
+			src.operating = src.stored_operating
+			src.stored_operating = null
+			src.set_dir()
 		src.update()
 		return 1
 
@@ -615,6 +627,10 @@ TYPEINFO(/obj/machinery/conveyor) {
 		src.deconstructable = TRUE
 		M.show_text("You finish opening \the [src]'s panel.", "blue")
 		if (length(src.linked_switches))
+			src.operating = CONVEYOR_STOPPED
+			src.setdir()
+		else
+			src.stored_operating = src.operating
 			src.operating = CONVEYOR_STOPPED
 			src.setdir()
 		src.update()
@@ -843,12 +859,12 @@ TYPEINFO(/obj/machinery/conveyor) {
 	use_power(50)
 	operating = 1
 	if(deployed)
-		flick("diverter10",src)
+		FLICK("diverter10",src)
 		icon_state = "diverter0"
 		sleep(1 SECOND)
 		deployed = 0
 	else
-		flick("diverter01",src)
+		FLICK("diverter01",src)
 		icon_state = "diverter1"
 		sleep(1 SECOND)
 		deployed = 1
@@ -879,14 +895,17 @@ TYPEINFO(/obj/machinery/conveyor) {
 
 
 
-ADMIN_INTERACT_PROCS(/obj/machinery/conveyor_switch, proc/trigger)
-
-TYPEINFO(/obj/machinery/conveyor_switch) {
-	mats = list("MET-1" = 10, "CON-1" = 10, "CRY-1" = 10)
-}
 
 
 #define CALC_DELAY(C) max(initial(C.move_lag) - src.speedup + src.slowdown, 0.1)
+
+ADMIN_INTERACT_PROCS(/obj/machinery/conveyor_switch, proc/trigger)
+TYPEINFO(/obj/machinery/conveyor_switch) {
+	mats = list("metal" = 10,
+				"conductive" = 10,
+				"crystal" = 10)
+}
+
 /// the conveyor control switch
 /obj/machinery/conveyor_switch
 	name = "conveyor switch"
@@ -980,6 +999,7 @@ TYPEINFO(/obj/machinery/conveyor_switch) {
 	attack_hand(mob/user)
 		if(ON_COOLDOWN(src, "switch", CONVEYOR_SWITCH_COOLDOWN))
 			return
+		src.add_fingerprint(user)
 		if(position == CONVEYOR_STOPPED)
 			if (last_pos == CONVEYOR_REVERSE)
 				src.go_forward()
@@ -999,6 +1019,7 @@ TYPEINFO(/obj/machinery/conveyor_switch) {
 		var/mob/M = usr
 		if (ispulsingtool(M.equipped()) && istype(over_object, /obj/machinery/conveyor)) return // linking handled in conveyor MouseDrop_T
 		if (ON_COOLDOWN(src, "switch", CONVEYOR_SWITCH_COOLDOWN)) return
+		src.add_fingerprint(usr)
 		switch (over_location:x - src_location:x)
 			if (0)
 				return
@@ -1032,7 +1053,7 @@ TYPEINFO(/obj/machinery/conveyor_switch) {
 			LAGCHECK(LAG_MED)
 
 		for (var/obj/machinery/conveyor/C as anything in conveyors)
-			if (C.id == src.id)
+			if (C.id == src.id && !C.deconstructable)
 				C.operating = src.position
 				C.setdir()
 				C.move_lag = CALC_DELAY(C)

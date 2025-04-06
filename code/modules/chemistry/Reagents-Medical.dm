@@ -71,7 +71,7 @@ datum
 			fluid_g = 251
 			fluid_b = 251
 			transparency = 30
-			addiction_prob = 10//50
+			addiction_prob = 10
 			addiction_min = 15
 			overdose = 15
 			var/counter = 1 //Data is conserved...so some jerkbag could inject a monkey with this, wait for data to build up, then extract some instant KO juice.  Dumb.
@@ -127,9 +127,9 @@ datum
 			fluid_g = 251
 			fluid_b = 251
 			transparency = 30
-			addiction_prob = 10//50
+			addiction_prob = 10
 			addiction_min = 15
-			depletion_rate = 0.2
+			depletion_rate = 0.3
 			overdose = 40   //Ether is known for having a big difference in effective to toxic dosage
 			var/counter = 1 //Data is conserved...so some jerkbag could inject a monkey with this, wait for data to build up, then extract some instant KO juice.  Dumb.
 			minimum_reaction_temperature = T0C + 80 //This stuff is extremely flammable
@@ -191,18 +191,18 @@ datum
 					M.changeStatus("recent_trauma", -2 SECONDS * mult)
 				if(holder.has_reagent(src.id,10)) // large doses progress somewhat faster than small ones
 					counter += mult
-					depletion_rate = 0.4 // depletes faster in large doses as well
+					depletion_rate = 0.6 // depletes faster in large doses as well
 				else
-					depletion_rate = 0.2
+					depletion_rate = 0.3
 
 				switch(counter += 1 * mult)
-					if(1 to 12)
+					if(1 to 7)
 						if(probmult(7)) M.emote("yawn")
-					if(12 to 40)
+					if(7 to 30)
 						M.setStatus("drowsy", 40 SECONDS)
 						if(probmult(9)) M.emote(pick("smile","giggle","yawn"))
-					if(40 to INFINITY)
-						depletion_rate = 0.4
+					if(30 to INFINITY)
+						depletion_rate = 0.6
 						M.setStatusMin("unconscious", 6 SECONDS * mult)
 						M.setStatus("drowsy", 40 SECONDS)
 				..()
@@ -270,8 +270,7 @@ datum
 			fluid_g = 100
 			fluid_b = 225
 			transparency = 200
-			addiction_prob = 1//20
-			addiction_prob2 = 10
+			addiction_prob = 0.1
 			addiction_min = 10
 			overdose = 50
 			value = 7 // 5c + 1c + 1c
@@ -368,9 +367,7 @@ datum
 				flush(holder, 3 * mult)
 				if(M.health > 20)
 					M.take_toxin_damage(5 * mult, 1)	//calomel doesn't damage organs.
-				if(probmult(6))
-					var/vomit_message = SPAN_ALERT("[M] pukes all over [himself_or_herself(M)].")
-					M.vomit(0, null, vomit_message)
+				M.nauseate(1)
 				..()
 				return
 
@@ -404,8 +401,7 @@ datum
 			fluid_g = 0
 			fluid_b = 0
 			transparency = 255
-			addiction_prob = 1//20
-			addiction_prob2 = 20
+			addiction_prob = 0.2
 			addiction_min = 5
 			value = 13
 
@@ -532,22 +528,21 @@ datum
 			do_overdose(var/severity, var/mob/M, var/mult = 1)
 				var/effect = ..(severity, M)
 				if (severity == 1)
-					if( effect <= 1)
-						var/vomit_message = SPAN_ALERT("[M.name] suddenly and violently vomits!")
-						M.vomit(0, null, vomit_message)
-					else if (effect <= 3) M.emote(pick("groan","moan"))
-					if (effect <= 8)
+					if (effect <= 3)
+						M.emote(pick("groan","moan"))
+					else if (effect <= 8)
 						M.take_toxin_damage(1 * mult)
+					else if (effect <= 30)
+						M.nauseate(1)
 				else if (severity == 2)
-					if( effect <= 2)
-						var/vomit_message = SPAN_ALERT("[M.name] suddenly and violently vomits!")
-						M.vomit(0, null, vomit_message)
-					else if (effect <= 5)
+					if (effect <= 5)
 						M.visible_message(SPAN_ALERT("<b>[M.name]</b> staggers and drools, their eyes crazed and bloodshot!"))
 						M.dizziness += 8
-						M.reagents.add_reagent("madness_toxin", rand(1,2) * mult)
-					if (effect <= 15)
+						M.reagents.add_reagent("madness_toxin", randfloat(2.5 , 5) * src.calculate_depletion_rate(M, mult))
+					else if (effect <= 15)
 						M.take_toxin_damage(1 * mult)
+					else if(effect <= 40)
+						M.nauseate(1)
 
 		medical/omnizine // COGWERKS CHEM REVISION PROJECT. magic drug, ought to use plasma or something
 			name = "omnizine"
@@ -558,8 +553,7 @@ datum
 			fluid_g = 220
 			fluid_b = 220
 			transparency = 40
-			addiction_prob = 1//5
-			addiction_prob2 = 20
+			addiction_prob = 0.2
 			addiction_min = 5
 			depletion_rate = 0.2
 			overdose = 30
@@ -866,7 +860,7 @@ datum
 				M.changeStatus("drowsy", -10 SECONDS)
 				if(M.sleeping && probmult(5)) M.sleeping = 0
 				if(M.get_brain_damage() && prob(5)) M.take_brain_damage(-1 * mult)
-				flush(holder, 2 * mult, flushed_reagents) //combats symptoms not source //ok combats source a bit more
+				flush(holder, 3 * mult, flushed_reagents) //combats symptoms not source //ok combats source a bit more
 				if(M.losebreath > 3)
 					M.losebreath -= (1 * mult)
 				if(M.get_oxygen_deprivation() > 35)
@@ -879,20 +873,21 @@ datum
 			do_overdose(var/severity, var/mob/M, var/mult = 1)
 				var/effect = ..(severity, M)
 				if (severity == 1)
-					if( effect <= 1)
-						var/vomit_message = SPAN_ALERT("[M.name] suddenly and violently vomits!")
-						M.vomit(0, null, vomit_message)
-					else if (effect <= 3) M.emote(pick("groan","moan"))
-					if (effect <= 8) M.emote("collapse")
+					if (effect <= 3)
+						M.emote(pick("groan","moan"))
+					else if (effect <= 8)
+						M.emote("collapse")
+					else if (effect <= 20)
+						M.nauseate(1)
 				else if (severity == 2)
-					if( effect <= 2)
-						var/vomit_message = SPAN_ALERT("[M.name] suddenly and violently vomits!")
-						M.vomit(0, null, vomit_message)
-					else if (effect <= 5)
+					if (effect <= 5)
 						M.visible_message(SPAN_ALERT("<b>[M.name]</b> staggers and drools, their eyes bloodshot!"))
 						M.dizziness += 2
 						M.setStatusMin("knockdown", 4 SECONDS * mult)
-					if (effect <= 15) M.emote("collapse")
+					else if (effect <= 15)
+						M.emote("collapse")
+					else if (effect <= 20)
+						M.nauseate(1)
 
 		medical/heparin
 			name = "heparin"
@@ -1151,6 +1146,23 @@ datum
 			fluid_b = 140
 			depletion_rate = 0.4
 			overdose = 100
+			threshold = THRESHOLD_INIT
+
+			on_mob_life(var/mob/M, var/mult = 1)
+				. = ..()
+				M.nauseate(-1)
+
+			cross_threshold_over()
+				if(ismob(holder?.my_atom))
+					var/mob/M = holder.my_atom
+					APPLY_ATOM_PROPERTY(M, PROP_MOB_CANNOT_VOMIT, src.type)
+				..()
+
+			cross_threshold_under()
+				if(ismob(holder?.my_atom))
+					var/mob/M = holder.my_atom
+					REMOVE_ATOM_PROPERTY(M, PROP_MOB_CANNOT_VOMIT, src.type)
+				..()
 
 			do_overdose(var/severity, var/mob/M, var/mult = 1)
 				var/effect = ..(severity, M)
@@ -1181,8 +1193,7 @@ datum
 			fluid_b = 250
 			depletion_rate = 0.3
 			overdose = 35
-			addiction_prob = 1//25
-			addiction_prob2 = 10
+			addiction_prob = 0.1
 			addiction_min = 10
 			value = 9 // 4c + 3c + 1c + 1c
 			var/remove_buff = 0
@@ -1221,23 +1232,21 @@ datum
 			do_overdose(var/severity, var/mob/M, var/mult = 1)
 				var/effect = ..(severity, M)
 				if (severity == 1)
-					if( effect <= 1)
-						var/vomit_message = SPAN_ALERT("[M.name] suddenly and violently vomits!")
-						M.vomit(0, null, vomit_message)
-					else if (effect <= 3) M.emote(pick("groan","moan"))
-					if (effect <= 8)
+					if (effect <= 3)
+						M.emote(pick("groan","moan"))
+					else if (effect <= 8)
 						M.take_toxin_damage(1 * mult)
+					else if (effect <= 20)
+						M.nauseate(1)
 				else if (severity == 2)
-					if( effect <= 2)
-						var/vomit_message = SPAN_ALERT("[M.name] suddenly and violently vomits!")
-						M.vomit(0, null, vomit_message)
-						M.add_karma(1)
-					else if (effect <= 5)
+					if (effect <= 5)
 						M.visible_message(SPAN_ALERT("<b>[M.name]</b> staggers and drools, their eyes bloodshot!"))
 						M.dizziness += 8
 						M.setStatusMin("knockdown", 5 SECONDS * mult)
-					if (effect <= 15)
+					else if (effect <= 15)
 						M.take_toxin_damage(1 * mult)
+					else if (effect <= 30)
+						M.nauseate(1)
 
 
 		medical/penteticacid // COGWERKS CHEM REVISION PROJECT. should be a potent chelation agent, maybe roll this into tribenzocytazine as Pentetic Acid
@@ -1275,7 +1284,7 @@ datum
 			fluid_b = 255
 			fluid_g = 230
 			transparency = 220
-			addiction_prob = 1//10
+			addiction_prob = 1
 			addiction_min = 10
 			value = 10 // 4 3 1 1 1
 			threshold = THRESHOLD_INIT
@@ -1509,8 +1518,7 @@ datum
 			fluid_g = 100
 			fluid_b = 100
 			transparency = 40
-			addiction_prob = 1//20
-			addiction_prob2 = 20
+			addiction_prob = 0.2
 			addiction_min = 10
 			value = 6 // 3 1 1 heat
 			target_organs = list("left_lung", "right_lung", "spleen")
@@ -1627,9 +1635,7 @@ datum
 				if(!M) M = holder.my_atom
 				if(M.health > 25)
 					M.take_toxin_damage(1 * mult)
-				if(probmult(25))
-					var/vomit_message = SPAN_ALERT("[M] pukes all over [himself_or_herself(M)].")
-					M.vomit(0, null, vomit_message)
+				M.nauseate(2) //ur gonna puke a lot
 				if(probmult(5))
 					var/mob/living/L = M
 					L.contract_disease(/datum/ailment/disease/food_poisoning, null, null, 1)

@@ -123,9 +123,8 @@
 
 		if (prob(15) && (FARD_pp > fart_smell_min))
 			boutput(donor, SPAN_ALERT("Smells like someone [pick("died","soiled themselves","let one rip","made a bad fart","peeled a dozen eggs")] in here!"))
-			if ((FARD_pp > fart_vomit_min) && prob(50))
-				var/vomit_message = SPAN_NOTICE("[donor] vomits from the [pick("stink","stench","awful odor")]!!")
-				donor.vomit(0, null, vomit_message)
+			if ((FARD_pp > fart_vomit_min))
+				donor.nauseate(1)
 		if (FARD_pp > fart_choke_min)
 			donor.take_oxygen_deprivation(6.9 * mult/LUNG_COUNT)
 			if (prob(20))
@@ -248,10 +247,18 @@ TYPEINFO(/obj/item/organ/lung/cyber)
 	desc = "Surprisingly, doesn't produce its own oxygen. Luckily, it works just as well at moving oxygen to the bloodstream."
 	synthetic = 1
 	failure_disease = /datum/ailment/disease/respiratory_failure
+	safe_co2_max = INFINITY
 
 	New()
 		..()
 		src.icon_state = pick("plant_lung_t", "plant_lung_t_bloom")
+
+	breathe(datum/gas_mixture/breath, underwater, mult, datum/organ_status/lung/update)
+		breath.carbon_dioxide /= 2
+		breath.oxygen += breath.carbon_dioxide
+		. = ..()
+		breath.oxygen += breath.carbon_dioxide
+		breath.carbon_dioxide = 0
 
 /obj/item/organ/lung/synth/left
 	name = "left lung"

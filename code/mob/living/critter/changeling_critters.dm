@@ -32,6 +32,14 @@
 			bodypart.name = "mutagenic [initial(bodypart.name)]"
 		src.original_bodypart = bodypart
 		src.original_bodypart?.set_loc(src)
+		if(istype(original_bodypart, /obj/item/organ) || istype(original_bodypart, /obj/item/clothing/head/butt))
+			var/obj/item/organ/org = original_bodypart
+			org.donor_DNA = src.bioHolder?.Uid
+			org.blood_DNA = org.donor_DNA
+		else if(istype(original_bodypart, /obj/item/parts/human_parts))
+			var/obj/item/parts/human_parts/hpart = original_bodypart
+			hpart.original_DNA = src.bioHolder?.Uid
+			hpart.blood_DNA = hpart.original_DNA
 
 	say(message, involuntary = 0)
 		if (hivemind_owner)
@@ -300,14 +308,14 @@
 					C.limbs.r_arm:set_skin_tone()
 					C.set_body_icon_dirty()
 				if (isdead(src))
-					hivemind_owner.owner.visible_message(SPAN_ALERT("<B>[hivemind_owner.owner] grabs on to [src] and attaches it to their own body!</B>"))
+					hivemind_owner.owner.visible_message(SPAN_ALERT("<B>[hivemind_owner.owner] grabs on to [src] and attaches it to [his_or_her(hivemind_owner.owner)] own body!</B>"))
 				else
-					hivemind_owner.owner.visible_message(SPAN_ALERT("<B>[src] climbs on to [hivemind_owner.owner] and attaches itself to their arm stump!</B>"))
+					hivemind_owner.owner.visible_message(SPAN_ALERT("<B>[src] climbs on to [hivemind_owner.owner] and attaches itself to [his_or_her(hivemind_owner.owner)] arm stump!</B>"))
 
 		var/dna_gain = absorbed_dna
 		if (isdead(src))	//if the handspider is dead, the changeling can only gain half of what they collected
 			dna_gain = dna_gain / 2
-		dna_gain += 4
+		dna_gain += CHANGELING_HANDSPIDER_COST
 		boutput(hivemind_owner.owner, SPAN_NOTICE("A handspider has returned to your body! You gain <B>[dna_gain]</B> DNA points from the spider!"))
 		hivemind_owner.points += (dna_gain)
 		hivemind_owner.insert_into_hivemind(src)
@@ -549,11 +557,11 @@
 					C.limbs.r_leg:set_skin_tone()
 					C.set_body_icon_dirty()
 				if (isdead(src))
-					hivemind_owner.owner.visible_message(SPAN_ALERT("<B>[hivemind_owner.owner] grabs on to [src] and attaches it to their own body!</B>"))
+					hivemind_owner.owner.visible_message(SPAN_ALERT("<B>[hivemind_owner.owner] grabs on to [src] and attaches it to [his_or_her(hivemind_owner.owner)] own body!</B>"))
 				else
-					hivemind_owner.owner.visible_message(SPAN_ALERT("<B>[src] climbs on to [hivemind_owner.owner] and attaches itself to their leg stump!</B>"))
+					hivemind_owner.owner.visible_message(SPAN_ALERT("<B>[src] climbs on to [hivemind_owner.owner] and attaches itself to [his_or_her(hivemind_owner.owner)] leg stump!</B>"))
 
-		var/dna_gain = 6 //spend dna
+		var/dna_gain = CHANGELING_LEGWORM_COST
 		boutput(hivemind_owner.owner, SPAN_NOTICE("A legworm has returned to your body! You gain <B>[dna_gain]</B> DNA points from the leg!"))
 		hivemind_owner.points += (dna_gain)
 		hivemind_owner.insert_into_hivemind(src)
@@ -629,7 +637,7 @@
 				else
 					hivemind_owner.owner.visible_message(SPAN_ALERT("<B>[src] climbs on to [hivemind_owner.owner] and... oh. Oh my. You really wish you hadnt seen that.</B>"))
 
-		var/dna_gain = 1 //spend dna
+		var/dna_gain = CHANGELING_BUTTCRAB_COST
 		boutput(hivemind_owner.owner, SPAN_NOTICE("A buttcrab has returned to your body! You gain <B>[dna_gain]</B> DNA points from the butt!"))
 		hivemind_owner.points += (dna_gain)
 		hivemind_owner.insert_into_hivemind(src)
@@ -704,11 +712,10 @@
 		src.set_loc(H)
 		H.setStatusMin("unconscious", 10 SECONDS)
 
-		var/datum/ailment_data/parasite/HS = new /datum/ailment_data/parasite
-		HS.master = get_disease_from_path(/datum/ailment/parasite/headspider)
-		HS.affected_mob = H
-		HS.source = src
-		H.ailments += HS
+		var/datum/ailment_data/parasite/ailment_data = get_disease_from_path(/datum/ailment/parasite/headspider).setup_strain()
+		ailment_data.affected_mob = H
+		ailment_data.source = src
+		H.contract_disease(/datum/ailment/parasite/headspider, null, ailment_data, TRUE)
 
 		logTheThing(LOG_COMBAT, src.mind, "'s headspider enters [constructTarget(H,"combat")] at [log_loc(src)].")
 

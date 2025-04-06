@@ -172,7 +172,6 @@
 						/obj/item/storage/belt/wrestling)
 
 	festive
-		EPHEMERAL_XMAS
 		icon_state = "gift2-g"
 		attack_self(mob/M as mob)
 			if (!islist(giftpaths) || !length(giftpaths))
@@ -278,6 +277,7 @@ var/global/list/generic_gift_paths = list(/obj/item/basketball,
 	/obj/item/pen/crayon/rainbow,
 	/obj/item/storage/box/crayon,
 	/obj/item/device/light/zippo/gold,
+	/obj/item/device/speech_pro,
 	/obj/item/currency/spacecash/really_small,
 	/obj/item/rubberduck,
 	/obj/item/rubber_hammer,
@@ -315,6 +315,7 @@ var/global/list/generic_gift_paths = list(/obj/item/basketball,
 	/obj/item/clothing/shoes/moon,
 	/obj/item/clothing/suit/armor/sneaking_suit/costume,
 	/obj/item/clothing/suit/hoodie,
+	/obj/item/clothing/suit/hoodie/large,
 	/obj/item/clothing/suit/robuddy,
 	/obj/item/clothing/suit/scarf,
 	/obj/item/clothing/under/gimmick/rainbow,

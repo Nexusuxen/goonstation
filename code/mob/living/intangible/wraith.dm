@@ -46,8 +46,6 @@
 	var/datum/abilityHolder/wraith/AH = null
 
 	var/list/poltergeists
-	/// how much holy water a corpse can have while still being absorbable
-	var/holy_water_tolerance = 0
 	/// how much formaldehyde a corpse can have while still being absorbable
 	var/formaldehyde_tolerance = 25
 	///specifiy strong or weak tk powers. Weak for poltergeists.
@@ -100,6 +98,7 @@
 		APPLY_ATOM_PROPERTY(src, PROP_MOB_AI_UNTRACKABLE, src)
 		APPLY_ATOM_PROPERTY(src, PROP_MOB_EXAMINE_ALL_NAMES, src)
 		APPLY_ATOM_PROPERTY(src, PROP_MOB_NO_MOVEMENT_PUFFS, src)
+		APPLY_ATOM_PROPERTY(src, PROP_MOB_NIGHTVISION_WEAK, src)
 		//src.sight |= SEE_TURFS | SEE_MOBS | SEE_OBJS | SEE_SELF
 		src.sight |= SEE_SELF // let's not make it see through walls
 		src.see_invisible = INVIS_SPOOKY
@@ -225,29 +224,30 @@
 
 	death(gibbed)
 		. = ..()
-		//Back to square one with you!
-
-		var/datum/abilityHolder/wraith/W = src.abilityHolder
-		if(istype(W))
-			W.corpsecount = 0
-			var/datum/targetable/wraithAbility/absorbCorpse/absorb = W.getAbility(/datum/targetable/wraithAbility/absorbCorpse)
-			absorb?.doCooldown()
-		src.abilityHolder.points = 0
-		src.abilityHolder.regenRate = 1
-		src.health = initial(src.health) // oh sweet jesus it spammed so hard
-		src.haunting = 0
-		src.flags |= UNCRUSHABLE
-		src.hauntBonus = 0
-		deaths++
-		src.delStatus("corporeal")
-		if (src.mind)
-			for (var/datum/objective/specialist/wraith/WO in src.mind.objectives)
-				WO.onWeakened()
 
 		//When a master wraith dies, any of its poltergeists who are following it are thrown out. also send a message
 		drop_following_poltergeists()
 
 		if (deaths < 2)
+			//Back to square one with you!
+
+			var/datum/abilityHolder/wraith/W = src.abilityHolder
+			if(istype(W))
+				W.corpsecount = 0
+				var/datum/targetable/wraithAbility/absorbCorpse/absorb = W.getAbility(/datum/targetable/wraithAbility/absorbCorpse)
+				absorb?.doCooldown()
+			src.abilityHolder.points = 0
+			src.abilityHolder.regenRate = 1
+			src.health = initial(src.health) // oh sweet jesus it spammed so hard
+			src.haunting = 0
+			src.flags |= UNCRUSHABLE
+			src.hauntBonus = 0
+			deaths++
+			src.delStatus("corporeal")
+			if (src.mind)
+				for (var/datum/objective/specialist/wraith/WO in src.mind.objectives)
+					WO.onWeakened()
+
 			boutput(src, SPAN_ALERT("<b>You have been defeated...for now. The strain of banishment has weakened you, and you will not survive another.</b>"))
 			logTheThing(LOG_COMBAT, src, "lost a life as a wraith at [log_loc(src.loc)].")
 			src.justdied = 1
@@ -273,7 +273,7 @@
 			animation.icon = 'icons/mob/mob.dmi'
 			animation.icon_state = "wraithdie"
 			animation.master = src
-			flick(death_icon_state, animation)
+			FLICK(death_icon_state, animation)
 
 			src.ghostize()
 			qdel(src)
@@ -334,7 +334,7 @@
 				src.TakeDamage(null, 0, damage)
 
 		if(!P.proj_data.silentshot)
-			src.visible_message(SPAN_ALERT("[src] is hit by the [P]!"))
+			boutput(src, SPAN_ALERT("You are hit by the [P]!"))
 
 	ex_act(severity)
 		if (!src.density) return
@@ -408,7 +408,7 @@
 
 	click(atom/target)
 		if (src.targeting_ability)
-			..()
+			return ..()
 		if (!density)
 			src.examine_verb(target)
 
@@ -429,12 +429,6 @@
 					string += "[SPAN_NOTICE("This creature is <i>saturated</i> with a most unpleasant substance!")]\n"
 				else if (f_amt > 0)
 					string += "[SPAN_NOTICE("This creature has a somewhat unpleasant <i>taste</i>.")]\n"
-
-				var/hw_amt = M.reagents.get_reagent_amount("water_holy")
-				if (hw_amt >= src.holy_water_tolerance)
-					string += "[SPAN_NOTICE("This creature exudes a truly vile <i>aroma</i>!")]\n"
-				else if (hw_amt > 0)
-					string += "[SPAN_NOTICE("This creature has a somewhat vile <i>fragrance</i>!")]\n"
 
 			if (length(string))
 				boutput(src, string)
@@ -495,7 +489,7 @@
 				M.show_message(SPAN_ALERT("[src] [acts]!"))
 
 	attack_hand(var/mob/user)
-		user.lastattacked = src
+		user.lastattacked = get_weakref(src)
 		if (user.a_intent != "harm")
 			visible_message("[user] pets [src]!")
 		else
@@ -639,6 +633,8 @@
 	var/copied_name = null
 	var/copied_real_name = null
 	var/copied_pronouns = null
+	var/copied_footstep_sound = null
+	var/copied_voice = null
 	var/traps_laid = 0
 
 	New(var/mob/M)

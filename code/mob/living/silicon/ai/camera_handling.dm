@@ -1,39 +1,3 @@
-// Double clicking turfs to move to nearest camera
-
-/turf/proc/move_camera_by_click()
-	if (usr.stat || !isAI(usr))
-		return
-	//try to find the closest working camera in the same area, switch to it
-
-	var/area/A = get_area(src)
-	if (A && area_space_nopower(A)) return //lol @ dumping you at the mining magnet every fucking time. (or interrupting a track, wow rude)
-	if(istype(usr, /mob/living/silicon/ai))
-		var/mob/living/silicon/ai/anAI = usr
-		if(anAI.tracker.tracking)
-			return
-
-	var/best_dist = INFINITY //infinity
-	var/best_cam = null
-
-	for(var/obj/machinery/camera/C in A)
-		if(usr:network != C.network)
-			continue	//	different network (syndicate)
-		if(C.z != usr.z)
-			continue	//	different viewing plane
-		if(!C.camera_status)
-			continue	//	ignore disabled cameras
-		var/dist = GET_DIST(src, C)
-		if(dist < best_dist)
-			best_dist = dist
-			best_cam = C
-
-	if(!best_cam)
-		return
-	if(istype(usr, /mob/living/silicon/ai))
-		var/mob/living/silicon/ai/anAI = usr
-		anAI.tracker.cease_track()
-	usr:switchCamera(best_cam)
-
 /mob/living/silicon/ai/proc/ai_camera_list()
 	set category = "AI Commands"
 	set name = "Show Camera List"
@@ -155,7 +119,7 @@
 	var/list/D = list()
 	var/counter = 1
 	for (var/obj/machinery/camera/C in L)
-		if (C.network == src.network)
+		if ((C.network in src.camera_networks) && get_z(C) == Z_LEVEL_STATION)
 			var/T = text("[][]", C.c_tag, (C.camera_status ? null : " (Deactivated)"))
 			if(D[T])
 				D["[T] #[counter++]"] = C
@@ -251,13 +215,16 @@
 		last_track = world.timeofday
 
 	proc/can_track(mob/target as mob)
+		// hiding in bushes stops tracking
+		if (locate(/obj/shrub) in target.loc)
+			return FALSE
 		//Allow tracking of cyborgs & mobcritters, however
 		//Track autofails if:
 		//Target is wearing a syndicate ID
 		//Target is inside a dummy
 		//Target is not at a turf
 		//Target is not on station level
-		return (target.loc?.z == 1) \
+		return (target.loc?.z == Z_LEVEL_STATION) \
 				&& ((issilicon(target) && istype(target.loc, /turf) ) \
 				|| (ismobcritter(target) && istype(target.loc, /turf) ) \
 				|| !((ishuman(target) \

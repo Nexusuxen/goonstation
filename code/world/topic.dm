@@ -342,7 +342,7 @@
 
 		if (findtext(addr, ":")) // remove port if present
 			addr = splittext(addr, ":")[1]
-		if (addr != config.ircbot_ip && addr != config.goonhub_api_ip)
+		if (addr != config.ircbot_ip && addr != config.goonhub_api_ip && addr != config.goonhub_ci_ip)
 			return 0 //ip filtering
 
 		var/list/plist = params2list(T)
@@ -530,7 +530,7 @@
 
 				if (M?.client)
 					boutput(M, SPAN_MHELP("<b>MENTOR PM: FROM <a href=\"byond://?action=mentor_msg_irc&nick=[ckey(nick)]&msgid=[msgid]\">[nick]</a> (Discord)</b>: [SPAN_MESSAGE("[game_msg]")]"))
-					M.playsound_local_not_inworld('sound/misc/mentorhelp.ogg', 100, flags = SOUND_IGNORE_SPACE | SOUND_SKIP_OBSERVERS, channel = VOLUME_CHANNEL_MENTORPM)
+					M.playsound_local_not_inworld('sound/misc/mentorhelp.ogg', 100, flags = SOUND_IGNORE_SPACE | SOUND_SKIP_OBSERVERS | SOUND_IGNORE_DEAF, channel = VOLUME_CHANNEL_MENTORPM)
 					logTheThing(LOG_ADMIN, null, "Discord: [nick] Mentor PM'd [constructTarget(M,"admin")]: [msg]")
 					logTheThing(LOG_DIARY, null, "Discord: [nick] Mentor PM'd [constructTarget(M,"diary")]: [msg]", "admin")
 
@@ -735,7 +735,7 @@
 			if ("youtube")
 				if (!plist["data"]) return 0
 
-				play_music_remote(json_decode(plist["data"]))
+				play_music_remote(json_decode(plist["data"]), from_topic = TRUE)
 
 				// trigger cooldown so radio station doesn't interrupt our cool music
 				var/duration = text2num(plist["duration"])
@@ -867,13 +867,13 @@
 				)
 
 				var/datum/player/player = make_player(plist["ckey"])
-				if(isnull(player.last_seen))
+				if(!player.cached_round_stats)
 					player.cache_round_stats_blocking()
 				if(player)
 					response["last_seen"] = player.last_seen
 				player.cloudSaves.fetch()
 				for(var/kkey in player.cloudSaves.data)
-					if(kkey in list("admin_preferences", "buildmode"))
+					if((kkey in list("admin_preferences", "buildmode")) || findtext(kkey, regex(@"^custom_job_\d+$")))
 						continue
 					response[kkey] = player.cloudSaves.data[kkey]
 				response["cloudsaves"] = player.cloudSaves.saves
@@ -959,3 +959,31 @@
 					TRUE
 				)
 				return 1
+
+			if("goonhub_auth")
+				var/ckey = plist["ckey"]
+				var/client/C = find_client(ckey)
+				if (C && C.goonhub_auth)
+					C.goonhub_auth.on_auth()
+				return 1
+
+			if ("mapSwitchDone")
+				if (!plist["map"] || !mapSwitcher.locked) return 0
+
+				var/map = plist["map"]
+				var/ircmsg[] = new()
+				var/msg
+
+				var/attemptedMap = mapSwitcher.next ? mapSwitcher.next : mapSwitcher.current
+				if (map == "FAILED")
+					msg = "Compilation of [attemptedMap] failed! Falling back to previous setting of [mapSwitcher.nextPrior ? mapSwitcher.nextPrior : mapSwitcher.current]"
+				else
+					msg = "Compilation of [attemptedMap] succeeded!"
+
+				logTheThing("admin", null, null, msg)
+				logTheThing("diary", null, null, msg, "admin")
+				message_admins(msg)
+				ircmsg["msg"] = msg
+
+				mapSwitcher.unlock(map)
+				return ircbot.response(ircmsg)

@@ -48,9 +48,9 @@
 		var/atom/movable/prize = src.open(M)
 		logTheThing(LOG_STATION, M, "opened their [src] and got \a [prize] ([src.spawn_type]).")
 		game_stats.Increment("mail_opened")
-		// 50 credits + 5 more for every successful delivery after the first,
-		// capping at 500 each
-		shippingmarket.mail_delivery_payout += 90 + 5 * min(91, game_stats.GetStat("mail_opened"))
+		// 100 credits + 10 more for every successful delivery after the first,
+		// capping at 1000 per letter delivered
+		shippingmarket.mail_delivery_payout += 90 + 10 * min(91, game_stats.GetStat("mail_opened"))
 
 		return
 
@@ -75,10 +75,35 @@
 
 	attackby(obj/item/I, mob/user)
 		// You know, like a letter opener. It opens letters.
-		if (istype(I, /obj/item/kitchen/utensil/knife) && src.target_dna)
+		if ((istype(I, /obj/item/kitchen/utensil/knife) || istype(I, /obj/item/dagger)) && src.target_dna)
 			actions.start(new /datum/action/bar/icon/mail_lockpick(src, I, 5 SECONDS), user)
 			return
 		..()
+
+	throw_impact(atom/hit_atom, datum/thrown_thing/thr)
+		// copied from basketballs, but without the stun if you get beaned.
+		..(hit_atom)
+		if(hit_atom)
+			if(ismob(hit_atom))
+				var/mob/M = hit_atom
+				if(ishuman(M))
+					if((prob(50) && M.bioHolder.HasEffect("clumsy")))
+						src.visible_message(SPAN_COMBAT("[M] gets beaned with \the [src.name]."))
+						M.changeStatus("stunned", 2 SECONDS)
+						JOB_XP(M, "Clown", 1)
+						return
+					else
+						if (M.equipped() || get_dir(M, src) == M.dir)
+							src.visible_message(SPAN_COMBAT("[M] gets beaned with \the [src.name]."))
+							logTheThing(LOG_COMBAT, M, "is struck by [src]")
+						else
+							// catch the ~~ball~~ mail!
+							src.Attackhand(M)
+							M.visible_message(SPAN_COMBAT("[M] catches \the [src.name]!"), SPAN_COMBAT("You catch \the [src.name]!"))
+							logTheThing(LOG_COMBAT, M, "catches [src]")
+				else
+					src.visible_message(SPAN_COMBAT("[M] gets beaned with the [src.name]."))
+					logTheThing(LOG_COMBAT, M, "is struck by [src]")
 
 
 /datum/action/bar/icon/mail_lockpick
@@ -89,6 +114,7 @@
 
 	var/obj/item/random_mail/the_mail
 	var/obj/item/the_tool
+	var/is_syndi_dagger = FALSE
 
 	New(var/obj/item/random_mail/O, var/obj/item/tool, var/duration_i)
 		..()
@@ -98,8 +124,13 @@
 			src.the_tool = tool
 			src.icon = src.the_tool.icon
 			src.icon_state = src.the_tool.icon_state
+			if (istype(src.the_tool, /obj/item/dagger/syndicate))
+				src.is_syndi_dagger = TRUE
+
 		if (duration_i)
 			src.duration = duration_i
+		if (src.is_syndi_dagger)
+			src.duration *= 0.25
 
 	onUpdate()
 		..()
@@ -110,7 +141,7 @@
 		if (istype(source) && src.the_tool != source.equipped())
 			interrupt(INTERRUPT_ALWAYS)
 			return
-		if (prob(8))
+		if (!src.is_syndi_dagger && prob(8))
 			owner.visible_message(SPAN_ALERT("[owner] messes up while disconnecting \the [src.the_mail]'s DNA lock!"))
 			playsound(the_mail, 'sound/items/Screwdriver2.ogg', 50, TRUE)
 			interrupt(INTERRUPT_ALWAYS)
@@ -118,30 +149,39 @@
 
 	onStart()
 		..()
-		owner.visible_message(SPAN_ALERT("[owner] begins disconnecting \the [src.the_mail]'s lock..."))
+		if (!src.is_syndi_dagger)
+			owner.visible_message(SPAN_ALERT("[owner] begins disconnecting \the [src.the_mail]'s lock..."))
 		playsound(src.the_mail, 'sound/items/Screwdriver2.ogg', 50, 1)
 
 	onEnd()
 		..()
-		src.the_mail.target_dna = null
-		src.the_mail.desc += " Or at least, at one point, it did."
 		owner.visible_message(SPAN_ALERT("[owner] disconnects \the [src.the_mail]'s DNA lock!"))
 		logTheThing(LOG_STATION, owner, "commits MAIL FRAUD by cutting open [src.the_mail]")
 		var/obj/decal/cleanable/mail_fraud/cleanable = new(get_turf(src.the_mail), src.the_mail)
 		cleanable.add_fingerprint(owner)
 		src.the_mail.open(owner, crime = TRUE)
 		playsound(src.the_mail, 'sound/items/Screwdriver2.ogg', 50, 1)
+		game_stats.Increment("mail_fraud")
+
+		var/mob/living/ourselves = owner
+		if (ourselves.mind.assigned_role == "Mail Courier")
+			boutput(ourselves, SPAN_ALERT("<big style='font-size: 250%;'>WHAT HAVE YOU DONE!? WHY WOULD YOU DO THIS?</big>"))
+			ourselves.emote("scream")
+			ourselves.add_karma(-25)
 
 		if (!ON_COOLDOWN(global, "mail_fraud_alert", 10 MINUTES)) // no spamming this
-			var/mob/living/ourselves = owner
 			SPAWN(0)
 				for (var/mob/living/M in mobs)
 					if (M.mind && M.mind.assigned_role == "Mail Courier")
 						if (M == ourselves)
-							boutput(M, SPAN_ALERT("<big style='font-size: 250%;'>WHAT HAVE YOU DONE!? WHY WOULD YOU DO THIS?</big>"))
-							M.emote("scream")
-							M.add_karma(-25)
+							// already handled above
+							continue
+						else if (ourselves.mind.assigned_role == "Mail Courier")
+							// another mail courier is being evil, somehow, in case >1
+							boutput(M, SPAN_ALERT("<big style='font-size: 150%;'>Your spine goes cold. Another mail courier has violated the sanctity of the mail..!</big>"))
+							M.emote("shudder")
 						else
+							// some other schmuck did it
 							boutput(M, SPAN_ALERT("You suddenly feel hollow. Someone has violated the sanctity of the mail."))
 
 		// I TOLD YOU IT WAS ILLEGAL!!!
@@ -152,9 +192,12 @@
 				perpname = owner:wear_id:registered
 
 			var/datum/db_record/sec_record = data_core.security.find_record("name", perpname)
-			if(sec_record && sec_record["criminal"] != "*Arrest*")
-				sec_record["criminal"] = "*Arrest*"
+			if(sec_record && sec_record["criminal"] != ARREST_STATE_ARREST)
+				sec_record["criminal"] = ARREST_STATE_ARREST
 				sec_record["mi_crim"] = "Mail fraud."
+				var/mob/living/carbon/human/H = owner
+				H.update_arrest_icon()
+
 
 /obj/decal/cleanable/mail_fraud
 	name = "torn package"
@@ -245,6 +288,7 @@
 			package_color = pick("#FFFFAA", "#FFBB88", "#FF8800", "#CCCCFF", "#FEFEFE")
 
 		package.name = "mail for [recipient["name"]] ([recipient["job"]])"
+		package.real_name = package.name
 		var/list/color_list = rgb2num(package_color)
 		for(var/j in 1 to 3)
 			color_list[j] = 127 + (color_list[j] / 2) + rand(-10, 10)
@@ -320,6 +364,7 @@ var/global/mail_types_by_job = list(
 		/obj/item/cable_coil = 3,
 		/obj/item/lamp_manufacturer/organic = 5,
 		/obj/item/pen/infrared = 4,
+		/obj/item/pen/crayon/infrared = 4,
 		/obj/item/sheet/steel/fullstack = 2,
 		/obj/item/sheet/glass/fullstack = 2,
 		/obj/item/rods/steel/fullstack = 1,
@@ -408,7 +453,7 @@ var/global/mail_types_by_job = list(
 		/obj/item/clothing/head/helmet/camera = 3,
 		),
 
-	/datum/job/research/medical_doctor = list(
+	/datum/job/medical/medical_doctor = list(
 		/obj/item/reagent_containers/mender/brute = 5,
 		/obj/item/reagent_containers/mender/burn = 5,
 		/obj/item/reagent_containers/mender/both = 3,
@@ -426,7 +471,7 @@ var/global/mail_types_by_job = list(
 		/obj/item/reagent_containers/emergency_injector/random = 2,
 		),
 
-	/datum/job/research/roboticist = list(
+	/datum/job/medical/roboticist = list(
 		/obj/item/reagent_containers/mender/brute = 5,
 		/obj/item/reagent_containers/mender/burn = 5,
 		/obj/item/reagent_containers/mender/both = 3,
@@ -440,10 +485,11 @@ var/global/mail_types_by_job = list(
 		/obj/item/sheet/steel/fullstack = 2,
 		),
 
-	/datum/job/research/geneticist = list(
+	/datum/job/medical/geneticist = list(
 		// so you can keep looking at your screen,
 		// even in the brightness of nuclear hellfire o7
-		/obj/item/clothing/glasses/sunglasses/tanning,
+		/obj/item/clothing/glasses/sunglasses/tanning = 10,
+		/obj/item/clothing/glasses/eyestrain = 10,
 		),
 
 
@@ -455,6 +501,7 @@ var/global/mail_types_by_job = list(
 		/obj/item/cable_coil = 6,
 		/obj/item/lamp_manufacturer/organic = 5,
 		/obj/item/pen/infrared = 7,
+		/obj/item/pen/crayon/infrared = 7,
 		/obj/item/sheet/steel/fullstack = 2,
 		/obj/item/sheet/glass/fullstack = 2,
 		/obj/item/rods/steel/fullstack = 2,
@@ -523,7 +570,16 @@ var/global/mail_types_by_job = list(
 		),
 
 	/datum/job/civilian/rancher = list(
-		),
+		/obj/item/knitting_needles = 5,
+		/obj/item/drop_spindle = 5,
+		/obj/item/scissors/surgical_scissors/shears = 5,
+		/obj/item/fishing_rod/basic = 9,
+		/obj/item/fishing_rod/upgraded = 3,
+		/obj/item/fishing_rod/master = 1,
+		/obj/item/device/camera_viewer/ranch = 4,
+		/obj/item/clothing/mask/chicken = 5,
+		/obj/item/reagent_containers/food/snacks/ingredient/egg = 3,
+		), // Some T1 Power Eggs would be nice to add in secret, to give newer struggling ranchers a test taste on what they could do
 
 	/datum/job/civilian/janitor = list(
 		/obj/item/chem_grenade/cleaner = 5,

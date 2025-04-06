@@ -1,6 +1,8 @@
 TYPEINFO(/obj/submachine/claw_machine)
-	mats = list("MET-1"=5, "CON-1"=5, "CRY-1"=5, "FAB-1"=5)
-
+	mats = list("metal" = 5,
+				"conductive" = 5,
+				"crystal" = 5,
+				"fabric" = 5)
 /obj/submachine/claw_machine
 	name = "claw machine"
 	desc = "Sure we got our health insurance benefits cut, and yeah we don't get any overtime on holidays, but hey - free to play claw machines!"
@@ -185,19 +187,23 @@ TYPEINFO(/obj/submachine/claw_machine)
 	throw_range = 3
 	rand_pos = 1
 
-/obj/item/toy/plush/proc/say_something(mob/user as mob)
-	if(user.client && !isghostcritter(user)) // stupid monkeys...
-		var/message = input("What should [src] say?")
-		message = trimtext(copytext(sanitize(html_encode(message)), 1, MAX_MESSAGE_LEN))
-		if (!message || BOUNDS_DIST(src, user) > 0)
-			return
-		phrase_log.log_phrase("plushie", message)
-		logTheThing(LOG_SAY, user, "makes [src] say, \"[message]\"")
-		user.audible_message(SPAN_EMOTE("[src] says, \"[message]\""))
-		if (ishuman(user))
-			var/mob/living/carbon/human/H = user
-			if (H.sims)
-				H.sims.affectMotive("fun", 1)
+/obj/item/toy/plush/proc/say_something(mob/user)
+	if(!user.client || isghostcritter(user)) // stupid monkeys...
+		return
+	if (user.hasStatus("muted") || user.bioHolder?.HasEffect("mute"))
+		boutput(user, SPAN_ALERT("You are unable to speak!"))
+		return
+	var/message = input("What should [src] say?")
+	message = trimtext(copytext(sanitize(html_encode(message)), 1, MAX_MESSAGE_LEN))
+	if (!message || BOUNDS_DIST(src, user) > 0)
+		return
+	phrase_log.log_phrase("plushie", message)
+	logTheThing(LOG_SAY, user, "makes [src] say, \"[message]\"")
+	user.audible_message(SPAN_EMOTE("[src] says, \"[message]\""))
+	if (ishuman(user))
+		var/mob/living/carbon/human/H = user
+		if (H.sims)
+			H.sims.affectMotive("fun", 1)
 
 /obj/item/toy/plush/attack_self(mob/user as mob)
 	src.say_something(user)

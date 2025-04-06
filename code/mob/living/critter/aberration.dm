@@ -29,6 +29,8 @@
 	can_bleed = FALSE
 	metabolizes = FALSE
 	use_stamina = FALSE
+	ailment_immune = TRUE
+	throws_can_hit_me = FALSE
 
 	grabresistmessage = "but their hands pass right through!"
 	death_text = "%src% dissipates!"
@@ -38,12 +40,9 @@
 
 		remove_lifeprocess(/datum/lifeprocess/blood)
 		remove_lifeprocess(/datum/lifeprocess/chems)
-		remove_lifeprocess(/datum/lifeprocess/fire)
 		remove_lifeprocess(/datum/lifeprocess/mutations)
 		remove_lifeprocess(/datum/lifeprocess/organs)
-		remove_lifeprocess(/datum/lifeprocess/skin)
 		remove_lifeprocess(/datum/lifeprocess/stuns_lying)
-		remove_lifeprocess(/datum/lifeprocess/viruses)
 		remove_lifeprocess(/datum/lifeprocess/blindness)
 		remove_lifeprocess(/datum/lifeprocess/radiation)
 
@@ -84,7 +83,7 @@
 			return
 		M.visible_message(SPAN_COMBAT("<b>[M] shocks the [src.name] with [I]!</b>"),
 			SPAN_COMBAT("<b>While your baton passes through, the [src.name] appears damaged!</b>"))
-		M.lastattacked = src
+		M.lastattacked = get_weakref(src)
 		B.process_charges(-1, M)
 
 		src.hurt(50)
@@ -141,6 +140,7 @@
 		return FALSE
 
 /datum/limb/aberration_field
+	can_beat_up_robots = TRUE
 
 	harm(mob/living/target, mob/living/user)
 		if (GET_COOLDOWN(user, "envelop_attack"))

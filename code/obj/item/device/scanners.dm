@@ -12,14 +12,13 @@ Contains:
 //////////////////////////////////////////////// T-ray scanner //////////////////////////////////
 
 TYPEINFO(/obj/item/device/t_scanner)
-	mats = list("CRY-1", "CON-1")
-
+	mats = list("crystal" = 1,
+				"conductive" = 1)
 /obj/item/device/t_scanner
 	name = "T-ray scanner"
 	desc = "A tuneable terahertz-ray emitter and scanner used to detect underfloor objects such as cables and pipes."
 	icon_state = "t-ray0"
 	var/on = FALSE
-	flags = FPRINT | TABLEPASS
 	c_flags = ONBELT
 	w_class = W_CLASS_SMALL
 	item_state = "electronic"
@@ -41,6 +40,10 @@ TYPEINFO(/obj/item/device/t_scanner)
 		for(var/actionType in childrentypesof(/datum/contextAction/t_scanner)) //see context_actions.dm
 			var/datum/contextAction/t_scanner/action = new actionType(src)
 			actions += action
+
+	dropped(mob/user)
+		. = ..()
+		user?.closeContextActions()
 
 	/// Update the inventory, ability, and context buttons
 	proc/set_on(new_on, mob/user=null)
@@ -198,7 +201,7 @@ TYPEINFO(/obj/item/device/detective_scanner)
 	icon_state = "fs"
 	w_class = W_CLASS_SMALL // PDA fits in a pocket, so why not the dedicated scanner (Convair880)?
 	item_state = "electronic"
-	flags = FPRINT | TABLEPASS | CONDUCT | SUPPRESSATTACK
+	flags = TABLEPASS | CONDUCT | SUPPRESSATTACK
 	c_flags = ONBELT
 	hide_attack = ATTACK_PARTIALLY_HIDDEN
 	var/active = 0
@@ -339,7 +342,7 @@ TYPEINFO(/obj/item/device/analyzer/healthanalyzer)
 	inhand_image_icon = 'icons/mob/inhand/hand_medical.dmi'
 	item_state = "healthanalyzer-no_up" // someone made this sprite and then this was never changed to it for some reason???
 	desc = "A hand-held body scanner able to distinguish vital signs of the subject."
-	flags = FPRINT | TABLEPASS | CONDUCT
+	flags = TABLEPASS | CONDUCT
 	c_flags = ONBELT
 	throwforce = 3
 	w_class = W_CLASS_TINY
@@ -465,7 +468,7 @@ TYPEINFO(/obj/item/device/analyzer/healthanalyzer_upgrade)
 	name = "health analyzer upgrade"
 	desc = "A small upgrade card that allows standard health analyzers to detect reagents present in the patient, and ProDoc Healthgoggles to scan patients' health from a distance."
 	icon_state = "health_upgr"
-	flags = FPRINT | TABLEPASS | CONDUCT
+	flags = TABLEPASS | CONDUCT
 	throwforce = 0
 	w_class = W_CLASS_TINY
 	throw_speed = 5
@@ -478,7 +481,7 @@ TYPEINFO(/obj/item/device/analyzer/healthanalyzer_organ_upgrade)
 	name = "health analyzer organ scan upgrade"
 	desc = "A small upgrade card that allows standard health analyzers to detect the health of induvidual organs in the patient."
 	icon_state = "organ_health_upgr"
-	flags = FPRINT | TABLEPASS | CONDUCT
+	flags = TABLEPASS | CONDUCT
 	throwforce = 0
 	w_class = W_CLASS_TINY
 	throw_speed = 5
@@ -495,7 +498,7 @@ TYPEINFO(/obj/item/device/reagentscanner)
 	inhand_image_icon = 'icons/mob/inhand/hand_medical.dmi'
 	item_state = "reagentscan"
 	desc = "A hand-held device that scans and lists the chemicals inside the scanned subject."
-	flags = FPRINT | TABLEPASS | CONDUCT
+	flags = TABLEPASS | CONDUCT
 	c_flags = ONBELT
 	throwforce = 3
 	w_class = W_CLASS_TINY
@@ -510,6 +513,9 @@ TYPEINFO(/obj/item/device/reagentscanner)
 		return
 
 	afterattack(atom/A as mob|obj|turf|area, mob/user as mob)
+		if(istype(A, /obj/machinery/photocopier))
+			return // Upload scan results to the photocopier without scanning the photocopier itself
+
 		user.visible_message(SPAN_NOTICE("<b>[user]</b> scans [A] with [src]!"),\
 		SPAN_NOTICE("You scan [A] with [src]!"))
 
@@ -527,9 +533,14 @@ TYPEINFO(/obj/item/device/reagentscanner)
 		if (isnull(src.scan_results))
 			boutput(user, SPAN_ALERT("\The [src] encounters an error and crashes!"))
 		else
-			boutput(user, "[src.scan_results]")
+			var/scan_output = "[src.scan_results]"
+			if (user.traitHolder.hasTrait("training_bartender"))
+				var/eth_eq = get_ethanol_equivalent(user, A.reagents)
+				if (eth_eq)
+					scan_output += "<br> [SPAN_REGULAR("You estimate there's the equivalent of <b>[eth_eq] units of ethanol</b> here.")]"
+			boutput(user, scan_output)
 
-	attack_self(mob/user as mob)
+	attack_self(mob/user as mob) // no eth_eq here cuz then we'd have to save how the reagent container used to be
 		if (isnull(src.scan_results))
 			boutput(user, SPAN_NOTICE("No previous scan results located."))
 			return
@@ -551,7 +562,7 @@ TYPEINFO(/obj/item/device/analyzer/atmospheric)
 	icon_state = "atmos-no_up"
 	item_state = "analyzer"
 	w_class = W_CLASS_SMALL
-	flags = FPRINT | TABLEPASS | CONDUCT
+	flags = TABLEPASS | CONDUCT
 	c_flags = ONBELT
 	throwforce = 5
 	w_class = W_CLASS_SMALL
@@ -681,7 +692,7 @@ TYPEINFO(/obj/item/device/analyzer/atmosanalyzer_upgrade)
 	name = "atmospherics analyzer upgrade"
 	desc = "A small upgrade card that allows standard atmospherics analyzers to detect environmental information at a distance."
 	icon_state = "atmos_upgr" // add this
-	flags = FPRINT | TABLEPASS | CONDUCT
+	flags = TABLEPASS | CONDUCT
 	throwforce = 0
 	w_class = W_CLASS_TINY
 	throw_speed = 5
@@ -721,7 +732,6 @@ TYPEINFO(/obj/item/device/analyzer/atmosanalyzer_upgrade)
 			var/obj/item/device/analyzer/atmospheric/a = src
 			a.analyzer_upgrade = 1
 			a.icon_state = "atmos"
-			a.item_state = "atmosphericnalyzer"
 
 		else
 			boutput(user, SPAN_ALERT("That cartridge won't fit in there!"))
@@ -744,16 +754,17 @@ TYPEINFO(/obj/item/device/prisoner_scanner)
 	var/datum/db_record/active1 = null
 	var/datum/db_record/active2 = null
 	item_state = "recordtrak"
-	flags = FPRINT | TABLEPASS | CONDUCT | EXTRADELAY
+	flags = TABLEPASS | CONDUCT | EXTRADELAY
 	c_flags = ONBELT
 
 	#define PRISONER_MODE_NONE 1
 	#define PRISONER_MODE_PAROLED 2
 	#define PRISONER_MODE_RELEASED 3
 	#define PRISONER_MODE_INCARCERATED 4
+	#define PRISONER_MODE_SUSPECT 5
 
 	///List of record settings
-	var/static/list/modes = list(PRISONER_MODE_NONE, PRISONER_MODE_PAROLED, PRISONER_MODE_INCARCERATED, PRISONER_MODE_RELEASED)
+	var/static/list/modes = list(PRISONER_MODE_NONE, PRISONER_MODE_PAROLED, PRISONER_MODE_INCARCERATED, PRISONER_MODE_RELEASED, PRISONER_MODE_SUSPECT)
 	///The current setting
 	var/mode = PRISONER_MODE_NONE
 	/// The sechud flag that will be applied when scanning someone
@@ -780,6 +791,8 @@ TYPEINFO(/obj/item/device/prisoner_scanner)
 			mode_string = "Released"
 		else if (src.mode == PRISONER_MODE_INCARCERATED)
 			mode_string = "Incarcerated"
+		else if (src.mode == PRISONER_MODE_SUSPECT)
+			mode_string = "Suspect"
 
 		. += "<br>Arrest mode: [SPAN_NOTICE("[mode_string]")]"
 		if (sechud_flag != initial(src.sechud_flag))
@@ -832,41 +845,60 @@ TYPEINFO(/obj/item/device/prisoner_scanner)
 			src.active1["p_stat"] = "Active"
 			src.active1["m_stat"] = "Stable"
 			data_core.general.add_record(src.active1)
-			found = 0
+
+			// Bank Records
+			var/bank_record = new/datum/db_record()
+			bank_record["name"] = src.active1["name"]
+			bank_record["id"] = src.active1["id"]
+			bank_record["current_money"] = 0
+			bank_record["wage"] = 0
+			bank_record["notes"] = "No notes."
+			if(istype(target.wear_id, /obj/item/device/pda2))
+				var/obj/item/device/pda2/worn_pda = target.wear_id
+				bank_record["pda_net_id"] = worn_pda.net_id
+			data_core.bank.add_record(bank_record)
 
 		////Security Records
 		var/datum/db_record/E = data_core.security.find_record("name", src.active1["name"])
 		if(E)
 			switch (mode)
 				if(PRISONER_MODE_NONE)
-					E["criminal"] = "None"
+					E["criminal"] = ARREST_STATE_NONE
 
 				if(PRISONER_MODE_PAROLED)
-					E["criminal"] = "Parolled"
+					E["criminal"] = ARREST_STATE_PAROLE
 
 				if(PRISONER_MODE_RELEASED)
-					E["criminal"] = "Released"
+					E["criminal"] = ARREST_STATE_RELEASED
 
 				if(PRISONER_MODE_INCARCERATED)
-					E["criminal"] = "Incarcerated"
+					E["criminal"] = ARREST_STATE_INCARCERATED
+
+				if(PRISONER_MODE_SUSPECT)
+					E["criminal"] = ARREST_STATE_SUSPECT
 			E["sec_flag"] = src.sechud_flag
+			target.update_arrest_icon()
 			return
+
 
 		src.active2 = new /datum/db_record()
 		src.active2["name"] = src.active1["name"]
 		src.active2["id"] = src.active1["id"]
 		switch (mode)
 			if(PRISONER_MODE_NONE)
-				src.active2["criminal"] = "None"
+				src.active2["criminal"] = ARREST_STATE_ARREST
 
 			if(PRISONER_MODE_PAROLED)
-				src.active2["criminal"] = "Parolled"
+				src.active2["criminal"] = ARREST_STATE_PAROLE
 
 			if(PRISONER_MODE_RELEASED)
-				src.active2["criminal"] = "Released"
+				src.active2["criminal"] = ARREST_STATE_RELEASED
 
 			if(PRISONER_MODE_INCARCERATED)
-				src.active2["criminal"] = "Incarcerated"
+				src.active2["criminal"] = ARREST_STATE_INCARCERATED
+
+			if(PRISONER_MODE_SUSPECT)
+				src.active2["criminal"] = ARREST_STATE_SUSPECT
 
 		src.active2["sec_flag"] = src.sechud_flag
 		src.active2["mi_crim"] = "None"
@@ -875,6 +907,8 @@ TYPEINFO(/obj/item/device/prisoner_scanner)
 		src.active2["ma_crim_d"] = "No major crime convictions."
 		src.active2["notes"] = "No notes."
 		data_core.security.add_record(src.active2)
+
+		target.update_arrest_icon()
 
 		return
 
@@ -903,6 +937,9 @@ TYPEINFO(/obj/item/device/prisoner_scanner)
 
 				if(PRISONER_MODE_INCARCERATED)
 					boutput(user, SPAN_NOTICE("you switch the record mode to Incarcerated."))
+
+				if(PRISONER_MODE_SUSPECT)
+					boutput(user, SPAN_NOTICE("you switch the record mode to Suspect."))
 
 		add_fingerprint(user)
 		return
@@ -949,6 +986,10 @@ TYPEINFO(/obj/item/device/prisoner_scanner)
 		name = "Released"
 		icon_state = "released"
 		mode = PRISONER_MODE_RELEASED
+	suspect
+		name = "Suspect"
+		icon_state = "suspect"
+		mode = PRISONER_MODE_SUSPECT
 	none
 		name = "None"
 		icon_state = "none"
@@ -958,6 +999,7 @@ TYPEINFO(/obj/item/device/prisoner_scanner)
 #undef PRISONER_MODE_PAROLED
 #undef PRISONER_MODE_RELEASED
 #undef PRISONER_MODE_INCARCERATED
+#undef PRISONER_MODE_SUSPECT
 
 /obj/item/device/ticket_writer
 	name = "security TicketWriter 2000"
@@ -966,8 +1008,9 @@ TYPEINFO(/obj/item/device/prisoner_scanner)
 	item_state = "electronic"
 	w_class = W_CLASS_SMALL
 
-	flags = FPRINT | TABLEPASS | CONDUCT
+	flags = TABLEPASS | CONDUCT
 	c_flags = ONBELT
+	var/paper_icon_state = "paper_caution"
 
 	attack_self(mob/user)
 		var/menuchoice = tgui_alert(user, "What would you like to do?", "Ticket writer", list("Ticket", "Nothing"))
@@ -986,17 +1029,17 @@ TYPEINFO(/obj/item/device/prisoner_scanner)
 		else if (issilicon(user))
 			var/mob/living/silicon/S = user
 			I = S.botcard
-		if (!I || !(access_security in I.access))
+		if (!I || !(access_ticket in I.access))
 			boutput(user, SPAN_ALERT("Insufficient access."))
 			return
 		playsound(src, 'sound/machines/keyboard3.ogg', 30, TRUE)
 		var/issuer = I.registered
 		var/issuer_job = I.assignment
-		var/ticket_target = input(user, "Ticket recipient:", "Recipient", "Ticket Recipient") as text
+		var/ticket_target = input(user, "Ticket recipient:", "Recipient", "Ticket Recipient") as text | null
 		if (!ticket_target)
 			return
 		ticket_target = copytext(sanitize(html_encode(ticket_target)), 1, MAX_MESSAGE_LEN)
-		var/ticket_reason = input(user, "Ticket reason:", "Reason") as text
+		var/ticket_reason = input(user, "Ticket reason:", "Reason") as text | null
 		if (!ticket_reason)
 			return
 		ticket_reason = copytext(sanitize(html_encode(ticket_reason)), 1, MAX_MESSAGE_LEN)
@@ -1020,12 +1063,14 @@ TYPEINFO(/obj/item/device/prisoner_scanner)
 			user.put_in_hand_or_drop(p)
 			p.name = "Official Caution - [ticket_target]"
 			p.info = ticket_text
-			p.icon_state = "paper_caution"
+			p.icon_state = src.paper_icon_state
 
 		return T.target_byond_key
 
-
-
+/obj/item/device/ticket_writer/crust
+	name = "crusty old security TicketWriter 1000"
+	desc = "An old TicketWriter model held together by hopes and dreams alone."
+	paper_icon_state = "paper_burned"
 
 TYPEINFO(/obj/item/device/appraisal)
 	mats = 5
@@ -1033,7 +1078,6 @@ TYPEINFO(/obj/item/device/appraisal)
 /obj/item/device/appraisal
 	name = "cargo appraiser"
 	desc = "Handheld scanner hooked up to Cargo's market computers. Estimates sale value of various items."
-	flags = FPRINT | TABLEPASS
 	c_flags = ONBELT
 	w_class = W_CLASS_SMALL
 	m_amt = 150
@@ -1128,9 +1172,10 @@ TYPEINFO(/obj/item/device/appraisal)
 			var/image/chat_maptext/chat_text = null
 			var/popup_text = "<span class='ol c pixel'[sell_value == 0 ? " style='color: #bbbbbb;'>No value" : ">[round(sell_value)][CREDIT_SIGN]"]</span>"
 			chat_text = make_chat_maptext(A, popup_text, alpha = 180, force = 1, time = 1.5 SECONDS)
-			// many of the artifacts are upside down and stuff, it makes text a bit hard to read!
-			chat_text.appearance_flags = RESET_TRANSFORM | RESET_COLOR | RESET_ALPHA | PIXEL_SCALE
+
 			if (chat_text)
+				// many of the artifacts are upside down and stuff, it makes text a bit hard to read!
+				chat_text.appearance_flags = RESET_TRANSFORM | RESET_COLOR | RESET_ALPHA | PIXEL_SCALE
 				// don't bother bumping up other things
 				chat_text.show_to(user.client)
 

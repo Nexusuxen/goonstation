@@ -4,14 +4,21 @@
 #define SMESMAXCHARGELEVEL 200000
 #define SMESMAXOUTPUT 200000
 
+TYPEINFO(/obj/machinery/power/smes/magical)
+	mats = null
 /obj/machinery/power/smes/magical
 	name = "magical power storage unit"
 	desc = "A high-capacity superconducting magnetic energy storage (SMES) unit. Magically produces power, using magic."
+	deconstruct_flags = DECON_NONE
 	process()
 		capacity = INFINITY
 		charge = INFINITY
 		..()
 
+TYPEINFO(/obj/machinery/power/smes)
+	mats = list("metal" = 40,
+				"conductive_high" = 30,
+				"energy_extreme" = 30)
 /obj/machinery/power/smes
 	name = "Dianmu power storage unit"
 	desc = "The XIANG|GIESEL model '電母' high-capacity superconducting magnetic energy storage (SMES) unit. Acts as a giant capacitor for facility power grids, soaking up extra power or dishing it out."
@@ -19,6 +26,7 @@
 	density = 1
 	anchored = ANCHORED
 	requires_power = FALSE
+	deconstruct_flags = DECON_SCREWDRIVER | DECON_WRENCH | DECON_MULTITOOL | DECON_CROWBAR | DECON_WELDER
 	var/output = 30000
 	var/lastout = 0
 	var/loaddemand = 0
@@ -74,6 +82,12 @@
 						terminal = term
 						break dir_loop
 
+		AddComponent(/datum/component/mechanics_holder)
+		SEND_SIGNAL(src,COMSIG_MECHCOMP_ADD_INPUT,"Toggle Power Input", PROC_REF(_toggle_input_mechchomp))
+		SEND_SIGNAL(src,COMSIG_MECHCOMP_ADD_INPUT,"Set Power Input", PROC_REF(_set_input_mechchomp))
+		SEND_SIGNAL(src,COMSIG_MECHCOMP_ADD_INPUT,"Togle Power Output", PROC_REF(_toggle_output_mechchomp))
+		SEND_SIGNAL(src,COMSIG_MECHCOMP_ADD_INPUT,"Set Power Output", PROC_REF(_set_output_mechchomp))
+
 		if (!terminal)
 			status |= BROKEN
 			return
@@ -110,6 +124,28 @@
 /obj/machinery/power/smes/proc/chargedisplay()
 	return round(5.5*charge/capacity)
 
+/obj/machinery/power/smes/proc/_toggle_input_mechchomp()
+	src.chargemode = !src.chargemode
+	if (!chargemode)
+		charging = 0
+	src.UpdateIcon()
+
+/obj/machinery/power/smes/proc/_set_input_mechchomp(var/datum/mechanicsMessage/inp)
+	if(!length(inp.signal)) return
+	var/newinput = text2num(inp.signal)
+	if(newinput != src.chargelevel && isnum_safe(newinput))
+		src.chargelevel = clamp((newinput), 0 , SMESMAXCHARGELEVEL)
+
+/obj/machinery/power/smes/proc/_toggle_output_mechchomp()
+	src.online = !src.online
+	src.UpdateIcon()
+
+/obj/machinery/power/smes/proc/_set_output_mechchomp(var/datum/mechanicsMessage/inp)
+	if(!length(inp.signal)) return
+	var/newoutput = text2num(inp.signal)
+	if(newoutput != src.output && isnum_safe(newoutput))
+		src.output = clamp((newoutput), 0 , SMESMAXCHARGELEVEL)
+
 /obj/machinery/power/smes/process(mult)
 
 	if (status & BROKEN)
@@ -143,6 +179,7 @@
 	if (last_disp != chargedisplay() || last_chrg != charging || last_onln != online)
 		UpdateIcon()
 
+	SEND_SIGNAL(src,COMSIG_MECHCOMP_TRANSMIT_SIGNAL, "output=[src.output]&outputting=[src.online]&charge=[src.chargelevel]&charging=[src.chargemode]")
 	src.updateDialog()
 
 /obj/machinery/power/smes/proc/charge(mult)
@@ -275,12 +312,6 @@
 			else if(text2num_safe(target) != null) //set by drag
 				src.output = clamp(text2num_safe(target), 0 , SMESMAXOUTPUT)
 				. = TRUE
-
-/proc/rate_control(var/S, var/V, var/C, var/Min=1, var/Max=5, var/Limit=null)
-	var/href = "<A href='?src=\ref[S];rate control=1;[V]"
-	var/rate = "[href]=-[Max]'>-</A>[href]=-[Min]'>-</A> [(C?C : 0)] [href]=[Min]'>+</A>[href]=[Max]'>+</A>"
-	if (Limit) return "[href]=-[Limit]'>-</A>"+rate+"[href]=[Limit]'>+</A>"
-	return rate
 
 /obj/machinery/power/smes/smart
 	name = "Dianmu smart power storage unit"

@@ -94,7 +94,7 @@ var/global/obj/fuckyou/flashDummy
 	O.set_loc(target)
 	playsound(target, 'sound/effects/elec_bigzap.ogg', volume, 1)
 
-	var/list/affected = DrawLine(from, O, /obj/line_obj/elec ,'icons/obj/projectiles.dmi',"WholeLghtn",1,1,"HalfStartLghtn","HalfEndLghtn",OBJ_LAYER,1,PreloadedIcon='icons/effects/LghtLine.dmi')
+	var/list/affected = drawLineObj(from, O, /obj/line_obj/elec ,'icons/obj/projectiles.dmi',"WholeLghtn",1,1,"HalfStartLghtn","HalfEndLghtn",OBJ_LAYER,1,PreloadedIcon='icons/effects/LghtLine.dmi')
 
 	for(var/obj/Q in affected)
 		SPAWN(0.6 SECONDS) qdel(Q)
@@ -124,7 +124,7 @@ var/global/obj/fuckyou/flashDummy
 		O.set_loc(target)
 		target_r = O
 	if(wattage && isliving(target)) //Grilles can reroute arcflashes
-		for(var/obj/grille/L in range(target,1)) // check for nearby grilles
+		for(var/obj/mesh/grille/L in range(target,1)) // check for nearby grilles
 			var/arcprob = L.material?.getProperty("electrical") >= 6 ? 60 : 30
 			if(!L.ruined && L.anchored)
 				if (prob(arcprob) && L.get_connection()) // hopefully half the default is low enough
@@ -134,7 +134,7 @@ var/global/obj/fuckyou/flashDummy
 
 	playsound(target, 'sound/effects/elec_bigzap.ogg', 30, TRUE)
 
-	var/list/affected = DrawLine(from, target_r, /obj/line_obj/elec ,'icons/obj/projectiles.dmi',"WholeLghtn",1,1,"HalfStartLghtn","HalfEndLghtn",OBJ_LAYER,1,PreloadedIcon='icons/effects/LghtLine.dmi')
+	var/list/affected = drawLineObj(from, target_r, /obj/line_obj/elec ,'icons/obj/projectiles.dmi',"WholeLghtn",1,1,"HalfStartLghtn","HalfEndLghtn",OBJ_LAYER,1,PreloadedIcon='icons/effects/LghtLine.dmi')
 
 	for(var/obj/O in affected)
 		SPAWN(0.6 SECONDS) qdel(O)
@@ -142,9 +142,9 @@ var/global/obj/fuckyou/flashDummy
 	if(wattage && isliving(target)) //Probably unsafe.
 		target:shock(from, wattage, "chest", stun_coeff, 1)
 	if (isobj(target))
-		if(wattage && istype(target, /obj/grille))
-			var/obj/grille/G = target
-			G.lightningrod(wattage)
+		if(wattage && istype(target, /obj/mesh/grille))
+			var/obj/mesh/grille/G = target
+			G.on_arcflash(wattage)
 	var/elecflashpower = 0
 	if (wattage > 12000)
 		elecflashpower = 6
@@ -366,29 +366,26 @@ proc/castRay(var/atom/A, var/Angle, var/Distance) //Adapted from some forum stuf
 /proc/map_numbers(var/x, var/in_min, var/in_max, var/out_min, var/out_max)
 	. = ((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min)
 
+/// Adds zeroes to the beginning of a string until it reaches the desired length
 /proc/add_zero(text, desired_length)
-	text = "[text]" // ensure it's a string
-	if ((desired_length - length(text)) <= 0)
-		return text
-	return (num2text(0, desired_length - length(text), 10) + text)
+	. = "[text]" // We stringify this because the input might be a number
+	if ((desired_length - length(.)) <= 0)
+		return .
+	return (num2text(0, desired_length - length(.), 10) + .)
 
-/proc/add_lspace(t, u)
-	// why????? because if you pass this a number,
-	// then -- surprise -- length(t) is ZERO. because it's not text.
-	// so step one is to just. do that.
-	// *scream *scream *scream *scream *scream *scream *scream *scream *scream
-	// *scream *scream *scream *scream *scream *scream *scream *scream *scream
-	// *scream *scream *scream *scream *scream *scream *scream *scream *scream
-	t = "[t]"
-	while(length(t) < u)
-		t = " [t]"
-	. = t
+/// Adds `char` ahead of `text` until it reaches `length` characters total
+/proc/pad_leading(text, length, char = " ")
+	. = "[text]" // We stringify this because the input might be a number
+	var/count = length - length_char(.)
+	var/list/chars_to_add[max(count + 1, 0)]
+	return jointext(chars_to_add, char) + .
 
-/proc/add_tspace(t, u)
-	t = "[t]"
-	while(length(t) < u)
-		t = "[t] "
-	. = t
+/// Adds `char` after `text` until it reaches `length` characters total
+/proc/pad_trailing(text, length, char = " ")
+	. = "[text]" // We stringify this because the input might be a number
+	var/count = length - length_char(.)
+	var/list/chars_to_add[max(count + 1, 0)]
+	return . + jointext(chars_to_add, char)
 
 /proc/dd_file2list(file_path, separator, can_escape=0)
 	if(separator == null)
@@ -454,7 +451,7 @@ proc/castRay(var/atom/A, var/Angle, var/Distance) //Adapted from some forum stuf
 		else if(delta % 2)
 			. = " " + message
 		delta--
-		var/spaces = add_lspace("",delta/2-1)
+		var/spaces = pad_leading("",delta/2-1)
 		. = spaces + . + spaces
 
 /proc/dd_limittext(message, length)
@@ -465,12 +462,12 @@ proc/castRay(var/atom/A, var/Angle, var/Distance) //Adapted from some forum stuf
 		.= copytext(message, 1, length + 1)
 
 /**
-	* Returns the given degree converted to a text string in the form of a direction
-	*/
-/proc/angle2text(var/degree)
+ * Returns the given degree converted to a text string in the form of a direction
+ */
+/proc/angle2text(degree)
 	. = dir2text(angle2dir(degree))
 
-/proc/text_input(var/Message, var/Title, var/Default, var/length=MAX_MESSAGE_LEN)
+/proc/text_input(Message, Title, var/Default, var/length=MAX_MESSAGE_LEN)
 	. = sanitize(tgui_input_text(usr, Message, Title, Default), length)
 
 /proc/scrubbed_input(var/user, var/Message, var/Title, var/Default, var/length=MAX_MESSAGE_LEN)
@@ -614,15 +611,15 @@ proc/castRay(var/atom/A, var/Angle, var/Distance) //Adapted from some forum stuf
 			. += T
 
 /**
-	* Returns true if the given key is a guest key
-	*/
+ * Returns true if the given key is a guest key
+ */
 /proc/IsGuestKey(key)
 	. = lowertext(copytext(key, 1, 7)) == "guest-"
 
 
 /**
-	* Returns f, ensured that it's a valid frequency
-	*/
+ * Returns f, ensured that it's a valid frequency
+ */
 /proc/sanitize_frequency(var/f)
 	. = round(f)
 	. = clamp(., R_FREQ_MINIMUM, R_FREQ_MAXIMUM) // 144.1 -148.9
@@ -845,11 +842,11 @@ proc/castRay(var/atom/A, var/Angle, var/Distance) //Adapted from some forum stuf
 
 		// Note diagonal directions won't usually be accurate
 	if(direction & NORTH)
-		target = locate(target.x, world.maxy-1, target.z)
+		target = locate(target.x, world.maxy, target.z)
 	if(direction & SOUTH)
 		target = locate(target.x, 1, target.z)
 	if(direction & EAST)
-		target = locate(world.maxx-1, target.y, target.z)
+		target = locate(world.maxx, target.y, target.z)
 	if(direction & WEST)
 		target = locate(1, target.y, target.z)
 
@@ -925,7 +922,7 @@ proc/get_adjacent_floor(atom/W, mob/user, px, py)
 
 
 // extends pick() to associated lists
-/proc/alist_pick(var/list/L)
+/proc/alist_pick(list/L)
 	if(!L || !length(L))
 		return null
 	return L[pick(L)]
@@ -999,14 +996,18 @@ proc/get_adjacent_floor(atom/W, mob/user, px, py)
 		chars[i] = "*"
 	return sanitize(jointext(chars, ""))
 
-/proc/stutter(n)
-	var/te = html_decode(n)
-	var/t = ""
-	n = length(n)
-	var/p = null
-	p = 1
-	while(p <= n)
-		var/n_letter = copytext(te, p, p + 1)
+/proc/stutter(text)
+	text = html_decode(text)
+	var/output = ""
+	var/length = length(text)
+	var/pos = null
+	pos = 1
+	while(pos <= length)
+		var/n_letter = copytext(text, pos, pos + 1)
+		if (text2num(n_letter))
+			output += n_letter
+			pos++
+			continue
 		if (prob(80))
 			if (prob(10))
 				n_letter = "[n_letter][n_letter][n_letter][n_letter]"
@@ -1018,9 +1019,9 @@ proc/get_adjacent_floor(atom/W, mob/user, px, py)
 						n_letter = n_letter
 					else
 						n_letter = "[n_letter][n_letter]"
-		t = "[t][n_letter]"
-		p++
-	return copytext(sanitize(t),1,MAX_MESSAGE_LEN)
+		output = "[output][n_letter]"
+		pos++
+	return copytext(sanitize(output), 1, MAX_MESSAGE_LEN)
 
 /proc/shake_camera(mob/M, duration, strength=1, delay=0.4)
 	if(!M || !M.client)
@@ -1134,8 +1135,8 @@ proc/get_adjacent_floor(atom/W, mob/user, px, py)
 			O.hear_talk(M,text,real_name, lang_id)
 
 /**
-  * Returns true if given value is a hex value
-  */
+ * Returns true if given value is a hex value
+ */
 /proc/is_hex(hex)
 	if (!( istext(hex) ))
 		return FALSE
@@ -1224,7 +1225,7 @@ proc/outermost_movable(atom/movable/target)
 				var/mob/living/carbon/human/H = A
 				if (H.organHolder.head?.head_type == HEAD_SKELETON) // do they have their head
 					. += A
-			else
+			else if(!isAIeye(A)) // AI camera eyes can't hear
 				. += A
 		if (isobj(A) || ismob(A))
 			if (istype(A, /obj/item/organ/head))	//Skeletons can hear from their heads!
@@ -1257,6 +1258,8 @@ proc/outermost_movable(atom/movable/target)
 	if(T?.vistarget)
 		// this turf is being shown elsewhere through a visual mirror, make sure they get to hear too
 		. |= all_hearers(range, T.vistarget)
+	for (var/turf/listener as anything in T?.listening_turfs)
+		. |= all_hearers(range, listener)
 
 	for(var/atom/movable/screen/viewport_handler/viewport_handler in T?.vis_locs)
 		if(viewport_handler.listens)
@@ -1291,20 +1294,22 @@ proc/outermost_movable(atom/movable/target)
 			. += M
 
 /proc/weightedprob(choices[], weights[])
-	if(!choices || !weights) return null
-
+	if(!choices || !weights)
+		return null
 	//Build a range of weights
 	var/max_num = 0
-	for(var/X in weights) if(isnum(X)) max_num += X
-
+	for(var/X in weights)
+		if(isnum(X))
+			max_num += X
 	//Now roll in the range.
-	var/weighted_num = rand(1,max_num)
+	var/weighted_num = rand(1, max_num)
 
-	var/running_total, i
+	var/running_total
 
 	//Loop through all possible choices
-	for(i = 1; i <= choices.len; i++)
-		if(i > weights.len) return null
+	for(var/i in 1 to length(choices))
+		if(i > length(weights))
+			return null
 
 		running_total += weights[i]
 
@@ -1313,12 +1318,13 @@ proc/outermost_movable(atom/movable/target)
 		if(weighted_num <= running_total)
 			return choices[i]
 
-/* Get the highest ancestor of this object in the tree that is an immediate child of
-   a given ancestor.
-   Usage:
-   var/datum/fart/sassy/F = new
-   get_top_parent(F, /datum) //returns a path to /datum/fart
-   */
+/**
+ * Get the highest ancestor of this object in the tree that is an immediate child of a given ancestor.
+ *
+ * Usage:
+ * var/datum/fart/sassy/F = new
+ * get_top_parent(F, /datum) //returns a path to /datum/fart
+ */
 /proc/get_top_ancestor(var/datum/object, var/ancestor_of_ancestor=/datum)
 	if(!object || !ancestor_of_ancestor)
 		CRASH("Null value parameters in get top ancestor.")
@@ -1450,7 +1456,7 @@ proc/RarityClassRoll(var/scalemax = 100, var/mod = 0, var/list/category_boundari
 	if (!A || !isnum(size) || size <= 0)
 		return list()
 
-	var/list/turfs = list()
+	. = list()
 	var/turf/center = get_turf(A)
 
 	var/corner_range = round(size * 1.5)
@@ -1465,9 +1471,7 @@ proc/RarityClassRoll(var/scalemax = 100, var/mod = 0, var/list/category_boundari
 				total_distance = abs(center.x - T.x) + abs(center.y - T.y) + (current_range / 2)
 				if (total_distance > corner_range)
 					continue
-				turfs += T
-
-	return turfs
+				. += T
 
 /proc/get_fraction_of_percentage_and_whole(var/perc,var/whole)
 	if (!isnum(perc) || !isnum(whole) || perc == 0 || whole == 0)
@@ -1788,7 +1792,7 @@ proc/countJob(rank)
 					candidates |= M
 					continue
 				SPAWN(0) // Don't lock up the entire proc.
-					M.current.playsound_local(M.current, 'sound/misc/lawnotify.ogg', 50, flags=SOUND_IGNORE_SPACE)
+					M.current.playsound_local(M.current, 'sound/misc/lawnotify.ogg', 50, flags=SOUND_IGNORE_SPACE | SOUND_IGNORE_DEAF)
 					boutput(M.current, text_chat_alert)
 					var/list/ghost_button_prompts = list("Yes", "No", "Stop these")
 					var/response = tgui_alert(M.current, text_alert, "Respawn", ghost_button_prompts, (ghost_timestamp + confirmation_spawn - TIME), autofocus = FALSE)
@@ -1904,6 +1908,8 @@ proc/countJob(rank)
 
 		if (istype(G, /mob/dead/target_observer))
 			var/mob/dead/target_observer/TO = G
+			if (!TO.is_respawnable)
+				return 0
 			if (TO.ghost && istype(TO.ghost, /mob/dead/observer))
 				the_ghost = TO.ghost
 
@@ -1916,7 +1922,7 @@ proc/countJob(rank)
 	return 1
 
 /proc/check_target_immunity(var/atom/target, var/ignore_everything_but_nodamage = FALSE, var/atom/source = 0)
-	var/is_immune = FALSE
+	. = FALSE
 
 	var/area/a = get_area(target)
 	if(a?.sanctuary)
@@ -1924,25 +1930,23 @@ proc/countJob(rank)
 
 	if (isliving(target))
 		var/mob/living/L = target
-
 		if (!isdead(L))
 			if (ignore_everything_but_nodamage)
 				if (L.nodamage)
-					is_immune = TRUE
+					. = TRUE
 			else
 				if (L.nodamage || L.spellshield)
-					is_immune = TRUE
-
-		if (source && istype(source,/obj/projectile) && ishuman(target))
+					. = TRUE
+		if (source && istype(source, /obj/projectile) && ishuman(target))
 			var/mob/living/carbon/human/H = target
 			if(H.stance == "dodge") //matrix dodge flip
-				is_immune = TRUE
-
-	return is_immune
+				if (!ON_COOLDOWN(H, "matrix_sound_effect", 1 SECOND))
+					H.playsound_local(H, 'sound/effects/graffiti_hit.ogg', 40, pitch = 0.8)
+				. = TRUE
 
 /**
-  * Looks up a player based on a string. Searches a shit load of things ~whoa~. Returns a list of mob refs.
-  */
+ * Looks up a player based on a string. Searches a shit load of things ~whoa~. Returns a list of mob refs.
+ */
 /proc/whois(target, limit = null, admin)
 	target = trimtext(ckey(target))
 	if (!target)
@@ -2005,8 +2009,8 @@ proc/countJob(rank)
 				return M
 
 /**
-  * Finds whoever's dead.
-	*/
+ * Finds whoever's dead.
+ */
 /proc/whodead()
 	. = list()
 	for (var/mob/M in mobs)
@@ -2026,12 +2030,13 @@ proc/countJob(rank)
 //A global cooldown on this so it doesnt destroy the external server
 var/global/nextDectalkDelay = 1 //seconds
 var/global/lastDectalkUse = 0
-/proc/dectalk(msg)
+///dectalk SAYS its default volume is 5 but it seems to actually be more like 100
+/proc/dectalk(msg, volume = 80)
 	if (!msg) return 0
 	if (TIME > (lastDectalkUse + (nextDectalkDelay * 10)))
 		lastDectalkUse = TIME
 		msg = copytext(msg, 1, 2000)
-
+		msg = "\[:volume set [volume]\][msg]"
 		var/datum/apiModel/DectalkPlayResource/playDectalkResource
 		try
 			var/datum/apiRoute/dectalk/play/playDectalk = new
@@ -2213,7 +2218,7 @@ proc/copy_datum_vars(var/atom/from, var/atom/target, list/blacklist)
 			if (!strip)
 				special = SPAN_ALERT("[special]")
 
-			role += " \[[special]]"
+			role += " \[[special]\]"
 
 	else
 		role += M.job
@@ -2238,33 +2243,48 @@ proc/copy_datum_vars(var/atom/from, var/atom/target, list/blacklist)
 
 	return FALSE
 
-/// Returns span with a color gradient between two given colors of given message
-proc/gradientText(var/color1, var/color2, message)
-	var/color1hex = hex2num(copytext(color1, 2))
-	var/color2hex = hex2num(copytext(color2, 2))
-	var/r1 = (color1hex >> 16) & 0xFF
-	var/g1 = (color1hex >> 8) & 0xFF
-	var/b1 = color1hex & 0xFF
-	var/dr = ((color2hex >> 16) & 0xFF)- r1
-	var/dg = ((color2hex >> 8) & 0xFF) - g1
-	var/db = (color2hex & 0xFF) - b1
-	var/list/result = new/list()
-	var/n = rand(0,10)/10.0 // what a shitty name for a variable
+/// Repeat a gradient between two colors across text.
+/// Note: This is inaccurate because its a linear transformation, but human eyes do not perceive color this way.
+/proc/gradientText(color_1, color_2, message)
+	var/list/color_list_1 = rgb2num(color_1)
+	var/list/color_list_2 = rgb2num(color_2)
+
+	var/r1 = color_list_1[1]
+	var/g1 = color_list_1[2]
+	var/b1 = color_list_1[3]
+
+	// The difference in value between each color part
+	var/delta_r = color_list_2[1] - r1
+	var/delta_g = color_list_2[2] - g1
+	var/delta_b = color_list_2[3] - b1
+
+	var/list/result = list()
+
+	// Start at a random point between the two, in increments of 0.1
+	var/coeff = rand(0,10) / 10.0
 	var/dir = prob(50) ? -1 : 1
-	for(var/i=1, i<=length(message), i += 3)
-		n += dir * 0.2
+
+	for(var/i in 1 to length(message) step 3)
+		coeff += dir * 0.2
+		// 20% chance to start going in the opposite direction
 		if(prob(20))
-			dir = dir/abs(dir) * -1
-		if(n < 0)
-			n = 0
+			dir = -dir
+
+		// Wrap back around
+		if(coeff < 0)
+			coeff = 0
 			dir = 1
-		if(n > 1)
-			n = 1
+
+		else if(coeff > 1)
+			coeff = 1
 			dir = -1
-		var/col = rgb(r1 + dr*n, g1 + dg*n, b1 + db*n)
-		var/chars = copytext(message, i, i+3)
+
+		var/col = rgb(r1 + delta_r*coeff, g1 + delta_g*coeff, b1 + delta_b*coeff)
+		var/chars = copytext(message, i, i + 3)
 		result += "<span style='color:[col]'>[chars]</span>"
-	. = result.Join()
+
+	. = jointext(result, "")
+
 
 /**
  * Returns given text replaced by nonsense chars, excepting HTML tags, on a 40% or given % basis
@@ -2624,7 +2644,7 @@ proc/message_ghosts(var/message, show_wraith = FALSE)
 
 		if (breathable)
 			var/turf/simulated/T = container.loc
-			if(istype(T) && (T.air?.oxygen <= (MOLES_O2STANDARD - 1) || T.air?.temperature <= T0C || T.air?.temperature >= DEFAULT_LUNG_AIR_TEMP_TOLERANCE_MAX))
+			if(!istype(T) || (T.air?.oxygen <= (MOLES_O2STANDARD - 1) || T.air?.temperature <= T0C || T.air?.temperature >= DEFAULT_LUNG_AIR_TEMP_TOLERANCE_MAX))
 				continue
 
 		if (no_others)
@@ -2720,3 +2740,71 @@ proc/message_ghosts(var/message, show_wraith = FALSE)
 			y_max--
 	}
 	return y_max
+
+/// Returns an html input and a script which allows to toggle elements of a certain class visible or hidden depending what filter the user types in the input.
+proc/search_snippet(var/inputStyle = "", var/inputPlaceholder = "filter packages", var/toggledClass = "supply-package")
+	. = {"<input type="text" id="searchSnippetFilter" style="[inputStyle]" placeholder="[inputPlaceholder]">
+		<script>
+			document.querySelector('#searchSnippetFilter').addEventListener('input', function(event) {
+				var re = new RegExp(event.target.value, "i");
+				rowList = document.querySelectorAll('.[toggledClass]');
+
+				for (var i = 0; i < rowList.length; i++) {
+					rowList\[i\].style.display = rowList\[i\].innerText.match(re) ? '' : 'none';
+				}
+			});
+		</script>"}
+
+//stolen from katana code, turns out blackbody color is quite universal!
+proc/blackbody_color(temperature)
+	var/input = temperature / 100
+
+	var/red
+	if (input <= 66)
+		red = 255
+	else
+		red = input - 60
+		red = 329.698727446 * (red ** -0.1332047592)
+	red = clamp(red, 0, 255)
+
+	var/green
+	if (input <= 66)
+		green = max(0.001, input)
+		green = 99.4708025861 * log(green) - 161.1195681661
+	else
+		green = input - 60
+		green = 288.1221695283 * (green ** -0.0755148492)
+	green = clamp(green, 0, 255)
+
+	var/blue
+	if (input >= 66)
+		blue = 255
+	else
+		if (input <= 19)
+			blue = 0
+		else
+			blue = input - 10
+			blue = 138.5177312231 * log(blue) - 305.0447927307
+	blue = clamp(blue, 0, 255)
+
+	return rgb(red, green, blue)
+
+proc/pick_reagent(mob/user)
+	RETURN_TYPE(/datum/reagent)
+	var/list/reagents_list = list()
+	var/searchFor = input(user, "Look for a part of the reagent ID (or leave blank for all)", "Add reagent") as null|text
+	if(searchFor)
+		for(var/id in global.reagents_cache)
+			if(findtext("[id]", searchFor))
+				reagents_list += id
+	else
+		reagents_list = reagents_cache //you really asked for the 500+ IDs I guess
+
+	if(length(reagents_list) == 1)
+		return global.reagents_cache[reagents_list[1]]
+	else if(length(reagents_list) > 1)
+		var/id = input(user,"Select Reagent:","Reagents",null) as null|anything in reagents_list
+		return global.reagents_cache[id]
+	else
+		user.show_text("No reagents matching that name", "red")
+		return null

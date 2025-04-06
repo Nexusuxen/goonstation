@@ -69,7 +69,8 @@ Custom Books
 	desc = "A condensed guide of job responsibilities and tips for new crewmembers."
 
 	medical
-		name = "Medbay Pocket Guide"
+		name = "Medbay Pocket Guide, Second Edition"
+		desc = "A condensed guide of job responsibilities and tips for new crewmembers."
 		icon_state = "mediguide"
 		file_path = "strings/books/medbay_pocket_guide.txt"
 
@@ -348,13 +349,16 @@ Custom Books
 	examine(mob/user)
 		if (!issilicon(user))
 			. = list("What...what is this? It's written entirely in barcodes or something, cripes. You can't make out ANY of this.")
-			var/mob/living/carbon/jerk = user
+			var/mob/living/carbon/human/jerk = user
 			if (!istype(jerk))
 				return
 
+			jerk.traitHolder?.addTrait("wasitsomethingisaid")
+
 			var/datum/db_record/S = data_core.security.find_record("id", jerk.datacore_id)
-			S?["criminal"] = "*Arrest*"
+			S?["criminal"] = ARREST_STATE_ARREST
 			S?["mi_crim"] = "Reading highly-confidential private information."
+			jerk.update_arrest_icon()
 		else
 			return list("It appears to be heavily encrypted information.")
 
@@ -546,7 +550,8 @@ soon the light of the unwaking will rise and the shining ones will not be prepar
 			else if (!src.book_cover)
 				src.book_cover = "book0"
 			src.icon_state = src.book_cover
-		src.info = "<span style=\"color:[src.ink_color]\">[src.info]</span>"
+		if(!findtext(src.info, "<span style=\"color:[src.ink_color]\">", 1, 50))
+			src.info = "<span style=\"color:[src.ink_color]\">[src.info]</span>"
 
 /obj/item/paper/spaceodyssey
 	name = "strange printout"

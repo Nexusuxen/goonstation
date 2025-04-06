@@ -225,7 +225,7 @@
 			C.assignment = "NT-SO Special Operative"
 			C.name = "[C.registered]'s ID Card ([C.assignment])"
 			var/list/ntso_access = get_all_accesses()
-			ntso_access += access_maxsec // This makes sense, right? They're highly trained and trusted.
+			ntso_access += access_armory // This makes sense, right? They're highly trained and trusted.
 			C.access = ntso_access
 
 		update_clothing()
@@ -254,3 +254,19 @@
 		src.equip_new_if_possible(newunder, SLOT_W_UNIFORM)
 		src.equip_new_if_possible(newbelt, SLOT_BELT)
 		src.equip_new_if_possible(newshoes, SLOT_SHOES)
+
+/mob/living/carbon/human/normal/baller
+	New()
+		. = ..()
+		src.equip_new_if_possible(pick(concrete_typesof(/obj/item/clothing/under/jersey)), SLOT_W_UNIFORM)
+		src.equip_new_if_possible(/obj/item/clothing/shoes/white, SLOT_SHOES) //sneakers or something
+		src.throw_mode_on()
+
+	hitby(obj/item/item, datum/thrown_thing/thr)
+		. = ..()
+		if (!(item in src))
+			return
+		SPAWN(0)
+			src.drop_item(item)
+			item.throw_at(thr.thrown_by, 10, 1, thrown_by = src, thrown_from = get_turf(src))
+			src.throw_mode_on()

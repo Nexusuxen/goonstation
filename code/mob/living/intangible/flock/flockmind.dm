@@ -157,7 +157,7 @@
 	REMOVE_ATOM_PROPERTY(src, PROP_MOB_INVISIBILITY, src)
 	src.icon_state = "blank"
 	src.canmove = FALSE
-	flick("flockmind-death", src)
+	FLICK("flockmind-death", src)
 	src.ghostize()
 	spawn(2 SECONDS) // wait for the animation to finish
 		qdel(src)
@@ -208,7 +208,7 @@
 
 	var/mob/picked = candidates[1]
 
-	message_admins("[picked.key] respawned as a Flocktrace under [src.real_name].")
+	message_admins("[key_name(picked)] respawned as a Flocktrace under [src.real_name].")
 	log_respawn_event(picked.mind, "Flocktrace", src.real_name)
 
 	if (!istype(picked, /mob/dead))

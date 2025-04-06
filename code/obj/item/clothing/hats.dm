@@ -11,7 +11,6 @@
 	wear_layer = MOB_HEAD_LAYER2
 	var/seal_hair = 0 // best variable name I could come up with, if 1 it forms a seal with a suit so no hair can stick out
 	block_vision = 0
-	var/path_prot = 1 // protection from airborne pathogens, multiplier for chance to be infected
 	var/team_num
 	var/blocked_from_petasusaphilic = FALSE //Replacing the global blacklist
 	duration_remove = 1.5 SECONDS
@@ -53,7 +52,7 @@ proc/filter_trait_hats(var/type)
 	item_state = "ogloves"
 
 /obj/item/clothing/head/purple
-	desc = "A knit cap in orange."
+	desc = "A knit cap in purple."
 	icon_state = "purple"
 	item_state = "jgloves"
 
@@ -96,7 +95,6 @@ proc/filter_trait_hats(var/type)
 
 	desc = "This hood protects you from harmful biological contaminants."
 	seal_hair = 1
-	path_prot = 0
 
 	setupProperties()
 		..()
@@ -110,7 +108,7 @@ proc/filter_trait_hats(var/type)
 
 /obj/item/clothing/head/bio_hood/janitor // adhara stuff
 	name = "bio hood"
-	desc = "This hood protects you from harmful biological contaminants. This one has a blue visor."
+	desc = "This hood protects you from harmful biological contaminants. This one has a purple visor."
 	icon_state = "bio_jani"
 	item_state = "bio_jani"
 
@@ -129,7 +127,6 @@ proc/filter_trait_hats(var/type)
 	desc = "Helps protect from vacuum for a short period of time."
 	hides_from_examine = C_EARS|C_MASK|C_GLASSES
 	seal_hair = 1
-	path_prot = 0
 	acid_survival_time = 3 MINUTES
 
 	setupProperties()
@@ -245,7 +242,7 @@ proc/filter_trait_hats(var/type)
 
 	afterattack(atom/target, mob/user as mob)
 		if (src.on && !ismob(target) && target.reagents)
-			boutput(user, SPAN_NOTICE("You heat \the [target.name]"))
+			boutput(user, SPAN_NOTICE("You heat \the [target.name]."))
 			target.reagents.temperature_reagents(4000,10)
 		return
 
@@ -306,15 +303,31 @@ proc/filter_trait_hats(var/type)
 //A robot in disguise, ready to go and spy on everyone for you
 /obj/item/clothing/head/det_hat/folded_scuttlebot
 	blocked_from_petasusaphilic = TRUE
+	item_function_flags = IMMUNE_TO_ACID
+	var/inspector = FALSE
 	desc = "Someone who wears this will look very smart. It looks a bit heavier than it should."
 
-	attack_self(mob/user)
-		boutput(user, "You reach inside the hat and pull out a pair of goggles. The scuttlebot wakes up! Use the goggles on the bot to make it dormant again.")
-		new /mob/living/critter/robotic/scuttlebot(get_turf(src))
-		qdel(src)
+	attack_self (mob/user as mob)
+		if(!(src in user.equipped_list())) //lagspikes can allow a doubleinput here. or something
+			return
+		user.visible_message(SPAN_COMBAT("<b>[user] turns [his_or_her(user)] DetGadget hat into a spiffy scuttlebot!</b>"))
+		var/mob/living/critter/robotic/scuttlebot/S = new /mob/living/critter/robotic/scuttlebot(get_turf(src))
+		if (src.inspector == TRUE)
+			S.make_inspector()
+		S.linked_hat = src
+		user.drop_item()
+		src.set_loc(S)
+		user.update_inhands()
+		return
+
 	setupProperties()
 		..()
 		setProperty("meleeprot_head", 5)
+
+
+	proc/make_inspector()
+		src.inspector = TRUE
+		src.icon_state = "inspector"
 
 //THE ONE AND ONLY.... GO GO GADGET DETECTIVE HAT!!!
 /obj/item/clothing/head/det_hat/gadget
@@ -434,7 +447,9 @@ proc/filter_trait_hats(var/type)
 		return ..()
 
 	attack_self (mob/user as mob)
-		user.visible_message(SPAN_COMBAT("<b>[user] turns [his_or_her(user)] detgadget hat into a spiffy scuttlebot!</b>"))
+		if(!(src in user.equipped_list())) //lagspikes can allow a doubleinput here. or something
+			return
+		user.visible_message(SPAN_COMBAT("<b>[user] turns [his_or_her(user)] DetGadget hat into a spiffy scuttlebot!</b>"))
 		var/mob/living/critter/robotic/scuttlebot/weak/S = new /mob/living/critter/robotic/scuttlebot/weak(get_turf(src))
 		if (src.inspector == TRUE)
 			S.make_inspector()
@@ -465,19 +480,19 @@ proc/filter_trait_hats(var/type)
 
 /obj/item/clothing/head/powdered_wig
 	name = "powdered wig"
-	desc = "A powdered wig"
+	desc = "A judicial-looking wig, covered with a starchy powder to reflect the inner stiffness of those who wear it. Or to make it white."
 	icon_state = "pwig"
 	item_state = "pwig"
 
 /obj/item/clothing/head/that
 	name = "hat"
-	desc = "An stylish looking hat"
+	desc = "A stylish, flat-topped hat often worn as formalwear. Rumored to inhibit lying in those that wear it."
 	icon_state = "tophat"
 	item_state = "that"
 
 /obj/item/clothing/head/that/purple
 	name = "purple hat"
-	desc = "A purple tophat."
+	desc = "A stylish, flat-topped hat often worn as formalwear. This one is a daring shade of purple."
 	icon_state = "ptophat"
 	item_state = "pthat"
 	protective_temperature = 500
@@ -518,6 +533,10 @@ TYPEINFO(/obj/item/clothing/head/that/gold)
 	icon_state = "chef"
 	item_state = "chefhat"
 
+	april_fools
+		icon_state = "chef-alt"
+		item_state = "chefhat-alt"
+
 /obj/item/clothing/head/chefhatpuffy
 	name = "Puffy Chef's Hat"
 	desc = "A chef's toque blanche, pleasantly puffy on top."
@@ -547,17 +566,15 @@ TYPEINFO(/obj/item/clothing/head/that/gold)
 	icon_state = "mailcap"
 	item_state = "mailcap"
 
+	april_fools
+		icon_state = "mailcap-alt"
+		item_state = "mailcap-alt"
+
 /obj/item/clothing/head/chefhattall
     name = "Tall Chef's Hat"
     desc = "Your toque blanche, now at least 50% taller!"
     icon_state = "cheftall"
     item_state = "cheftall"
-
-/obj/item/clothing/head/policecap
-	name = "Police hat"
-	desc = "An old surplus-issue police hat."
-	icon_state = "mailcap"
-	item_state = "mailcap"
 
 /obj/item/clothing/head/plunger
 	name = "plunger"
@@ -947,6 +964,53 @@ TYPEINFO(/obj/item/clothing/head/that/gold)
 		..()
 		src.color = "#FF8800"
 
+/obj/item/clothing/head/beret/dyeable
+	name = "dyeable beret"
+	desc = "Can be dyed with hair dye. Obviously."
+	icon_state = "beret_base"
+	item_state = "dye_beret"
+	///Associative list of hex color to patent number
+	var/static/list/copyrighted_colors = list(
+		"#2E53C1" = "23582938", //NT beret
+		"#B52D12" = "94568293", //hos beret
+		"#971CA5" = "83482372", //janitor beret
+	)
+
+	New()
+		..()
+		src.color = "#FFFFFF"
+
+	attackby(obj/item/dye_bottle/W, mob/user)
+		if (istype(W) && W.uses_left)
+			W.use_dye()
+			for (var/color in src.copyrighted_colors)
+				if (color_dist(color, W.customization_first_color) < 5000) //arbitrary threshold
+					boutput(user, SPAN_NOTICE("Patent infringement attempt detected! This color infringes NT beret patent #[src.copyrighted_colors[color]]."))
+					boutput(user, SPAN_ALERT("[src] burns your fingers as its anti patent infringement fabric boils off the dye!"))
+					if (src in user.contents)
+						user.drop_item(src, FALSE)
+					random_burn_damage(user, 2)
+					playsound(user.loc, 'sound/impact_sounds/burn_sizzle.ogg', 40, 1)
+					user.add_karma(-2)
+					return
+			src.color = W.customization_first_color
+			src.UpdateIcon()
+			var/mob/wearer = src.loc
+			if (istype(wearer))
+				wearer.update_clothing()
+			user.visible_message(SPAN_ALERT("<b>[user]</b> splashes dye on [user != wearer && ismob(wearer) ? "[wearer]'s" : his_or_her(user)] beret."))
+			return
+		. = ..()
+
+/obj/item/clothing/head/beret/syndicate
+	name = "syndicate beret"
+	desc = "A dastardly beret for only the most cunning of operatives."
+	icon_state = "syndieberet"
+
+	New()
+		..()
+		src.color = null
+
 /obj/item/clothing/head/bandana
 	name = "bandana"
 	desc = "A bandana. You've seen space action stars wear these things."
@@ -1064,9 +1128,12 @@ TYPEINFO(/obj/item/clothing/head/that/gold)
 
 		// Guess what? you wear the hat, you go to jail. Easy Peasy.
 		var/datum/db_record/S = data_core.security.find_record("id", user.datacore_id)
-		S?["criminal"] = "*Arrest*"
+		S?["criminal"] = ARREST_STATE_ARREST
 		S?["ma_crim"] = pick("Being unstoppable","Swagging out so hard","Stylin on \'em","Puttin\' in work")
 		S?["ma_crim_d"] = pick("Convicted Badass, to the bone.","Certified Turbonerd, home-grown.","Absolute Salad.","King of crimes, Queen of Flexxin\'")
+		var/mob/living/carbon/human/H = user
+		if (istype(H))
+			H.update_arrest_icon()
 
 	custom_suicide = 1
 	suicide_in_hand = 0
@@ -1097,7 +1164,7 @@ TYPEINFO(/obj/item/clothing/head/that/gold)
 
 /obj/item/clothing/head/bighat/syndicate/biggest
 	name = "very syndicate hat"
-	desc = "An actual war crime, under the space geneva convention"
+	desc = "An actual war crime, under the space Geneva Convention"
 	icon_state = "syndicate_top_biggest"
 	item_state = "syndicate_top"
 	contraband = 100 // heh
@@ -1124,6 +1191,138 @@ TYPEINFO(/obj/item/clothing/head/that/gold)
 				return 0
 		else
 			return 0
+
+/obj/item/clothing/head/bighat/syndicate/infiniteglory
+	name = "The Syndicate Hat"
+	desc = "It makes you weep"
+	icon = 'icons/mob/clothing/biggestesthat.dmi'
+	wear_image_icon = 'icons/mob/clothing/biggestesthat.dmi'
+	icon_state = "syndicate_top_TheOne"
+	cant_other_remove = TRUE
+	cant_drop = TRUE
+	anchored = ANCHORED
+	contraband = INFINITY // h e h
+	rarity = ITEM_RARITY_MYTHIC
+	var/obj/machinery/maptext_monitor/health/constantly_overhead/maptext_thingamajig
+
+	setupProperties()
+		..() // Syndie gaming
+		setProperty("meleeprot_all", 8)
+		setProperty("rangedprot", 5)
+		setProperty("space_movespeed", -1.25)
+		setProperty("disorient_resist", 90)
+		setProperty("disorient_resist_eye", 90)
+		setProperty("disorient_resist_ear", 75)
+		setProperty("exploprot", 75)
+		setProperty("chemprot", 75)
+		setProperty("stamregen", 10)
+		setProperty("deflection", 60)
+
+	proc/change_big_icon_state(var/BIG)
+		if(BIG == TRUE)
+			src.icon = initial(src.icon)
+			src.icon_state = initial(src.icon_state)
+		else
+			src.icon = 'icons/mob/clothing/bighat.dmi'
+			src.icon_state = "syndicate_top_biggest"
+
+
+	attack_hand(mob/living/carbon/human/user)
+		if(user.head == src)
+			return
+		user.drop_from_slot(src, get_turf(src))
+		var/obj/item/current_head = user.head
+		if (current_head)
+			current_head.unequipped(user)
+			user.hud.remove_item(current_head)
+			user.head = null
+			user.drop_from_slot(current_head, get_turf(current_head))
+		if (user.equip_if_possible(src, SLOT_HEAD))
+			change_big_icon_state(FALSE)
+
+
+
+	equipped(mob/user, slot)
+		..()
+		APPLY_ATOM_PROPERTY(user, PROP_MOB_BREATHLESS, src.type) //we need no oxygen in this place
+		APPLY_ATOM_PROPERTY(user, PROP_MOB_STUN_RESIST, src.type, 80) // falling to a couple batons is shameful
+		APPLY_MOVEMENT_MODIFIER(user, /datum/movement_modifier/pain_immune, src.type) // slow for nothing
+		user.add_antagonist(role_id = ROLE_CONFIRMED_CRIMINAL, do_equip = FALSE, do_objectives = FALSE, do_relocate = FALSE, source = ANTAGONIST_SOURCE_ADMIN, respect_mutual_exclusives = FALSE) //crime time
+		command_alert("An overwhelming aura of EEEEVVVVIIIILLLL has been detected at [get_area(src)].", alert_origin = ALERT_ANOMALY)
+		src.maptext_thingamajig = new /obj/machinery/maptext_monitor/health/constantly_overhead(user)
+
+	unequipped(mob/user)
+		. = ..()
+		change_big_icon_state(TRUE)
+		qdel(src.maptext_thingamajig)
+		src.maptext_thingamajig = null
+
+	suicide(var/mob/user as mob)
+		var/turf/T = get_turf(src)
+		if (!src.user_can_suicide(user))
+			return 0
+		if (ishuman(user))
+			var/mob/living/carbon/human/H = user
+			if (istype(H.head, /obj/item/clothing/head/bighat/syndicate))
+				H.visible_message(SPAN_NOTICE("<b>[H] becomes one with the [src.name]!</b>"))
+				H.firegib()
+				SPAWN(1 SECONDS)
+					explosion_new(src, T, 200) // a silly goodbye
+					qdel(src)
+				return 1
+
+	disposing()
+		qdel(src.maptext_thingamajig)
+		src.maptext_thingamajig = null
+		..()
+
+/obj/item/clothing/head/bighat/capitalism
+	name = "The Hat of John Nanotrasen, Owner of the Frontier Nanotrasen"
+	desc = "You feel an intense aura of capitalism radiating from this hat"
+	icon = 'icons/mob/clothing/biggestesthat.dmi'
+	wear_image_icon = 'icons/mob/clothing/biggestesthat.dmi'
+	icon_state = "spessdome_top_TheOne"
+	rarity = ITEM_RARITY_MYTHIC
+	anchored = ANCHORED
+
+	setupProperties()
+		..()
+		setProperty("meleeprot_all", 10)
+		setProperty("rangedprot", 4)
+		setProperty("space_movespeed", -0.4)
+		setProperty("disorient_resist", 90)
+		setProperty("disorient_resist_eye", 100)
+		setProperty("disorient_resist_ear", 50)
+		setProperty("exploprot", 50)
+		setProperty("chemprot", 50)
+		setProperty("stamregen", 5)
+		setProperty("rangedprot", 4)
+
+	proc/change_big_icon_state(var/BIG)
+		if(BIG == TRUE)
+			src.icon = initial(src.icon)
+			src.icon_state = initial(src.icon_state)
+		else
+			src.icon = 'icons/mob/clothing/bighat.dmi'
+			src.icon_state = "spessdome_top_TheOne"
+
+
+	attack_hand(mob/living/carbon/human/user)
+		if(user.head == src)
+			return
+		user.drop_from_slot(src, get_turf(src))
+		var/obj/item/current_head = user.head
+		if (current_head)
+			boutput(user, SPAN_NOTICE("You cannot pick up [src.name] while currently wearing another hat."))
+
+		else
+			boutput(user, SPAN_NOTICE("You put the [src.name] on immediately because it is too tall too unwieldly in your hands."))
+			if (user.equip_if_possible(src, SLOT_HEAD))
+				change_big_icon_state(FALSE)
+
+	unequipped(mob/user)
+		. = ..()
+		change_big_icon_state(TRUE)
 
 /obj/item/clothing/head/witchfinder
 	name = "witchfinder general's hat"
@@ -1178,6 +1377,14 @@ TYPEINFO(/obj/item/clothing/head/that/gold)
 		icon_state = "sunhatr-stun"
 		item_state = "sunhatr-stun"
 
+	equipped(mob/user, slot)
+		. = ..()
+		RegisterSignal(user, COMSIG_ATTACKHAND, PROC_REF(attempt_shock))
+
+	unequipped(mob/user)
+		. = ..()
+		UnregisterSignal(user, COMSIG_ATTACKHAND)
+
 	examine()
 		. = ..()
 		if (src.stunready)
@@ -1221,6 +1428,42 @@ TYPEINFO(/obj/item/clothing/head/that/gold)
 
 		..()
 
+	proc/attempt_shock(mob/wearer, mob/target)
+		if(wearer != target && src.uses > 0 && target.a_intent == INTENT_HELP && target.zone_sel?.selecting == "head")
+			wearer.visible_message(SPAN_ALERT("[target] tries to pat [wearer] on the head, but gets shocked by [src]!"))
+			zap_headpatter(target)
+
+			src.uses = max(0, src.uses - 1)
+			if (src.uses < 1)
+				src.icon_state = splittext(src.icon_state,"-")[1]
+				src.item_state = splittext(src.item_state,"-")[1]
+				wearer.update_clothing()
+
+			if (src.uses <= 0)
+				wearer.show_text("The sunhat is no longer electrically charged.", "red")
+			else
+				wearer.show_text("The stunhat has [src.uses] charges left!", "red")
+			return TRUE
+
+	proc/zap_headpatter(mob/target)
+		elecflash(src)
+		target.do_disorient(280, knockdown = 80, stunned = 40, disorient = 160)
+		target.stuttering = max(target.stuttering,30)
+
+/obj/item/clothing/head/sunhat/killhat
+	name = "killhat"
+	desc = "The be-all, end-all of personal space protection."
+	stunready = 1
+	uses = 1
+	icon_state = "sunhatr-stun"
+	item_state = "sunhatr-stun"
+	blocked_from_petasusaphilic = TRUE
+	var/wattage = 3 MEGA WATTS //equivalent to ~120 burn damage
+
+	zap_headpatter(mob/target)
+		elecflash(src)
+		target.shock(src, wattage, ignore_gloves = TRUE)
+
 
 /obj/item/clothing/head/headmirror
 	name = "head mirror"
@@ -1259,7 +1502,7 @@ TYPEINFO(/obj/item/clothing/head/that/gold)
 
 /obj/item/clothing/head/jester
 	name = "jester's hat"
-	desc = "The hat of not-so-funny-clown."
+	desc = "The hat of a not-so-funny-clown."
 	icon_state = "jester"
 	item_state = "jester"
 	seal_hair = 1
@@ -1429,16 +1672,31 @@ ABSTRACT_TYPE(/obj/item/clothing/head/headband)
 
 	attackby(obj/item/W, mob/user)
 		..()
+		var/obj/item/device/radio/headset/H = W
 		if(istype(W,/obj/item/device/radio/headset))
-			user.show_message("You stuff the headset on the headband and tape it in place. [istype(src, /obj/item/clothing/head/headband/nyan) ? "Meow" : "Now"] you should be able to hear the radio using these!")
-			var/obj/item/device/radio/headset/H = W
-			H.icon = src.icon
-			H.name = src.name
-			H.icon_state = src.icon_state
-			H.wear_image_icon = src.wear_image_icon
-			H.wear_image = src.wear_image
-			H.desc = "Aww, cute and fuzzy. Someone has taped a radio headset onto the headband."
-			qdel(src)
+			if(istype(src, /obj/item/clothing/head/headband/basic))
+				user.show_message("You stuff the headset under the headband and tape it in place. Now you should be able to hear the radio using this!")
+				H.icon = src.icon
+				H.name = src.name
+				H.icon_state = src.icon_state
+				H.wear_image_icon = src.wear_image_icon
+				H.wear_image = src.wear_image
+				H.desc = "Someone has taped a radio headset underneath the headband."
+				qdel(src)
+			else
+				user.show_message("You stuff the headset on the headband and tape it in place. [istype(src, /obj/item/clothing/head/headband/nyan) ? "Meow" : "Now"] you should be able to hear the radio using these!")
+				H.icon = src.icon
+				H.name = src.name
+				H.icon_state = src.icon_state
+				H.wear_image_icon = src.wear_image_icon
+				H.wear_image = src.wear_image
+				H.wear_layer = MOB_FULL_SUIT_LAYER
+				H.desc = "Aww, cute and fuzzy. Someone has taped a radio headset onto the headband."
+				qdel(src)
+		else
+			return
+
+
 
 ABSTRACT_TYPE(/obj/item/clothing/head/headband/nyan)
 /obj/item/clothing/head/headband/nyan
@@ -1446,7 +1704,6 @@ ABSTRACT_TYPE(/obj/item/clothing/head/headband/nyan)
 	desc = "Aww, cute and fuzzy."
 	icon_state = "cat-gray"
 	item_state = "cat-gray"
-
 	random
 		New()
 			..()
@@ -1503,6 +1760,76 @@ ABSTRACT_TYPE(/obj/item/clothing/head/headband/nyan)
 		name = "tiger ears"
 		icon_state = "cat-tiger"
 		item_state = "cat-tiger"
+
+/obj/item/clothing/head/headband/basic
+	name = "headband"
+	icon_state = "headband-black"
+	item_state = "headband-black"
+
+	black
+		name = "black headband"
+		icon_state = "headband-black"
+		item_state = "headband-black"
+	gray
+		name = "gray headband"
+		icon_state = "headband-gray"
+		item_state = "headband-gray"
+	white
+		name = "white headband"
+		icon_state = "headband-white"
+		item_state = "headband-white"
+	cream
+		name = "cream headband"
+		icon_state = "headband-cream"
+		item_state = "headband-cream"
+	pink
+		name = "pink headband"
+		icon_state = "headband-pink"
+		item_state = "headband-pink"
+	red
+		name = "red headband"
+		icon_state = "headband-red"
+		item_state = "headband-red"
+	gold
+		name = "gold headband"
+		icon_state = "headband-gold"
+		item_state = "headband-gold"
+	green
+		name = "green headband"
+		icon_state = "headband-green"
+		item_state = "headband-green"
+	mint
+		name = "mint headband"
+		icon_state = "headband-mint"
+		item_state = "headband-mint"
+	blue
+		name = "blue headband"
+		icon_state = "headband-blue"
+		item_state = "headband-blue"
+	navy
+		name = "navy headband"
+		icon_state = "headband-navy"
+		item_state = "headband-navy"
+	purple
+		name = "purple headband"
+		icon_state = "headband-purple"
+		item_state = "headband-purple"
+	shinyblack
+		name = "shiny-black headband"
+		icon_state = "headband-shinyblack"
+		item_state = "headband-shinyblack"
+	brown
+		name = "brown headband"
+		icon_state = "headband-brown"
+		item_state = "headband-brown"
+
+/obj/item/clothing/head/headband/devil
+	name = "devil horns"
+	desc = "Plastic devil horns attached to a headband as part of a Halloween costume."
+	icon = 'icons/obj/clothing/item_hats.dmi'
+	wear_image_icon = 'icons/mob/clothing/head.dmi'
+	icon_state = "devil"
+	item_state = "devil"
 
 /obj/item/clothing/head/headband/antlers
 	name = "antlers"
@@ -1866,8 +2193,8 @@ ABSTRACT_TYPE(/obj/item/clothing/head/basecap)
 //Lesbian Hat
 
 TYPEINFO(/obj/item/clothing/head/lesbian_hat)
-	mats = list("FAB-1"=5, "honey"=5)
-
+	mats = list("fabric" = 5,
+				"honey" = 5)
 /obj/item/clothing/head/lesbian_hat
 	name = "very lesbian hat"
 	desc = "And they say subtlety is dead."
@@ -2249,4 +2576,16 @@ ABSTRACT_TYPE(/obj/item/clothing/head/mushroomcap)
 	inhand_image_icon = 'icons/mob/inhand/hand_headgear.dmi'
 	icon_state = "rabbithat"
 	item_state = "rabbithat"
+	seal_hair = TRUE
+
+// Mx Blorbo's lovable visage.
+
+/obj/item/clothing/head/blorbohat
+	name = "Blorbo costume head"
+	desc = "Everyone's favourite gimmick character, Mx. Blorbo!"
+	icon = 'icons/obj/clothing/item_hats.dmi'
+	wear_image_icon = 'icons/mob/clothing/head.dmi'
+	inhand_image_icon = 'icons/mob/inhand/hand_headgear.dmi'
+	icon_state = "blorbohat"
+	item_state = "blorbohat"
 	seal_hair = TRUE

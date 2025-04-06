@@ -9,6 +9,7 @@
 	throws_can_hit_me = FALSE
 	event_handler_flags =  IMMUNE_MANTA_PUSH | IMMUNE_SINGULARITY | IMMUNE_TRENCH_WARP | MOVE_NOCLIP
 	canbegrabbed = FALSE
+	can_lie = FALSE
 
 	New()
 		. = ..()
@@ -19,6 +20,8 @@
 		src.see_in_dark = SEE_DARK_FULL
 		src.flags |= UNCRUSHABLE
 
+	nauseate(stacks)
+		return
 	can_strip()
 		return 0
 	can_use_hands()

@@ -23,8 +23,10 @@
  * 	Once sufficient pressure has been reached it can be released spreading it across the current airgroup with a minor stun explosion.
   */
 TYPEINFO(/obj/machinery/portable_atmospherics/pressurizer)
-	mats = list("MET-1" = 15, "MET-2" = 3, "INS-1" = 3, "CON-1" = 10)
-
+	mats = list("metal" = 15,
+				"metal_dense" = 3,
+				"insulated" = 3,
+				"conductive" = 10)
 /obj/machinery/portable_atmospherics/pressurizer
 	name = "Extreme-Pressure Pressurization Device"
 	desc = "Some kind of nightmare contraption to make a lot of noise or pressurize rooms."
@@ -33,7 +35,7 @@ TYPEINFO(/obj/machinery/portable_atmospherics/pressurizer)
 	icon_state = "pressurizer"
 	density = 1
 	status = REQ_PHYSICAL_ACCESS
-	flags = FPRINT | CONDUCT | TGUI_INTERACTIVE
+	flags = CONDUCT | TGUI_INTERACTIVE
 	requires_power = FALSE //power only required for material processing
 	p_class = 3
 
@@ -108,7 +110,7 @@ TYPEINFO(/obj/machinery/portable_atmospherics/pressurizer)
 		else
 			UpdateOverlays(null, "armed")
 
-	return_air()
+	return_air(direct = FALSE)
 		return air_contents
 
 	proc/process_fan()
@@ -213,7 +215,7 @@ TYPEINFO(/obj/machinery/portable_atmospherics/pressurizer)
 		if(iswrenchingtool(I) || istype(I,/obj/item/device/analyzer/atmospheric) || istype(I,/obj/item/card/emag))
 			..()
 			return
-		if(istype(I,/obj/item/electronics/scanner) || istype(I,/obj/item/deconstructor) || (istype(I,/obj/item/device/pda2)))
+		if(istype(I,/obj/item/device/pda2))
 			user.visible_message(SPAN_ALERT("<B>[user] hits [src] with [I]!</B>"))
 			return
 		if (istype(I,/obj/item/satchel/) && I.contents.len)
@@ -276,7 +278,7 @@ TYPEINFO(/obj/machinery/portable_atmospherics/pressurizer)
 						air_contents.oxygen/TOTAL_MOLES(air_contents)*255,	\
 						air_contents.oxygen+air_contents.toxins/TOTAL_MOLES(air_contents)*255)
 		poof.alpha = clamp(MIXTURE_PRESSURE(src.air_contents)/src.maximum_pressure*180, 90, 220)
-		flick("pressurizer-poof", poof)
+		FLICK("pressurizer-poof", poof)
 		SPAWN(0.8 SECONDS)
 			if(poof) qdel(poof)
 

@@ -67,7 +67,7 @@
 
 
 		src.health = src.max_health
-		src.botcard.access = list(access_maint_tunnels, access_ghostdrone, access_engineering,access_external_airlocks,
+		src.botcard.access = list(access_maint_tunnels, access_ghostdrone, access_engineering,
 						access_engineering_storage, access_engineering_atmos, access_engineering_engine, access_engineering_power)
 		src.radio = new /obj/item/device/radio(src)
 		src.ears = src.radio
@@ -399,7 +399,7 @@
 		else if (!equipped)
 			hand_range_attack(target, params)
 
-		if (src.lastattacked == target && use_delay) //If lastattacked was set, this must be a combat action!! Use combat click delay.
+		if (src.lastattacked?.deref() == target && use_delay) //If lastattacked was set, this must be a combat action!! Use combat click delay.
 			src.next_click = world.time + (equipped ? max(equipped.click_delay,src.combat_click_delay) : src.combat_click_delay)
 			src.lastattacked = null
 
@@ -925,7 +925,7 @@
 				continue
 			var/mob/M = C.mob
 
-			if ((M in hearers(src) || M.client.holder))
+			if (((M in hearers(src)) || M.client.holder))
 				var/thisR = rendered
 				if (isghostdrone(M) || M.client.holder)
 					if ((istype(M, /mob/dead/observer)||M.client.holder)&& src.mind)
@@ -1183,6 +1183,11 @@
 			C.apply_keybind("drone_azerty")
 		if (C.tg_controls)
 			C.apply_keybind("drone_tg")
+
+	projCanHit(datum/projectile/P)
+		. = ..()
+		if(isdead(src))
+			return FALSE
 
 /proc/droneize(target = null, pickNew = 1)
 	if (!target) return 0

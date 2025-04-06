@@ -110,7 +110,10 @@ ABSTRACT_TYPE(/obj/structure/preassembeled_vehicleframe)
 	var/datum/action/bar/icon/callback/action_bar
 
 	if (I)
-		action_bar = new /datum/action/bar/icon/callback(user, src, src.step_build_time, \
+		var/duration = src.step_build_time
+		if (user?.traitHolder?.hasTrait("training_engineer") || istype(ticker?.mode, /datum/game_mode/pod_wars))
+			duration /= 2
+		action_bar = new /datum/action/bar/icon/callback(user, src, duration, \
 			/obj/structure/preassembeled_vehicleframe/proc/step_wrench_1, \
 			list(user), I.icon, I.icon_state, null, null)
 		action_bar.maximum_range = 2
@@ -140,7 +143,7 @@ ABSTRACT_TYPE(/obj/structure/preassembeled_vehicleframe)
 		if(BUILD_STEP_WELD_1)
 			if (isscrewingtool(I))
 				user.visible_message("[user] begins screwing down the frame's circuit boards and its engine...")
-				playsound(src.loc, 'sound/items/Ratchet.ogg', 50, 1)
+				playsound(src.loc, 'sound/items/Screwdriver.ogg', 50, 1)
 				action_bar.proc_path = /obj/structure/preassembeled_vehicleframe/proc/step_screw_1
 				action_bar.end_message = "[user] finishes screwing the the frame's circuit boards and its engine."
 				actions.start(action_bar, user)
@@ -187,7 +190,7 @@ ABSTRACT_TYPE(/obj/structure/preassembeled_vehicleframe)
 		if(BUILD_STEP_WELD_2)
 			if (isscrewingtool(I))
 				user.visible_message("[user] begins screwing the pod's maintenance panels shut...")
-				playsound(src.loc, 'sound/items/Ratchet.ogg', 50, 1)
+				playsound(src.loc, 'sound/items/Screwdriver.ogg', 50, 1)
 				action_bar.proc_path = /obj/structure/preassembeled_vehicleframe/proc/step_screw_2
 				action_bar.end_message = "With the cockpit and exterior indicators secured, the control system automatically starts up."
 				actions.start(action_bar, user)

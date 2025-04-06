@@ -68,7 +68,7 @@ Contents:
 * icons/turf/dojo.dmi <-- floor icons
 * icons/obj/dojo.dmi <-- object icons
 * radiotelescope.dm
-* browserassets/images/radioTelescope
+* browserassets/src/images/radioTelescope
 * icons/effects/224x160.dmi
 * weapons.dmi
 * hand_weapons.dmi
@@ -167,7 +167,7 @@ Contents:
 	stamina_cost = 45
 	stamina_crit_chance = 10
 
-/obj/decal/fakeobjects/unfinished_katana
+/obj/fakeobject/unfinished_katana
 
 /obj/item/unfinished_katana
 	name = "unfinished blade"
@@ -203,37 +203,7 @@ Contents:
 
 	// black body radiation color temperature
 	proc/set_real_color()
-		var/input = temperature / 100
-
-		var/red
-		if (input <= 66)
-			red = 255
-		else
-			red = input - 60
-			red = 329.698727446 * (red ** -0.1332047592)
-		red = clamp(red, 0, 255)
-
-		var/green
-		if (input <= 66)
-			green = max(0.001, input)
-			green = 99.4708025861 * log(green) - 161.1195681661
-		else
-			green = input - 60
-			green = 288.1221695283 * (green ** -0.0755148492)
-		green = clamp(green, 0, 255)
-
-		var/blue
-		if (input >= 66)
-			blue = 255
-		else
-			if (input <= 19)
-				blue = 0
-			else
-				blue = input - 10
-				blue = 138.5177312231 * log(blue) - 305.0447927307
-		blue = clamp(blue, 0, 255)
-
-		color = rgb(red, green, blue)
+		src.color = blackbody_color(src.temperature)
 
 	afterattack(var/atom/target, var/mob/user)
 		var/obj/item/reagent_containers/RC = target
@@ -337,7 +307,7 @@ Contents:
 
 // -Decoration
 
-/obj/decal/fakeobjects/arch
+/obj/fakeobject/arch
 	name = "torii"
 	desc = "A great gate marking sacred grounds."
 	icon = 'icons/obj/large/160x128.dmi'
@@ -360,31 +330,31 @@ Contents:
 * It's a pretty horrible mistranslation, so I'm 100% keeping it.
 */
 
-/obj/decal/fakeobjects/kanji_1
+/obj/fakeobject/kanji_1
 	plane = PLANE_FLOOR
 	name = "symbol"
 	icon = 'icons/effects/96x96.dmi'
 	icon_state = "kanji_1"
 	anchored = ANCHORED_ALWAYS
 
-/obj/decal/fakeobjects/kanji_2
+/obj/fakeobject/kanji_2
 	plane = PLANE_FLOOR
 	name = "symbol"
 	icon = 'icons/effects/96x96.dmi'
 	icon_state = "kanji_2"
 	anchored = ANCHORED_ALWAYS
 
-/obj/decal/fakeobjects/dojohouse
+/obj/fakeobject/dojohouse
 	icon = 'icons/effects/224x160.dmi'
 	icon_state = "dojohouse"
 
-/obj/decal/fakeobjects/lotus
+/obj/fakeobject/lotus
 	name = "lotus"
 	desc = "A pretty water garden flower."
 	icon = 'icons/obj/dojo.dmi'
 	icon_state = "lotus_1"
 
-/obj/decal/fakeobjects/birdhouse // i literally cannot find the correct name for this.
+/obj/fakeobject/birdhouse // i literally cannot find the correct name for this.
 	name = "small shrine"
 	density = 1
 	anchored = ANCHORED
@@ -407,7 +377,7 @@ Contents:
 		light.attach(src)
 		light.enable()
 
-/obj/decal/fakeobjects/plantpot
+/obj/fakeobject/plantpot
 	name = "plant pot"
 	density = 1
 	anchored = ANCHORED
@@ -426,7 +396,7 @@ Contents:
 	icon = 'icons/obj/large/32x64.dmi'
 	icon_state = "lamp1"
 
-/obj/decal/fakeobjects/bridge_rail
+/obj/fakeobject/bridge_rail
 	name = "railing"
 	icon = 'icons/obj/dojo_rail.dmi'
 	layer = EFFECTS_LAYER_BASE
@@ -443,13 +413,13 @@ Contents:
 	icon_state = "furnace"
 	density = 1
 	anchored = ANCHORED_ALWAYS
-	var/obj/effects/tatara/effect
+	var/obj/effects/little_sparks/tatara/effect
 
 	var/temperature = T0C + 870
 
 	New()
 		..()
-		effect = new /obj/effects/tatara(src)
+		effect = new(src)
 		vis_contents += effect
 
 	attackby(obj/item/W, mob/user as mob)
@@ -538,7 +508,7 @@ Contents:
 				src.visible_message("\The [src] breathe life into \the [T] causing it erupt in flames.", blind_message="A loud roar of air causes a fire to erupt.")
 				T.temperature = clamp(T.temperature + 150, initial(T.temperature)-150, T0C+2500)
 
-/obj/decal/fakeobjects/swordrack
+/obj/fakeobject/swordrack
 	name = "katana rack"
 	desc = "A wooden rack of swords."
 	icon = 'icons/obj/dojo.dmi'
@@ -546,22 +516,13 @@ Contents:
 	density = 1
 	anchored = ANCHORED_ALWAYS
 
-/obj/decal/fakeobjects/rake
+/obj/fakeobject/rake
 	name = "zen garden rake"
 	desc = "A little wooden tool for raking sand in to patterns."
 	icon = 'icons/obj/dojo.dmi'
 	icon_state = "rake"
 
-/obj/decal/fakeobjects/sealed_door
-	name = "laboratory door"
-	desc = "It appears to be sealed."
-	icon = 'icons/obj/dojo.dmi'
-	icon_state = "sealed_door"
-	density = 1
-	anchored = ANCHORED_ALWAYS
-	opacity = 1
-
-/obj/decal/fakeobjects/katana_fake
+/obj/fakeobject/katana_fake
 	name = "katana sheath"
 	desc = "It can clean a bloodied katana, and also allows for easier storage of a katana"
 	icon = 'icons/obj/items/weapons.dmi'
