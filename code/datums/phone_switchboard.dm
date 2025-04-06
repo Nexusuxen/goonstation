@@ -5,17 +5,14 @@
 	/// where 'phone' is the datum holding the phone components
 	var/list/registered_phones = list()
 	/// Assoc list, stores what phone is linked to a given phone
-	/// phone_id = (linked phone)
+	/// phone_id = (linked phone_id)
 	var/list/phone_links = list()
 
 	New()
 		. = ..()
+		// Phones send more signals but we listen to their comp holders, so we register for them later
 		RegisterSignal(src, COMSIG_PHONE_SWITCHBOARD_REGISTER, PROC_REF(tryRegister))
 		RegisterSignal(src, COMSIG_PHONE_SWITCHBOARD_UNREGISTER, PROC_REF(unregisterPhone))
-		RegisterSignal(src, COMSIG_PHONE_CALL_REQUEST, PROC_REF(relayCallRequest))
-		RegisterSignal(src, COMSIG_PHONE_CALL_REQUEST_DENIED, PROC_REF(callRequestDenied))
-		RegisterSignal(src, COMSIG_PHONE_CALL_REQUEST_ACCEPTED, PROC_REF(callRequestAccepted))
-		RegisterSignal(src, COMSIG_PHONE_HANGUP, PROC_REF(hangUp))
 		//RegisterSignal(src, , PROC_REF())
 		//RegisterSignal(src, , PROC_REF())
 
@@ -23,7 +20,7 @@
 	/// Children should call this if they're not returning
 	proc/tryRegister(var/target_id, var/datum/target)
 		if(isRegistered(target_id))
-			SEND_SIGNAL(target, COMSIG_PHONE_SWITCHBOARD_REGISTER_FAILED, src) // should we tell the requester if something went wrong, like if we're already registered?
+			SEND_SIGNAL(target, COMSIG_PHONE_SWITCHBOARD_REGISTER_FAILED, src) // should we tell the requester what something went wrong, like if we're already registered?
 			// not a rhetorical question, review please
 		registered_phones[target_id] += target
 		SEND_SIGNAL(target, COMSIG_PHONE_SWITCHBOARD_REGISTER_SUCCESSFUL, switchboard = src)
@@ -31,7 +28,7 @@
 	/// Called to unregister a phone. Use either target or target_id
 	proc/unregisterPhone(var/target_id, var/datum/target, var/responded = FALSE)
 		if(!target_id)
-			target_id = get_id_by_datum(target)
+			target_id = get_id_by_holder(target)
 		if(!target)
 			target = registered_phones[target_id]
 		// there's gonna be odd behavior if we're already in a call, make sure to do something about that here
@@ -45,9 +42,9 @@
 		. = FALSE
 		if(target_id)
 			return (target_id in registered_phones ? TRUE : FALSE)
-		return (get_id_by_datum(target) ? TRUE : FALSE)
+		return (get_id_by_holder(target) ? TRUE : FALSE)
 
-	proc/get_id_by_datum(var/datum/target)
+	proc/get_id_by_holder(var/datum/target)
 		for(var/id in registered_phones)
 			if(registered_phones[id] == target)
 				return id
@@ -55,12 +52,12 @@
 	proc/relayCallRequest(caller_id, datum/caller, target_id, datum/phone_switchboard)
 		var/datum/target = registered_phones[target_id]
 		if(!target)
-			SEND_SIGNAL(caller, COMSIG_PHONE_CALL_REQUEST_DENIED, src, target_id)
+			SEND_SIGNAL(caller, COMSIG_PHONE_CALL_REQUEST_CLOSED, src, target_id)
 			return
-		SEND_SIGNAL(target, COMSIG_PHONE_CALL_REQUEST, caller_id, caller, target_id, src)
+		SEND_SIGNAL(target, COMSIG_PHONE_CALL_REQUEST_IN, caller_id, caller, target_id, src)
 
 	proc/callRequestDenied(datum/target, caller_id, datum/caller, target_id, datum/phone_switchboard)
-		SEND_SIGNAL(caller, COMSIG_PHONE_CALL_REQUEST_DENIED, src, target_id)
+		SEND_SIGNAL(caller, COMSIG_PHONE_CALL_REQUEST_CLOSED, src, target_id)
 
 	proc/callRequestAccepted(datum/target, caller_id, datum/caller, target_id, datum/phone_switchboard)
 		SEND_SIGNAL(caller, COMSIG_PHONE_CALL_REQUEST_ACCEPTED, src, target_id)
@@ -73,11 +70,13 @@
 
 	proc/hangUp(caller_id)
 		var/datum/partner = phone_links[caller_id]
-		var/partner_id = get_id_by_datum(partner)
+		var/partner_id = get_id_by_holder(partner)
 		terminateCall(caller_id, partner_id)
 
 	proc/terminateCall(caller_id, partner_id)
 		phone_links.Remove(caller_id)
 		phone_links.Remove(partner_id)
-		SEND_SIGNAL(src.registered_phones[caller_id], COMSIG_PHONE_CALL_ENDED, src)
-		SEND_SIGNAL(src.registered_phones[partner_id], COMSIG_PHONE_CALL_ENDED, src)
+		var/datum/caller = src.registered_phones[caller_id]
+		var/datum/partner = src.registered_phones[partner_id]
+		SEND_SIGNAL(caller, COMSIG_PHONE_CALL_ENDED, src)
+		SEND_SIGNAL(partner, COMSIG_PHONE_CALL_ENDED, src)
