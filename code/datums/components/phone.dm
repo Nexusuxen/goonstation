@@ -18,10 +18,11 @@
 		. = ..()
 		RegisterSignal(parent, COMSIG_PHONE_SWITCHBOARD_REGISTER_SUCCESSFUL, PROC_REF(register_success))
 		RegisterSignal(parent, COMSIG_PHONE_SWITCHBOARD_REGISTER_FAILED, PROC_REF(register_failed))
-		RegisterSignal(parent, COMSIG_PHONE_CALL_REQUEST, PROC_REF(call_request))
-		RegisterSignal(parent, COMSIG_PHONE_CALL_REQUEST_DENIED, PROC_REF(call_request_denied))
+		RegisterSignal(parent, COMSIG_PHONE_CALL_REQUEST_IN, PROC_REF(call_request))
+		RegisterSignal(parent, COMSIG_PHONE_CALL_REQUEST_CLOSED, PROC_REF(call_request_denied))
 		RegisterSignal(parent, COMSIG_PHONE_CALL_REQUEST_ACCEPTED, PROC_REF(call_request_accepted))
 		RegisterSignal(parent, COMSIG_PHONE_CALL_ENDED, PROC_REF(call_ended))
+		//RegisterSignal()
 
 		// THIS IS A HACKJOB FOR DEV PURPOSES
 		phone_id = num2text(rand(1, 10000))
@@ -39,7 +40,7 @@
 	/// Handles inbound call requests from our switchboard
 	proc/call_request(caller_id, datum/caller, target_id, datum/phone_switchboard)
 		// todo: figure out how to make it so that when the handset is picked up we'll never accept
-		SEND_SIGNAL(our_switchboard, COMSIG_PHONE_CALL_REQUEST_ACCEPTED, caller_id, caller, target_id, phone_switchboard)
+		SEND_SIGNAL(our_switchboard, COMSIG_PHONE_CALL_ACCEPT_REQUEST, caller_id, caller, target_id, phone_switchboard)
 
 	proc/call_request_denied(datum/partner)
 		// todo: relay to speaker
@@ -72,8 +73,8 @@
 	proc/request_call(var/target_id)
 		// BIG TODO: We need some kind of main phone coordinator looking for these signals to then forward to
 		// the relevant phones. On New() we tell the coordinator "hi register us pls", they do that, then
-		// whenever we do COMSIG_PHONE_CALL_REQUEST it'll signal to the correct phone
-		SEND_SIGNAL(parent, COMSIG_PHONE_CALL_REQUEST, phone_id, parent, target_id)
+		// whenever we do COMSIG_PHONE_CALL_REQUEST_IN it'll signal to the correct phone
+		SEND_SIGNAL(parent, COMSIG_PHONE_CALL_REQUEST_IN, phone_id, parent, target_id)
 
 	proc/call_ended(datum/phone_switchboard/switchboard)
 
