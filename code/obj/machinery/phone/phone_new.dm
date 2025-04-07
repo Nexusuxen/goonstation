@@ -163,17 +163,21 @@ answered - was only used to handle inbound/outgoing calls, now handled by handse
 
 	attack_hand(mob/living/user)
 		..(user)
-		if(src.handset_taken)
+		if (src.handset_taken)
 			return
-		if(src.emagged)
+
+		if (src.emagged)
 			src.explode()
 			return
 
-		if(user.put_in_hand_or_drop(src.handset))
-			src.handset_taken = TRUE
-			src.icon_state = "[answered_icon]"
-			UpdateIcon()
-			playsound(user, 'sound/machines/phones/pick_up.ogg', 50, FALSE)
+		src.handset = new /obj/item/phone_handset_new(src,user)
+		src.AddComponent(/datum/component/cord, src.handset, base_offset_x = -4, base_offset_y = -1)
+		user.put_in_hand_or_drop(src.handset)
+		src.handset_taken = TRUE
+
+		src.icon_state = "[answered_icon]"
+		UpdateIcon()
+		playsound(user, 'sound/machines/phones/pick_up.ogg', 50, FALSE)
 
 
 	proc/return_handset(var/mob/living/user)
@@ -223,6 +227,8 @@ We should be initialized during phone_new.New()!
 		SEND_SIGNAL(src, COMSIG_PHONE_SPOKEN_INTO, M, text, secure, real_name, lang_id)
 
 
+
+/*
 /obj/item/brick/brick_phone
 	name = "Ultrabrick 9000"
 	desc = "Wow, a brick-phone! This is bleeding-edge technology!"
@@ -233,3 +239,5 @@ We should be initialized during phone_new.New()!
 
 	attack_hand(mob/user)
 		user.Browse(info, "window=Telecommunications Node")
+*/
+

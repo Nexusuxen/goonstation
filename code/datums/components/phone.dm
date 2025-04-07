@@ -6,6 +6,10 @@
  - Maybe later on we can get switchboards or magic phones that allow seeing other networks
 */
 
+/// Stores all phone_ids as phone_id = parent
+var/global/list/phone_numbers = list()
+/// Stores all phoneids as parent = phone_id
+var/global/list/phone_numbers_inv = list()
 
 /// Handles interfacing with a switchboard and the rest of the phone
 /datum/component/phone_networker
@@ -14,33 +18,43 @@
 	var/phone_id = null
 	var/datum/phone_switchboard/our_switchboard = null
 
+	var/datum/our_ui
+	var/datum/our_mic
+	var/datum/our_speaker
+	var/datum/our_ringer
+
 	New()
 		. = ..()
 		RegisterSignal(parent, COMSIG_PHONE_SWITCHBOARD_REGISTER_SUCCESSFUL, PROC_REF(register_success))
 		RegisterSignal(parent, COMSIG_PHONE_SWITCHBOARD_REGISTER_FAILED, PROC_REF(register_failed))
-		RegisterSignal(parent, COMSIG_PHONE_CALL_REQUEST_IN, PROC_REF(call_request))
+		RegisterSignal(parent, COMSIG_PHONE_CALL_REQUEST_IN, PROC_REF(call_request_in))
 		RegisterSignal(parent, COMSIG_PHONE_CALL_REQUEST_CLOSED, PROC_REF(call_request_denied))
 		RegisterSignal(parent, COMSIG_PHONE_CALL_REQUEST_ACCEPTED, PROC_REF(call_request_accepted))
-		RegisterSignal(parent, COMSIG_PHONE_CALL_ENDED, PROC_REF(call_ended))
+		RegisterSignal(parent, COMSIG_PHONE_SPEECH_IN, PROC_REF(receive_speech))
+		RegisterSignal(parent, COMSIG_PHONE_VAPE_IN, PROC_REF(receive_vape))
+		RegisterSignal(parent, COMSIG_PHONE_VOLTRON_IN, PROC_REF(receive_voltron))
 		//RegisterSignal()
 
 		// THIS IS A HACKJOB FOR DEV PURPOSES
+		// TODO: MAKE PROPER PHONE NUMBERS
 		phone_id = num2text(rand(1, 10000))
-		find_switchboard(global.nt13_switchboard)
+		phone_numbers[phone_id] += parent
+		phone_numbers_inv[parent] += phone_id
+		try_register_switchboard(global.nt13_switchboard)
 
 
-	proc/find_switchboard(datum/phone_switchboard/switchboard)
-		SEND_SIGNAL(switchboard, COMSIG_PHONE_SWITCHBOARD_REGISTER, target_id = phone_id, target = parent)
+	proc/try_register_switchboard(datum/phone_switchboard/switchboard)
+		SEND_SIGNAL(switchboard, COMSIG_PHONE_SWITCHBOARD_REGISTER, parent, phone_id)
 
 	proc/register_success(datum/phone_switchboard/switchboard)
 		our_switchboard = switchboard
 
 	proc/register_failed()
 
-	/// Handles inbound call requests from our switchboard
-	proc/call_request(caller_id, datum/caller, target_id, datum/phone_switchboard)
+	/// Handles inbound call requests
+	proc/call_request_in(caller_id)
 		// todo: figure out how to make it so that when the handset is picked up we'll never accept
-		SEND_SIGNAL(our_switchboard, COMSIG_PHONE_CALL_ACCEPT_REQUEST, caller_id, caller, target_id, phone_switchboard)
+		SEND_SIGNAL(parent, COMSIG_PHONE_CALL_ACCEPT_REQUEST)
 
 	proc/call_request_denied(datum/partner)
 		// todo: relay to speaker
@@ -71,24 +85,77 @@
 	/// check for if they're on the same network
 	/// You should probably be calling a network var unless you want your phone to be able to call all phones
 	proc/request_call(var/target_id)
-		// BIG TODO: We need some kind of main phone coordinator looking for these signals to then forward to
-		// the relevant phones. On New() we tell the coordinator "hi register us pls", they do that, then
+		// BIG TODO: We need some kind of main phone networker looking for these signals to then forward to
+		// the relevant phones. On New() we tell the networker "hi register us pls", they do that, then
 		// whenever we do COMSIG_PHONE_CALL_REQUEST_IN it'll signal to the correct phone
 		SEND_SIGNAL(parent, COMSIG_PHONE_CALL_REQUEST_IN, phone_id, parent, target_id)
 
 	proc/call_ended(datum/phone_switchboard/switchboard)
 
-/// Handles UI actions for phones. Displaying TGUI to a client, relaying input to the coordinator, etc.
-/// May have a different owner than its coordinator
+/// Handles UI actions for phones. Displaying TGUI to a client, relaying input to the networker, etc.
+/// May have a different owner than its networker
 /datum/component/phone_ui
 
+	/// The parent holder containing our networker
+	var/datum/networker_parent
 
+	/// what we should be called, i guess
+	var/our_name
 
-/// Hears anything spoken into its owner and sends to coordinator.
-/// May have a different owner than its coordinator
+	ui_interact(mob/user, datum/tgui/ui)
+		ui = tgui_process.try_update_ui(user, src, ui)
+		if(!ui)
+			ui = new(user, src, "Phone")
+			ui.open()
+
+	ui_data(mob/user)
+		var/list/list/list/phonebook = list()
+
+		for(var/P in phone_numbers_inv)
+			var/match_found = FALSE
+			if(length(phonebook))
+				for(var/i in 1 to length(phonebook))
+					if(phonebook[i]["category"] == "uncategorized")
+						match_found = TRUE
+						phonebook[i]["phones"] += list(list(
+							"id" = phone_numbers_inv[P]
+						))
+						break
+			if(!match_found)
+				phonebook += list(list(
+					"category" = "uncategorized",
+					"phones" = list(list(
+						"id" = phone_numbers_inv[P]
+					))
+				))
+
+		. = list(
+			"dialing" = FALSE,
+			"inCall" = "inCall",
+			"lastCalled" = "lastCalled",
+			"name" = "fart"
+		)
+
+		.["phonebook"] = phonebook
+
+	ui_act(action, params)
+		. = ..()
+		if (.)
+			return
+		switch (action)
+			if ("call")
+				. = TRUE
+				var/id = params["target"]
+				if(SEND_SIGNAL(networker_parent, COMSIG_PHONE_CALL_REQUEST_OUT, id))
+					return
+				boutput(usr, SPAN_ALERT("Unable to connect!"))
+
+/// Hears anything spoken into its owner and sends to networker.
+/// May have a different owner than its networker
 /datum/component/phone_microphone
 
-
+	/// The parent holder containing our networker
+	var/datum/networker_parent
 
 	New()
 		..()
@@ -112,7 +179,7 @@
 		var/phone_ident = "\[ <span style=\"color:red\">[bicon(microphone)] test ID</span> \]"
 		var/said_message = SPAN_SAY("[SPAN_BOLD("[heard_name] [phone_ident]")]  [SPAN_MESSAGE(M.say_quote(text[1]))]")
 
-
+		SEND_SIGNAL(networker_parent, COMSIG_PHONE_SPEECH_OUT, said_message)
 
 
 
@@ -123,14 +190,16 @@
 
 
 /// Handles the output from a phone. Speech, vapes, outgoing rings, voltrons, etc.
-/// May have a different owner than its coordinator
+/// May have a different owner than its networker
 /datum/component/phone_speaker
 
-
+	/// The parent holder containing our networker
+	var/datum/networker_parent
 
 /// Handles animations and noises for inbound ringing
 /// This component is optional, as are the animations and noises
-/// May have a different owner than its coordinator
+/// May have a different owner than its networker
 /datum/component/phone_ringer
 
-
+	/// The parent holder containing our networker
+	var/datum/networker_parent

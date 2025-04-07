@@ -38,32 +38,31 @@
 	#define COMSIG_REAGENTS_ANALYZED "reagents_analyzed"
 
 // ---- phone signals ----
-	/// When a phone wants to register to a switchboard
+	/// When a phone wants to register to a switchboard. Sent on datum/switchboard as origin
 	/// (target_id, target)
 	#define COMSIG_PHONE_SWITCHBOARD_REGISTER "phone_switchboard_register"
 	/// When a switchboard successfully registers with a phone
 	#define COMSIG_PHONE_SWITCHBOARD_REGISTER_SUCCESSFUL "phone_switchboard_register_successful"
 	/// When a switchboard fails to register with a phone
 	#define COMSIG_PHONE_SWITCHBOARD_REGISTER_FAILED "phone_switchboard_register_failed"
-	/// Signals when an unregister occurs
+	/// Signals when an unregister occurs. Sent on datum/switchboard as origin
 	/// (target_id, datum, responded)
 	#define COMSIG_PHONE_SWITCHBOARD_UNREGISTER "phone_switchboard_unregister"
 
 	/// Signals a phone networker to dial the provided phone ID
-	/// (caller_id, target_id)
+	/// (target_id)
 	#define COMSIG_PHONE_CALL_REQUEST_OUT "phone_call_request_out"
 	/// When another phone wants to call us
-	/// (caller_id, caller, target_id, switchboard)
+	/// Expected to return 0 if ignored, 1 if acknowledged
 	#define COMSIG_PHONE_CALL_REQUEST_IN "phone_call_request_in"
 	/// When a call request fails or is denied
-	/// (switchboard, target_id)
 	#define COMSIG_PHONE_CALL_REQUEST_CLOSED "phone_call_request_closed"
 	/// When we deny an incoming call request
-	#define COMSIG_PHONE_CALL_DENY_REQUEST
+	#define COMSIG_PHONE_CALL_DENY_REQUEST "phone_call_deny_request"
 	/// When our outgoing call request is accepted
 	#define COMSIG_PHONE_CALL_REQUEST_ACCEPTED "phone_call_request_accepted"
 	/// When we accept an incoming call request
-	#define COMSIG_PHONE_CALL_ACCEPT_REQUEST
+	#define COMSIG_PHONE_CALL_ACCEPT_REQUEST "phone_call_accept_request"
 	/// When one phone wants to terminate the call
 	#define COMSIG_PHONE_CALL_HANGUP "phone_call_hangup"
 	/// When a phonecall has ended
@@ -84,3 +83,5 @@
 
 	/// When speech is picked up by the microphone
 	#define COMSIG_PHONE_SPOKEN_INTO "phone_spoken_into"
+	/// When a phone holder wants to use the phone_ui UI
+	#define COMSIG_PHONE_UI_INTERACT "phone_ui_interact"
