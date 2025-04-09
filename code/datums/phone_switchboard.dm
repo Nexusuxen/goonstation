@@ -5,6 +5,9 @@ It could probably work if we sent signals to the switchboard directly but that s
 and also laggier, and less flexible (what if we want things to tap into phones?)
 */
 
+#define FAIL 0
+#define SUCCESS 1
+
 /// Handles connections between phones
 /datum/phone_switchboard
 
@@ -17,7 +20,7 @@ and also laggier, and less flexible (what if we want things to tap into phones?)
 	/// List of all phones we have registered
 	var/list/registered_phones = list()
 	/// Stores what phones are linked to a given phone, including pending and active calls
-	var/list/phone_links = list()
+	var/phone_links[0]
 
 	New()
 		. = ..()
@@ -42,43 +45,51 @@ and also laggier, and less flexible (what if we want things to tap into phones?)
 		unregisterPhoneSignals(target)
 
 	proc/registerPhoneSignals(var/datum/target)
-		RegisterSignal(target, COMSIG_PHONE_CALL_REQUEST_OUT, PROC_REF(relayCallRequest))
-		RegisterSignal(target, COMSIG_PHONE_CALL_DENY_REQUEST, PROC_REF(callRequestClosed))
-		RegisterSignal(target, COMSIG_PHONE_CALL_ACCEPT_REQUEST, PROC_REF(callRequestAccepted))
-		RegisterSignal(target, COMSIG_PHONE_CALL_HANGUP, PROC_REF(hangUp))
+		RegisterSignal(target, COMSIG_PHONE_ATTEMPT_CONNECT, PROC_REF(relayConnectAttempt))
+		RegisterSignal(target, COMSIG_PHONE_HANGUP, PROC_REF(closeConnection))
+		RegisterSignal(target, COMSIG_PHONE_PICKUP, PROC_REF(callPickedUp))
 		RegisterSignal(target, COMSIG_PHONE_SPEECH_OUT, PROC_REF(relaySpeech))
 		RegisterSignal(target, COMSIG_PHONE_VAPE_OUT, PROC_REF(relayVape))
 		RegisterSignal(target, COMSIG_PHONE_VOLTRON_OUT, PROC_REF(relayVoltron))
 
 	proc/unregisterPhoneSignals(var/datum/target)
-		UnregisterSignal(target, COMSIG_PHONE_CALL_REQUEST_OUT)
-		UnregisterSignal(target, COMSIG_PHONE_CALL_DENY_REQUEST)
-		UnregisterSignal(target, COMSIG_PHONE_CALL_ACCEPT_REQUEST)
-		UnregisterSignal(target, COMSIG_PHONE_CALL_HANGUP)
+		UnregisterSignal(target, COMSIG_PHONE_ATTEMPT_CONNECT)
+		UnregisterSignal(target, COMSIG_PHONE_HANGUP)
+		UnregisterSignal(target, COMSIG_PHONE_PICKUP)
 		UnregisterSignal(target, COMSIG_PHONE_SPEECH_OUT)
 		UnregisterSignal(target, COMSIG_PHONE_VAPE_OUT)
 		UnregisterSignal(target, COMSIG_PHONE_VOLTRON_OUT)
 
-	proc/relayCallRequest(datum/caller, target_id)
+	proc/relayConnectAttempt(datum/caller, target_id)
+		if(!(caller in registered_phones))
+			logTheThing(LOG_DEBUG, src, "Unregistered caller [caller] attempted to make a connection through [src]!")
+			return
+		if((caller in phone_links))
+			return FAIL // could probably add support for 3+ party calls but for now, no thank you
 		var/datum/target = phone_numbers[target_id]
 		if(!target)
-			SEND_SIGNAL(caller, COMSIG_PHONE_CALL_REQUEST_CLOSED)
-			return
+			return FAIL
 		var/caller_id = phone_numbers_inv[caller]
 		// we send the caller ID since that's basically a phone number
 		// todo: refine further before PR but for now it's fine
-		if(!SEND_SIGNAL(target, COMSIG_PHONE_CALL_REQUEST_IN, caller_id))
-			SEND_SIGNAL(caller, COMSIG_PHONE_CALL_REQUEST_CLOSED)
-			return
+		if(!SEND_SIGNAL(target, COMSIG_PHONE_INBOUND_CONNECTION_ATTEMPT, caller_id))
+			return FAIL
 		linkPhones(caller, target)
+		return SUCCESS
 
-	proc/callRequestClosed(datum/target)
-		var/datum/caller = phone_links[target]
-		terminateCall(caller, target)
-		SEND_SIGNAL(caller, COMSIG_PHONE_CALL_REQUEST_CLOSED)
+	proc/closeConnection(datum/closer)
+		if(!(closer in phone_links))
+			return
+		var/datum/other_party = phone_links[closer]
+		terminateCall(other_party, closer)
 
-	proc/callRequestAccepted(datum/target)
-		var/datum/caller = phone_links[target]
+	proc/callPickedUp(datum/pickerUpper)
+		if(!pickerUpper)
+			logTheThing(LOG_DEBUG, src, "COMSIG_PHONE_PICKUP received with a null sender")
+			return
+		if(!(pickerUpper in phone_links))
+			return
+		var/datum/caller = phone_links[pickerUpper]
 		SEND_SIGNAL(caller, COMSIG_PHONE_CALL_REQUEST_ACCEPTED, src)
 
 	/// Links two phones together. Does NOT check for existing links.
@@ -86,17 +97,12 @@ and also laggier, and less flexible (what if we want things to tap into phones?)
 		phone_links[caller] += target
 		phone_links[target] += caller
 
-	/// When one phone wants to hang up the call
-	proc/hangUp(hangerUpper)
-		var/datum/partner = phone_links[hangerUpper]
-		terminateCall(hangerUpper, partner)
-
 	/// Terminates a phone call between 2 specified phones
 	proc/terminateCall(var/datum/phone_1, var/datum/phone_2)
 		phone_links.Remove(phone_1)
 		phone_links.Remove(phone_2)
-		SEND_SIGNAL(phone_1, COMSIG_PHONE_CALL_ENDED, src)
-		SEND_SIGNAL(phone_2, COMSIG_PHONE_CALL_ENDED, src)
+		SEND_SIGNAL(phone_1, COMSIG_PHONE_CONNECTION_CLOSED, src)
+		SEND_SIGNAL(phone_2, COMSIG_PHONE_CONNECTION_CLOSED, src)
 
 	proc/relaySpeech(caller, said_message)
 		var/datum/target = phone_links[caller]
@@ -105,3 +111,6 @@ and also laggier, and less flexible (what if we want things to tap into phones?)
 	proc/relayVape()
 
 	proc/relayVoltron()
+
+#undef FAIL
+#undef SUCCESS

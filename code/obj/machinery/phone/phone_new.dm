@@ -35,9 +35,10 @@ answered - was only used to handle inbound/outgoing calls, now handled by handse
 
 	/// Adds and configures phone components and registers us for signals
 	proc/add_components()
-		src.AddComponent(/datum/component/phone_networker)
-		src.AddComponent(/datum/component/phone_ui)
-		src.AddComponent(/datum/component/phone_ringer)
+		//todo remove phone_ui dependency on net_comp here
+		var/datum/component/phone_networker/net_comp = src.AddComponent(/datum/component/phone_networker)
+		src.AddComponent(/datum/component/phone_ui, src, src.name, net_comp)
+		src.AddComponent(/datum/component/phone_ringer_atom, src)
 
 	New()
 		..() // Set up power usage, subscribe to loop, yada yada yada
@@ -91,13 +92,12 @@ answered - was only used to handle inbound/outgoing calls, now handled by handse
 		src.handset.loc = src
 
 		src.add_components()
-		src.handset.add_components()
 
 	disposing()
 // add component deletion here
 
 		if (handset_taken)
-			handset.parent = null
+			handset.parent_phone = null
 		handset = null
 
 		STOP_TRACKING
@@ -120,7 +120,7 @@ answered - was only used to handle inbound/outgoing calls, now handled by handse
 	attackby(obj/item/P, mob/living/user)
 		if(istype(P, /obj/item/phone_handset_new))
 			var/obj/item/phone_handset_new/PH = P
-			if(PH.parent == src)
+			if(PH.parent_phone == src)
 				return_handset(user)
 			else
 				boutput(user,"Hey, that's not this phone's handset! Knock that off!")
@@ -170,7 +170,6 @@ answered - was only used to handle inbound/outgoing calls, now handled by handse
 			src.explode()
 			return
 
-		src.handset = new /obj/item/phone_handset_new(src,user)
 		src.AddComponent(/datum/component/cord, src.handset, base_offset_x = -4, base_offset_y = -1)
 		user.put_in_hand_or_drop(src.handset)
 		src.handset_taken = TRUE
@@ -178,7 +177,8 @@ answered - was only used to handle inbound/outgoing calls, now handled by handse
 		src.icon_state = "[answered_icon]"
 		UpdateIcon()
 		playsound(user, 'sound/machines/phones/pick_up.ogg', 50, FALSE)
-
+		SEND_SIGNAL(src, COMSIG_PHONE_UI_INTERACT, user, FALSE)
+		SEND_SIGNAL(src, COMSIG_PHONE_PICKUP)
 
 	proc/return_handset(var/mob/living/user)
 		if(user)
@@ -188,6 +188,7 @@ answered - was only used to handle inbound/outgoing calls, now handled by handse
 		src.icon_state = "[phone_icon]"
 		UpdateIcon()
 		playsound(src.loc,'sound/machines/phones/hang_up.ogg' ,50,0)
+		SEND_SIGNAL(src, COMSIG_PHONE_HANGUP)
 
 
 /* Notes 4 Handsets
@@ -198,22 +199,17 @@ We should be initialized during phone_new.New()!
 	name = "phone handset"
 	icon = 'icons/obj/machines/phones.dmi'
 	desc = "I wonder if the last crewmember to use this washed their hands before touching it."
-	var/obj/machinery/phone_new/parent = null
+	var/obj/machinery/phone_new/parent_phone = null
 	flags = TALK_INTO_HAND
 	w_class = W_CLASS_TINY
 	var/icon/handset_icon = null
 
-	/// Adds phone components to the handset
-	proc/add_components()
-		src.AddComponent(/datum/component/phone_microphone)
-		src.AddComponent(/datum/component/phone_speaker)
-
-	New(var/obj/machinery/phone/parent_phone)
-		if(!parent_phone)
+	New(var/obj/machinery/phone/our_parent_phone)
+		if(!our_parent_phone)
 			return
 		..()
 		icon_state = "handset"
-		src.parent = parent_phone
+		src.parent_phone = our_parent_phone
 		var/image/stripe_image = image('icons/obj/machines/phones.dmi',"[src.icon_state]-stripe")
 		stripe_image.color = parent_phone.stripe_color
 		stripe_image.appearance_flags = RESET_COLOR | PIXEL_SCALE
@@ -221,6 +217,12 @@ We should be initialized during phone_new.New()!
 		src.UpdateOverlays(stripe_image, "stripe")
 		src.handset_icon = getFlatIcon(src)
 		processing_items.Add(src)
+		add_components()
+
+	/// Adds phone components to the handset
+	proc/add_components()
+		src.AddComponent(/datum/component/phone_microphone, parent_phone)
+		src.AddComponent(/datum/component/phone_speaker_atom, parent_phone)
 
 	talk_into(mob/M as mob, text, secure, real_name, lang_id)
 		..()

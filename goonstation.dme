@@ -38,6 +38,7 @@
 #endif
 
 // BEGIN_INCLUDE
+#include "_std\defines\component_defines\component_defines_phones.dm"
 #include "code\area.dm"
 #include "code\atom.dm"
 #include "code\client.dm"
@@ -346,6 +347,7 @@
 #include "code\datums\controllers\process\mob_ui.dm"
 #include "code\datums\controllers\process\mobs.dm"
 #include "code\datums\controllers\process\particles.dm"
+#include "code\datums\controllers\process\phones.dm"
 #include "code\datums\controllers\process\poll_sync.dm"
 #include "code\datums\controllers\process\precipitation.dm"
 #include "code\datums\controllers\process\railway.dm"
