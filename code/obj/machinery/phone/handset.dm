@@ -17,7 +17,7 @@ TYPEINFO(/obj/item/phone_handset)
 	var/icon/handset_icon = null
 	var/last_talk = 0
 
-/obj/item/phone_handset/New(obj/machinery/phone/parent_phone, mob/living/picker_upper)
+/obj/item/phone_handset/New(obj/machinery/phone/parent_phone)
 	if (!parent_phone)
 		return
 
@@ -32,6 +32,7 @@ TYPEINFO(/obj/item/phone_handset)
 	src.UpdateOverlays(stripe_image, "stripe")
 	src.handset_icon = getFlatIcon(src)
 	processing_items.Add(src)
+	add_components()
 
 /obj/item/phone_handset/disposing()
 	src.parent.handset = null
@@ -39,12 +40,16 @@ TYPEINFO(/obj/item/phone_handset)
 	processing_items.Remove(src)
 	. = ..()
 
+/obj/item/phone_handset/proc/add_components()
+		src.AddComponent(/datum/component/phone_microphone, parent)
+		src.AddComponent(/datum/component/phone_speaker_atom, parent)
+
 /obj/item/phone_handset/process()
 	if (!src.parent)
 		qdel(src)
 		return
 
-	if (!src.parent.answered || (BOUNDS_DIST(src, src.parent) == 0))
+	if (!src.parent.handset_taken || (BOUNDS_DIST(src, src.parent) == 0))
 		return
 
 	var/mob/holder = src.get_holder()

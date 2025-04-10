@@ -1,4 +1,4 @@
-/obj/machinery/phone_new
+/*/obj/machinery/phone_new
 	name = "phone"
 	icon = 'icons/obj/machines/phones.dmi'
 	desc = "A landline phone. In space. Where there is no land. Hmm."
@@ -243,3 +243,5 @@ We should be initialized during phone_new.New()!
 		user.Browse(info, "window=Telecommunications Node")
 */
 
+
+*/

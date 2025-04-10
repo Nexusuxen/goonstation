@@ -109,9 +109,8 @@ var/global
 
 	max_sound_range = MAX_SOUND_RANGE_NORMAL
 
-	// this is probably a terrible place to leave this but im honestly not sure where it should go
-	// please review
-	datum/phone_switchboard/nt13_switchboard = new
+	/// "name" = switchboard
+	list/global_switchboards = list()
 
 	list/cursors_selection = list("Default" = 'icons/cursors/target/default.dmi',
 	"Red" = 'icons/cursors/target/red.dmi',

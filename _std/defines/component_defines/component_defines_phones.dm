@@ -1,15 +1,14 @@
 // Switchboard connection signals
 
-	/// When a phone wants to register to a switchboard. Sent on datum/switchboard as origin
-	/// (target_id, target)
+	/// Signals to register phone to switchboard
+	/// (phone parent, phone_number, phone_name, category, hidden)
 	#define COMSIG_PHONE_SWITCHBOARD_REGISTER "phone_switchboard_register"
-	/// When a switchboard successfully registers with a phone
-	#define COMSIG_PHONE_SWITCHBOARD_REGISTER_SUCCESSFUL "phone_switchboard_register_successful"
-	/// When a switchboard fails to register with a phone
-	#define COMSIG_PHONE_SWITCHBOARD_REGISTER_FAILED "phone_switchboard_register_failed"
-	/// Signals when an unregister occurs. Sent on datum/switchboard as origin
-	/// (target_id, datum, responded)
+	/// Signals to unregister phone from switchboard
+	/// (phone parent)
 	#define COMSIG_PHONE_SWITCHBOARD_UNREGISTER "phone_switchboard_unregister"
+	/// Carries phonebook data to update phones' phonebooks
+	/// (phonebook (list), append (bool))
+	#define COMSIG_PHONE_BOOK_DATA "phone_book_data"
 
 // Outbound signals
 
@@ -26,6 +25,8 @@
 	#define COMSIG_PHONE_VAPE_OUT "phone_vape_out"
 	/// When a phone transmits a voltron-using nerd
 	#define COMSIG_PHONE_VOLTRON_OUT "phone_voltron_out"
+	/// When a phone transmits a sound
+	#define COMSIG_PHONE_SOUND_OUT "phone_sound_out"
 
 // Inbound signals
 
@@ -43,6 +44,8 @@
 	#define COMSIG_PHONE_VAPE_IN "phone_vape_in"
 	/// When a phone receives a voltron-using nerd
 	#define COMSIG_PHONE_VOLTRON_IN "phone_voltron_in"
+	/// When a phone receives a sound
+	#define COMSIG_PHONE_SOUND_IN "phone_sound_in" //todo add handling for more args
 
 // Internal signals
 
@@ -51,9 +54,31 @@
 	/// When a phone holder wants to use the phone_ui UI
 	/// args: user, force_ui = FALSE
 	#define COMSIG_PHONE_UI_INTERACT "phone_ui_interact"
+	/// Signals a ui_component to close the UI
+	#define COMSIG_PHONE_UI_CLOSE "phone_ui_close"
 	/// orders the ringer component (if any) to start ringing
 	#define COMSIG_PHONE_START_RING "phone_start_ring"
 	/// orders the ringer component (if any) to stop ringing
 	#define COMSIG_PHONE_STOP_RING "phone_stop_ring"
 	/// Sent by /datum/controller/process/phone_ringing to ring phones
 	#define COMSIG_PHONE_RINGER_PROCESS_TICK "phone_ring_process_tick"
+	/// Sent to update any changes to things like name and category
+	#define COMSIG_PHONE_UPDATE_INFO "phone_update_info"
+
+// Return bitflags
+
+	/// attempted action failed
+	#define PHONE_FAIL (1<<0)
+	/// attempted action successful
+	#define PHONE_SUCCESS (1<<1)
+	/// action resulted in a phonecall being answered
+	#define PHONE_ANSWERED (1<<2)
+	/// if a phone is already connected or registered to a phone/switchboard
+	#define PHONE_ALREADY_CONNECTED (1<<3)
+
+// Misc junk
+
+	/// Default ring sound heard through a phone's speaker
+	#define PHONE_DEFAULT_RING_SPEAKER 'sound/machines/phones/ring_outgoing.ogg'
+	/// Default ring sound that a phone will play on its parent
+	#define PHONE_DEFAULT_RING_EXTERNAL 'sound/machines/phones/ring_incoming.ogg'
