@@ -119,11 +119,17 @@ and also laggier, and less flexible (what if we want things to tap into phones?)
 
 	proc/relaySpeech(caller, message)
 		var/datum/target = phone_links[caller]
-		SEND_SIGNAL(target, COMSIG_PHONE_SPEECH_IN, message)
+		return SEND_SIGNAL(target, COMSIG_PHONE_SPEECH_IN, message)
 
-	proc/relayVape()
+	proc/relayVape(caller, vape)
+		var/datum/target = phone_links[caller]
+		if(target)
+			SEND_SIGNAL(target, COMSIG_PHONE_VAPE_IN, vape)
 
-	proc/relayVoltron()
+	proc/relayVoltron(caller, voltron)
+		var/datum/target = phone_links[caller]
+		if(target)
+			return SEND_SIGNAL(target, COMSIG_PHONE_VOLTRON_IN, voltron)
 
 	proc/update_info(signal_parent, new_name, new_category, new_hidden)
 		var/phone_number = registered_phones[signal_parent][1]

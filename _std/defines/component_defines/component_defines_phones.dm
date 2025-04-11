@@ -82,3 +82,7 @@
 	#define PHONE_DEFAULT_RING_SPEAKER 'sound/machines/phones/ring_outgoing.ogg'
 	/// Default ring sound that a phone will play on its parent
 	#define PHONE_DEFAULT_RING_EXTERNAL 'sound/machines/phones/ring_incoming.ogg'
+	/// When you want to try entering a microphone with a voltron
+	#define COMSIG_PHONE_ATTEMPT_VOLTRON "phone_attempt_voltron"
+	/// When you want to try vaping into a microphone
+	#define COMSIG_PHONE_ATTEMPT_VAPE "phone_attempt_vape"

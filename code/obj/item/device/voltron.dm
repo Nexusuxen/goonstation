@@ -102,6 +102,8 @@
 	var/power_icon = ""
 	var/list/cableimgs = list()
 	var/vision_radius = 2
+	/// For phones to directly edit, so we know where to go when voltronning
+	var/atom/target_atom = null
 	New()
 		handle_overlay()
 		SPAWN(0)
@@ -293,35 +295,24 @@
 			boutput(target, SPAN_NOTICE("You deactivate the [src]."))
 			deactivate()
 		else
-			if(istype(user.l_hand,/obj/item/phone_handset) || istype(user.r_hand,/obj/item/phone_handset)) // travel through space line
-				var/obj/item/phone_handset/PH = null
-				var/obj/item/phone_handset/EXIT = null
-				var/turf/target_loc = null
-				if(istype(user.l_hand,/obj/item/phone_handset))
-					PH = user.l_hand
-				else
-					PH = user.r_hand
-				if(PH.parent.linked && PH.parent.linked.handset)
-					if(isturf(PH.parent.linked.handset.loc))
-						target_loc = PH.parent.linked.handset.loc
-					else if(ismob(PH.parent.linked.handset.loc))
-						target_loc = PH.parent.linked.handset.loc.loc
-					else
-						boutput(user, "You can't seem to enter the phone for some reason!")
-						return
-				else
+			var/atom/held_item = null
+			if(user.l_hand == src && !isnull(user.r_hand))
+				held_item = user.r_hand
+			else if(user.r_hand == src && !isnull(user.l_hand))
+				held_item = user.l_hand
+			if(held_item && held_item.GetComponent(/datum/component/phone_microphone)) // travel through space line
+				var/try_voltron = SEND_SIGNAL(held_item, COMSIG_PHONE_ATTEMPT_VOLTRON, src)
+				if(!(try_voltron & PHONE_SUCCESS))
 					boutput(user, "You can't seem to enter the phone for some reason!")
-					return
-				if(isrestrictedz(user.loc.z) || isrestrictedz(target_loc.z))
-					boutput(user, "You can't seem to enter the phone for some reason!")
-					return
-				EXIT = PH.parent.linked.handset
+					return // we assume the other end does all the necessary checks
+				// CHECKS NEEDED: restricted z and location is turf
 				user.visible_message("[user] enters the phone line using their [src].", "You enter the phone line using your [src].", "You hear a strange sucking noise.")
 				playsound(user.loc, 'sound/effects/singsuck.ogg', 40, 1)
-				user.drop_item(PH)
-				user.set_loc(target_loc)
+				user.drop_item(held_item)
+				user.set_loc(target_atom.loc)
 				playsound(user.loc, 'sound/effects/singsuck.ogg', 40, 1)
-				user.visible_message("[user] suddenly emerges from the [EXIT]. [pick("","What the fuck?")]", "You emerge from the [EXIT].", "You hear a strange sucking noise.")
+				user.visible_message("[user] suddenly emerges from the [target_atom]. [pick("","What the fuck?")]", "You emerge from the [target_atom].", "You hear a strange sucking noise.")
+				target_atom = null
 			else
 				boutput(user, SPAN_NOTICE("You activate the [src]."))
 				activate(user)

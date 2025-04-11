@@ -335,6 +335,10 @@ TYPEINFO(/obj/item/reagent_containers/vape)
 	var/list/safe_smokables = list("nicotine", "THC", "CBD")
 	var/datum/effects/system/bad_smoke_spread/smoke
 	var/range = 1
+	/// If we're vaping into a phone, this is what they use to tell us where to vape to
+	var/phone_target = null
+	/// If we're vaping into a phone, this is who's on the other end, if anybody
+	var/phone_target_holder = null
 
 	New()
 		..()
@@ -401,21 +405,22 @@ TYPEINFO(/obj/item/reagent_containers/vape)
 		else
 			var/datum/reagents/R = new /datum/reagents(5)
 			var/target_loc = src.loc
-			var/obj/item/phone_handset/PH = null
-			if(istype(usr.l_hand,/obj/item/phone_handset) || istype(usr.r_hand,/obj/item/phone_handset)) // You can vape over the phone now. Why am I doing this.
-				if(istype(usr.l_hand,/obj/item/phone_handset))
-					PH = usr.l_hand
-				else
-					PH = usr.r_hand
-				if(PH.parent.linked && PH.parent.linked.handset && PH.parent.linked.handset.get_holder())
-					target_loc = PH.parent.linked.handset.get_holder().loc
 
-
+			var/atom/held_item = null
+			if(usr.l_hand == src && !isnull(usr.r_hand))
+				held_item = usr.r_hand
+			else if(usr.r_hand == src && !isnull(usr.l_hand))
+				held_item = usr.l_hand
+			if(held_item && held_item.GetComponent(/datum/component/phone_microphone))
+				SEND_SIGNAL(held_item, COMSIG_PHONE_ATTEMPT_VAPE, src) // You can vape over the phone now. Why am I doing this.
+				// We let the recipient handle everything, so if this fails they just don't update phone_target
+			if(phone_target)
+				target_loc = phone_target
 			R.my_atom = src
 			src.reagents.trans_to(usr, 5)
 			src.reagents.trans_to_direct(R, 5)
-			if(PH?.parent.linked?.handset?.get_holder())
-				smoke_reaction(R, range, get_turf(PH.parent.linked.handset.get_holder()))
+			if(phone_target)
+				smoke_reaction(R, range, get_turf(phone_target))
 			else
 				smoke_reaction(R, range, get_turf(usr))
 			particleMaster.SpawnSystem(new /datum/particleSystem/blow_cig_smoke(target_loc, NORTH))
@@ -429,14 +434,14 @@ TYPEINFO(/obj/item/reagent_containers/vape)
 				src.smoke.start()
 				sleep(1 SECOND)
 
-			if(!PH)
+			if(!phone_target)
 				usr.visible_message(SPAN_ALERT("<B>[usr] blows a cloud of smoke with their [prob(90) ? "ecig" : "mouth fedora"]! They look [pick("really lame", "like a total dork", "unbelievably silly", "a little ridiculous", "kind of pathetic", "honestly pitiable")]. </B>"),\
 				SPAN_ALERT("You puff on the ecig and let out a cloud of smoke. You feel [pick("really cool", "totally awesome", "completely euphoric", "like the coolest person in the room", "like everybody respects you", "like the latest trend-setter")]."))
 			else
 				usr.visible_message(SPAN_ALERT("<B>[usr] blows a cloud of smoke right into the phone! They look [pick("really lame", "like a total dork", "unbelievably silly", "a little ridiculous", "kind of pathetic", "honestly pitiable")]. </B>"),\
 				SPAN_ALERT("You puff on the ecig and blow a cloud of smoke right into the phone. You feel [pick("really cool", "totally awesome", "completely euphoric", "like the coolest person in the room", "like everybody respects you", "like the latest trend-setter")]."))
-				if(PH.parent.linked && PH.parent.linked.handset && PH.parent.linked.handset.get_holder())
-					boutput(PH.parent.linked.handset.get_holder(),SPAN_ALERT("<B>[usr] blows a cloud of smoke right through the phone! What a total [pick("dork","loser","dweeb","nerd","useless piece of shit","dumbass")]!</B>"))
+				if(phone_target_holder)
+					boutput(phone_target_holder,SPAN_ALERT("<B>[usr] blows a cloud of smoke right through the phone! What a total [pick("dork","loser","dweeb","nerd","useless piece of shit","dumbass")]!</B>"))
 
 			logTheThing(LOG_COMBAT, usr, "vapes a cloud of [log_reagents(src)] at [log_loc(target_loc)].")
 			last_used = world.time

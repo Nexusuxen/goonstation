@@ -2550,7 +2550,6 @@
 #include "code\obj\machinery\food_and_drink\mixer.dm"
 #include "code\obj\machinery\phone\handset.dm"
 #include "code\obj\machinery\phone\phone.dm"
-#include "code\obj\machinery\phone\phone_new.dm"
 #include "code\obj\machinery\pipe\pipe_dispenser.dm"
 #include "code\obj\machinery\shield_generators\energy_shield.dm"
 #include "code\obj\machinery\shield_generators\meteor_shield.dm"

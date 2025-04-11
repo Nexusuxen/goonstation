@@ -11,15 +11,13 @@ var/global/list/phone_numbers = list()
 /// Stores all phoneids as parent = phone_id
 var/global/list/phone_numbers_inv = list()
 
-#define FAIL 0
-#define SUCCESS 1
-
 /// Handles interfacing with a switchboard and the rest of the phone
 /datum/component/phone_networker
 
-	/// Our unique identifier
+	/// Our unique identifier. Currently this is just a unique name.
+	/// In the future proper phone numbers should be the unique identifier we use
 	var/phone_id = null
-	/// Our display name in UIs
+	/// Our display name in UIs. Currently indistinguishable from phone_id
 	var/phone_name = null
 	/// Our category in the phonebook
 	var/address_category = null
@@ -36,6 +34,8 @@ var/global/list/phone_numbers_inv = list()
 	/// A list of information on whoever's calling us
 	/// list(phone number, name)
 	var/list/current_caller_info
+	/// Are we currently in an active call?
+	var/pending_call = FALSE
 
 	var/datum/our_ui
 	var/datum/our_mic
@@ -54,15 +54,16 @@ var/global/list/phone_numbers_inv = list()
 		RegisterSignal(parent, COMSIG_PHONE_PICKUP, PROC_REF(picked_up))
 		RegisterSignal(parent, COMSIG_PHONE_HANGUP, PROC_REF(hanged_up))
 		RegisterSignal(parent, COMSIG_PHONE_UPDATE_INFO, PROC_REF(update_info))
+		if(isnull(_phone_name)) // remove when phone numbers are added
+			CRASH("Tried to generate a phone without a name from [parent]!")
+		phone_id = _phone_name // replace with actual phone numbers sometime
+		// They should probably in the format of 131234, with the first 2 digits denoting some kind of group
+		// Rendered as 13-1234 or (13) 1234 or whatever
+		// This would be in-line with the 7 beeps you hear when dialing a number (6 digits, 1 to enter)
+		// and looks kinda nice. We probably wouldn't need more than 9999 phone numbers anyways, god willing.
 		phone_name = _phone_name
+		// todo: make it impossible to have duplicate names
 		address_category = _address_category
-
-		// THIS IS A HACKJOB FOR DEV PURPOSES
-		// TODO: MAKE PROPER PHONE NUMBERS
-		// Phone numbers should be in the format 131234, and rendered 13-1234
-		// Maybe our phone number should be assigned by the switchboard?
-		// Normal station phones should have the prefix 13 (haha get it ss13), figure out something for other phones
-		phone_id = num2text(rand(1, 10000))
 		add_phone_to_global_list()
 		// src is added here since try_register_switchboard can also be called from a signal
 		try_register_switchboard(src, switchboard_name)
@@ -108,23 +109,27 @@ var/global/list/phone_numbers_inv = list()
 	/// Handles inbound call requests
 	proc/inbound_connection_attempt(var/signal_parent, caller_info)
 		if(busy)
-			return FAIL
+			return PHONE_FAIL
 		else
 			SEND_SIGNAL(parent, COMSIG_PHONE_START_RING, caller_info)
 			current_caller_info = caller_info
-			return SUCCESS
+			pending_call = TRUE
+			return PHONE_SUCCESS
 
 	proc/connection_closed(var/signal_parent, datum/partner)
 		SEND_SIGNAL(parent, COMSIG_PHONE_STOP_RING)
 		SEND_SIGNAL(parent, COMSIG_PHONE_SOUND_IN, 'sound/machines/phones/hang_up.ogg')
+		pending_call = FALSE
 
 	proc/call_request_accepted(var/signal_parent, datum/partner)
 		SEND_SIGNAL(parent, COMSIG_PHONE_STOP_RING)
 		SEND_SIGNAL(parent, COMSIG_PHONE_SOUND_IN, 'sound/machines/phones/remote_answer.ogg')
+		pending_call = FALSE
 		. |= PHONE_ANSWERED
 
 	proc/picked_up()
 		busy = TRUE
+		pending_call = FALSE
 		SEND_SIGNAL(parent, COMSIG_PHONE_STOP_RING)
 	proc/hanged_up()
 		busy = FALSE
@@ -136,7 +141,7 @@ var/global/list/phone_numbers_inv = list()
 		hidden = new_hidden
 
 /// Handles UI actions for phones. Displaying TGUI to a client, relaying input to the networker, etc.
-/// May have a different owner than its networker
+/// May have a different parent than its networker
 /datum/component/phone_ui
 
 	/// The parent holder containing our networker
@@ -224,19 +229,31 @@ var/global/list/phone_numbers_inv = list()
 	/// The parent holder containing our networker
 	var/datum/networker_parent
 
-	Initialize(var/net_parent)
+	/// Are we able to transmit voltron-wielding nerds?
+	var/voltronnable
+	/// Can we send sick vapes through the wires?
+	var/vapeable
+
+	Initialize(var/net_parent, var/do_voltron = TRUE, var/do_vape = TRUE)
 		. = ..()
 		if(!istype(parent, /atom))
 			return COMPONENT_INCOMPATIBLE
 		networker_parent = net_parent
+		voltronnable = do_voltron
+		vapeable = do_vape
+		RegisterSignal(parent, COMSIG_PHONE_ATTEMPT_VOLTRON, PROC_REF(attempt_voltron))
+		RegisterSignal(parent, COMSIG_PHONE_ATTEMPT_VAPE, PROC_REF(attempt_vape))
 
 	proc/transmit_speech(var/list/said_message)
 		SEND_SIGNAL(networker_parent, COMSIG_PHONE_SPEECH_OUT, said_message)
 
-	proc/transmit_vape()
+	proc/attempt_vape(var/signal_parent, var/vape)
+		if(vapeable)
+			SEND_SIGNAL(networker_parent, COMSIG_PHONE_VAPE_OUT, vape)
 
-	proc/transmit_voltron()
-
+	proc/attempt_voltron(var/signal_parent, var/voltron)
+		if(voltronnable)
+			return SEND_SIGNAL(networker_parent, COMSIG_PHONE_VOLTRON_OUT, voltron)
 
 	/*proc/get_parent()
 		RETURN_TYPE(/mob)
@@ -250,15 +267,24 @@ var/global/list/phone_numbers_inv = list()
 /datum/component/phone_speaker_atom
 
 	/// The parent holder containing our networker
-	var/datum/networker_parent
+	var/datum/networker_parent = null
+
+	var/datum/component/phone_networker/our_networker = null
+	/// Can a voltron user travel to us?
+	var/voltronnable
+	/// Can a nerd blow their vape to us?
+	var/vapeable
 
 	var/datum/controller/process/phone_ringing/ring_process = null
 
-	Initialize(var/net_parent)
+	Initialize(var/net_parent, var/do_voltron = TRUE, var/do_vape = TRUE)
 		. = ..()
 		if(!istype(parent, /atom))
 			return COMPONENT_INCOMPATIBLE
 		networker_parent = net_parent
+		our_networker = networker_parent.GetComponent(/datum/component/phone_networker)
+		voltronnable = do_voltron
+		vapeable = do_vape
 		RegisterSignal(networker_parent, COMSIG_PHONE_SPEECH_IN, PROC_REF(receive_speech))
 		RegisterSignal(networker_parent, COMSIG_PHONE_VAPE_IN, PROC_REF(receive_vape))
 		RegisterSignal(networker_parent, COMSIG_PHONE_VOLTRON_IN, PROC_REF(receive_voltron))
@@ -278,9 +304,25 @@ var/global/list/phone_numbers_inv = list()
 		message.message_origin = P
 		P.ensure_speech_tree().process(message)
 
-	proc/receive_vape(var/signal_parent, datum/partner)
+	proc/receive_vape(var/signal_parent, var/obj/item/reagent_containers/vape/vape)
+		if(!vapeable || our_networker.pending_call)
+			return
+		var/user = get_user()
+		if(user)
+			vape.phone_target_holder = user
+		vape.phone_target = parent
 
-	proc/receive_voltron(var/signal_parent, datum/partner)
+	proc/receive_voltron(var/signal_parent, var/obj/item/device/voltron/voltron)
+		if(!voltronnable || our_networker.pending_call)
+			return PHONE_FAIL
+		var/atom/A = parent
+		if(!isturf(A.loc))
+			return PHONE_FAIL
+		var/turf/destination = A.loc
+		if(isrestrictedz(destination.z))
+			return PHONE_FAIL
+		voltron.target_atom = parent
+		return PHONE_SUCCESS
 
 	proc/receive_sound(var/signal_parent, var/sound_to_play)
 		var/mob/user = get_user()
@@ -353,6 +395,3 @@ var/global/list/phone_numbers_inv = list()
 			//LogTheThing(LOG_DEBUG, src, "[src] on [parent] failed to do anything when ringing. Either a ringer component is unneeded or setup improperly.")
 			//this is throwing an Undefined Proc error here what the hell. fix this shit.
 			world << "nex wuz here"
-
-#undef FAIL
-#undef SUCCESS

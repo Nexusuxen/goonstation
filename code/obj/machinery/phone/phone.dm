@@ -23,19 +23,14 @@ TYPEINFO(/obj/machinery/phone)
 	var/phone_category = null
 	var/phone_id = null
 	var/stripe_color = null
-	var/last_ring = 0
 	var/handset_taken = FALSE
+	// todo: make do something. currently does nothing.
 	var/can_talk_across_z_levels = TRUE
 	var/connected = TRUE
 	// Deprecated. todo: remove all instances of this var
-	var/dialing = FALSE
 	var/emagged = FALSE
 	var/labelling = FALSE
-	// Deprecated. todo: remove all instances of this var
-	var/ringing = FALSE
 	var/unlisted = FALSE
-	var/frequency = FREQ_FREE
-	var/net_id = null
 	/// What switchboard (phone network) should our phone component register to while initializing
 	/// Safe to map edit. Doing anything other than "NT13" will isolate your phone from station phones
 	var/switchboard = "NT13"
@@ -187,7 +182,7 @@ TYPEINFO(/obj/machinery/phone)
 			boutput(user,SPAN_ALERT("As you pick up the phone you notice that the cord has been cut!"))
 		else
 			SEND_SIGNAL(src, COMSIG_PHONE_UI_INTERACT, user, FALSE)
-*/
+
 
 /obj/machinery/phone/emag_act(mob/user, obj/item/card/emag/E)
 	src.icon_state = "[ringing_icon]"
@@ -235,16 +230,12 @@ TYPEINFO(/obj/machinery/phone)
 /obj/machinery/phone/proc/start_ring(var/signal_parent, var/list/caller_info)
 	if(isnull(caller_info))
 		return // we're the one making the call, no need to shake
-	// we're ringing!
-	src.ringing = TRUE //remove this probably
-
 	src.icon_state = "[src.ringing_icon]"
 	src.UpdateIcon()
 
 /obj/machinery/phone/proc/stop_ring()
 	if(handset_taken)
 		return
-	src.ringing = FALSE //remove this probably
 
 	src.icon_state = "[phone_icon]"
 	src.UpdateIcon()
@@ -257,7 +248,7 @@ TYPEINFO(/obj/machinery/phone)
 		user.visible_message(SPAN_ALERT("<b>[user] bashes the [src] into [his_or_her(user)] head repeatedly!</b>"))
 		user.TakeDamage("head", 150, 0)
 		return TRUE
-/* Deprecated, holding onto for reference just in case
+/* Deprecated, holding onto for reference for now just in case
 /obj/machinery/phone/ui_interact(mob/user, datum/tgui/ui)
 	ui = tgui_process.try_update_ui(user, src, ui)
 	if (!ui)
@@ -325,14 +316,11 @@ TYPEINFO(/obj/machinery/phone)
 /obj/machinery/phone/proc/hang_up()
 	src.handset_taken = FALSE
 	SEND_SIGNAL(src, COMSIG_PHONE_HANGUP)
-
 	src.RemoveComponentsOfType(/datum/component/cord)
-	src.ringing = FALSE
 	src.handset?.force_drop(sever = TRUE)
 	src.handset.loc = src
 	src.icon_state = "[phone_icon]"
 	SEND_SIGNAL(src, COMSIG_PHONE_UI_CLOSE)
-	//tgui_process.close_uis(src)
 	src.UpdateIcon()
 	playsound(src.loc, 'sound/machines/phones/hang_up.ogg', 50, 0)
 
