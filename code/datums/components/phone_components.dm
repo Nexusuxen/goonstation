@@ -11,6 +11,9 @@ var/global/list/phone_numbers = list()
 /// Stores all phoneids as parent = phone_id
 var/global/list/phone_numbers_inv = list()
 
+// kinda meh approach but
+proc/generate_phone_name()
+
 /// Handles interfacing with a switchboard and the rest of the phone
 /datum/component/phone_networker
 

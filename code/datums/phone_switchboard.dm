@@ -5,8 +5,12 @@ It could probably work if we sent signals to the switchboard directly but that s
 and also laggier, and less flexible (what if we want things to tap into phones?)
 */
 
-#define FAIL 0
-#define SUCCESS 1
+// registered_phones key defines
+#define CALLER_NUMBER 1
+#define CALLER_NAME 2
+#define CALLER_CATEGORY 3
+#define CALLER_HIDDEN 4
+#define CALLER_COLOR 5
 
 /// Handles connections between phones
 /datum/phone_switchboard
@@ -18,7 +22,7 @@ and also laggier, and less flexible (what if we want things to tap into phones?)
 	// However, we should stick to referring to the component parents when possible for cleanliness.
 
 	/// List of all phones we have registered. Structure:
-	/// phone = list(phone number, name, category, hidden (bool))
+	/// phone = list(phone number, name, category, hidden (bool), color (optional))
 	var/list/registered_phones = list()
 	/// Stores what phones are linked to a given phone, including pending and active calls
 	var/phone_links[0]
@@ -76,19 +80,20 @@ and also laggier, and less flexible (what if we want things to tap into phones?)
 			logTheThing(LOG_DEBUG, src, "Unregistered caller [caller] attempted to make a connection through [src]!")
 			return
 		if((caller in phone_links))
-			return FAIL // could probably add support for 3+ party calls but for now, no thank you
+			return PHONE_FAIL // could probably add support for 3+ party calls but for now, no thank you
 		var/datum/target = phone_numbers[target_id]
 		if(!target || (caller == target) || !(target in registered_phones))
-			return FAIL //todo: add special case for trying to call self
+			return PHONE_FAIL //todo: add special case for trying to call self
 			// and also make calling self via phonebook impossible, ideally
-		var/caller_id = registered_phones[caller][1]
-		var/caller_name = registered_phones[caller][2]
+		var/caller_id = registered_phones[caller][CALLER_NUMBER]
+		var/caller_name = registered_phones[caller][CALLER_NAME]
+		var/caller_color = registered_phones[caller][CALLER_COLOR]
 		// adding more stuff to this list as needed shouldn't break anything
-		var/caller_info = list(caller_id, caller_name)
+		var/caller_info = list(caller_id, caller_name, caller_color)
 		if(!SEND_SIGNAL(target, COMSIG_PHONE_INBOUND_CONNECTION_ATTEMPT, caller_info))
-			return FAIL
+			return PHONE_FAIL
 		linkPhones(caller, target)
-		return SUCCESS
+		return PHONE_SUCCESS
 
 	proc/closeConnection(datum/closer)
 		if(!(closer in phone_links))
@@ -138,7 +143,6 @@ and also laggier, and less flexible (what if we want things to tap into phones?)
 		//todo check if Hidden changed, and if so, update phonebook
 		updatePhonebooks()
 
-// todo: make the UI show name *and* phone number
 // This may be a little performance intensive at roundstart due to how many phones are spawning, so maybe
 // figure out a way to prevent this from proc'ing during preround, and force it to proc at roundstart?
 	/// Updates connected phones' phonebooks with a format compatible with standard phone ui
@@ -146,7 +150,7 @@ and also laggier, and less flexible (what if we want things to tap into phones?)
 		var/list/new_phonebook
 		for(var/P in registered_phones)
 			var/match_found = FALSE
-			var/number = registered_phones[P][1]
+			//var/number = registered_phones[P][1]
 			var/phone_name = registered_phones[P][2]
 			var/phone_category = registered_phones[P][3]
 			var/hidden = registered_phones[P][4]
@@ -157,18 +161,15 @@ and also laggier, and less flexible (what if we want things to tap into phones?)
 					if (new_phonebook[i]["category"] == phone_category)
 						match_found = TRUE
 						new_phonebook[i]["phones"] += list(list(
-							"id" = number
+							"id" = phone_name
 						))
 						break
 			if (!match_found)
 				new_phonebook += list(list(
 					"category" = phone_category,
 					"phones" = list(list(
-						"id" = number
+						"id" = phone_name
 					))
 				))
 		for(var/datum/P in registered_phones)
 			SEND_SIGNAL(P, COMSIG_PHONE_BOOK_DATA, new_phonebook)
-
-#undef FAIL
-#undef SUCCESS

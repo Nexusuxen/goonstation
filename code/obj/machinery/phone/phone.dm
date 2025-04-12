@@ -34,6 +34,10 @@ TYPEINFO(/obj/machinery/phone)
 	/// What switchboard (phone network) should our phone component register to while initializing
 	/// Safe to map edit. Doing anything other than "NT13" will isolate your phone from station phones
 	var/switchboard = "NT13"
+	/// Locally-stored phonebook we use for emag shenanigans
+	var/list/phonebook
+	/// Ring message to display when emagged
+	var/prank_caller
 
 /obj/machinery/phone/New()
 	. = ..() // Set up power usage, subscribe to loop, yada yada yada
@@ -92,6 +96,7 @@ TYPEINFO(/obj/machinery/phone)
 	// ringer component just handles the sound, we gotta do the icon stuff ourselves
 	RegisterSignal(src, COMSIG_PHONE_START_RING, PROC_REF(start_ring))
 	RegisterSignal(src, COMSIG_PHONE_STOP_RING, PROC_REF(stop_ring))
+	RegisterSignal(src, COMSIG_PHONE_BOOK_DATA, PROC_REF(update_phonebook))
 	START_TRACKING
 
 /obj/machinery/phone/disposing()
@@ -124,12 +129,14 @@ TYPEINFO(/obj/machinery/phone)
 			if (user)
 				boutput(user,"You cut the phone line leading to the phone.")
 			src.connected = FALSE
-			SEND_SIGNAL(src, COMSIG_PHONE_SWITCHBOARD_UNREGISTER)
+			if(!src.emagged)
+				SEND_SIGNAL(src, COMSIG_PHONE_SWITCHBOARD_UNREGISTER)
 		else
 			if (user)
 				boutput(user,"You repair the line leading to the phone.")
 			src.connected = TRUE
-			SEND_SIGNAL(src, COMSIG_PHONE_SWITCHBOARD_REGISTER, switchboard)
+			if(!src.emagged)
+				SEND_SIGNAL(src, COMSIG_PHONE_SWITCHBOARD_REGISTER, switchboard)
 		return
 
 	if (ispulsingtool(P))
@@ -183,6 +190,11 @@ TYPEINFO(/obj/machinery/phone)
 		else
 			SEND_SIGNAL(src, COMSIG_PHONE_UI_INTERACT, user, FALSE)
 
+/obj/machinery/phone/proc/update_phonebook(var/signal_parent, var/list/phonebook_new, var/append = FALSE)
+	if(!append)
+		phonebook = phonebook_new
+		return
+	phonebook.Add(phonebook_new)
 
 /obj/machinery/phone/emag_act(mob/user, obj/item/card/emag/E)
 	src.icon_state = "[ringing_icon]"
@@ -192,31 +204,49 @@ TYPEINFO(/obj/machinery/phone)
 		return FALSE
 
 	if (user)
-		boutput(user, SPAN_ALERT("You short out the ringer circuit on the [src]."))
+		boutput(user, SPAN_ALERT("You short out the control circuit on the [src]."))
 	src.emagged = TRUE
 
-// todo: get working with new system
-/*
-	// Pick a random phone.
-	src.caller_id_message = "<span style=\"color: #cccccc;\">???</span>"
-	var/list/phonebook = list()
-	for_by_tcl(P, /obj/machinery/phone)
-		if (P.unlisted)
-			continue
-		phonebook += P
-
 	if (length(phonebook))
-		var/obj/machinery/phone/prank = pick(phonebook)
-		src.caller_id_message = "<span style=\"color: [prank.stripe_color];\">[prank.phone_id]</span>"
-*/
+		var/list/prank_category = pick(phonebook)["category"]
+		var/prank_name = prank_category["phones"]["id"]
+		var/prank_color = "#b65f08"
+		switch(prank_category)
+			if("security")
+				prank_color = "#ff0000"
+			if ("bridge")
+				prank_color = "#00ff00"
+			if ("engineering")
+				prank_color = "#ffff00"
+			if ("research")
+				prank_color = "#8409ff"
+			if ("medical")
+				prank_color = "#3838ff"
+		prank_caller = "<span style=\"color: [prank_color];\">[prank_name]</span>"
+	else
+		prank_caller = "<span style=\"color: #cccccc;\">???</span>"
+	SEND_SIGNAL(src, COMSIG_PHONE_SWITCHBOARD_UNREGISTER) // can't handle phonecalls while emagged
+
 	return TRUE
+
+/obj/machinery/phone/demag(var/mob/user)
+	if(!src.emagged)
+		return FALSE
+	if (user)
+		boutput(user, SPAN_ALERT("You repair the control circuit on the [src]."))
+	src.emagged = FALSE
+
+	src.icon_state = "[answered_icon]"
+	src.UpdateIcon()
+
+	if(src.connected)
+		SEND_SIGNAL(src, COMSIG_PHONE_SWITCHBOARD_REGISTER)
 
 /obj/machinery/phone/process()
 	if (src.emagged)
 		playsound(src.loc,'sound/machines/phones/ring_incoming.ogg', 100, 1)
 		if (!src.handset_taken)
-			// todo: make this behave with the new system
-			//src.say("Call from [src.caller_id_message].", flags = SAYFLAG_IGNORE_HTML)
+			src.say("Call from [src.prank_caller].", flags = SAYFLAG_IGNORE_HTML)
 			src.icon_state = "[ringing_icon]"
 			UpdateIcon()
 		return
