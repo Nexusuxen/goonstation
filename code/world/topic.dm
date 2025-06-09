@@ -541,7 +541,7 @@
 								if (C.player_mode && !C.player_mode_mhelp)
 									continue
 								else
-									boutput(C, SPAN_MHELP("<b>MENTOR PM: [nick] (Discord) <i class='icon-arrow-right'></i> [M_keyname][(C.mob.real_name ? "/"+M.real_name : "")] <A HREF='?src=\ref[C.holder];action=adminplayeropts;targetckey=[M.ckey]' class='popt'><i class='icon-info-sign'></i></A></b>: [SPAN_MESSAGE("[game_msg]")]"))
+									boutput(C, SPAN_MHELP("<b>MENTOR PM: [nick] (Discord) <i class='icon-arrow-right'></i> [M_keyname][(C.mob.real_name ? "/"+M.real_name : "")] <A HREF='byond://?src=\ref[C.holder];action=adminplayeropts;targetckey=[M.ckey]' class='popt'><i class='icon-info-sign'></i></A></b>: [SPAN_MESSAGE("[game_msg]")]"))
 							else
 								boutput(C, SPAN_MHELP("<b>MENTOR PM: [nick] (Discord) <i class='icon-arrow-right'></i> [M_keyname]</b>: [SPAN_MESSAGE("[game_msg]")]"))
 
@@ -640,7 +640,7 @@
 				var/address = plist["address"]
 				var/msg = "<br><div style='text-align: center; font-weight: bold;' class='deadsay'>---------------------<br>"
 				msg += "A round just ended on [server]<br>"
-				msg += "<a href='[address]'>Click here to join it</a><br>"
+				msg += "<a href='[address]'>Click here to join the next one!</a><br>"
 				msg += "---------------------</div><br>"
 				for (var/client/C)
 					if (isdead(C.mob))

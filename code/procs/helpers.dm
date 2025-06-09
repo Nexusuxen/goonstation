@@ -652,12 +652,6 @@ proc/castRay(var/atom/A, var/Angle, var/Distance) //Adapted from some forum stuf
 	for(var/mob/living/silicon/ghostdrone/M in mobs)
 		. += M
 		LAGCHECK(LAG_REALTIME)
-	for(var/mob/zoldorf/M in mobs)
-		. += M
-		LAGCHECK(LAG_REALTIME)
-	for(var/mob/living/intangible/seanceghost/M in mobs)
-		. += M
-		LAGCHECK(LAG_REALTIME)
 
 //Include details shows traitor status etc
 //Admins replaces the src ref for links with a placeholder for message_admins
@@ -1354,7 +1348,7 @@ proc/outermost_movable(atom/movable/target)
 	else if(ghostjump)
 		text += "<a href='byond://winset?command=.ghostjump [x] [y] [z]' title='Jump to Coords'>[x],[y],[z]</a>"
 	else
-		text += "<a href='?src=[holder ? "\ref[holder]" : "%admin_ref%"];action=jumptocoords;target=[x],[y],[z]' title='Jump to Coords'>[x],[y],[z]</a>"
+		text += "<a href='byond://?src=[holder ? "\ref[holder]" : "%admin_ref%"];action=jumptocoords;target=[x],[y],[z]' title='Jump to Coords'>[x],[y],[z]</a>"
 	return text
 
 // hi I'm haine -throws more crap onto the pile-
@@ -1557,7 +1551,7 @@ proc/formatTimeText(var/timeValue as num)
 /proc/antag_token_list() //List of all players redeeming antagonist tokens
 	var/list/token_list = list()
 	for(var/mob/new_player/player in mobs)
-		if((player.client) && (player.ready) && ((player.client.using_antag_token)))
+		if((player.client) && (player.ready_play) && ((player.client.using_antag_token)))
 			token_list += player.mind
 	if (!token_list.len)
 		return 0
@@ -1908,7 +1902,7 @@ proc/countJob(rank)
 				if (L.nodamage)
 					. = TRUE
 			else
-				if (L.nodamage || L.spellshield)
+				if (L.nodamage || L.hasStatus("spellshield"))
 					. = TRUE
 		if (source && istype(source, /obj/projectile) && ishuman(target))
 			var/mob/living/carbon/human/H = target

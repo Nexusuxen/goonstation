@@ -385,7 +385,7 @@ proc/get_default_flock()
 				qdel(arrow)
 		var/class = "flocksay ping [istype(F, /mob/living/intangible/flock/flockmind) ? "flockmind" : ""]"
 		var/prefix = "[SPAN_BOLD("\[[src.name]\]")] [SPAN_NAME("[pinger.name]")]"
-		boutput(F, "<span class='[class]'><a href='?src=\ref[F];origin=\ref[target];ping=[TRUE]'>[prefix]: Interrupt request, target: [target] in [get_area(target)].</a></span>")
+		boutput(F, "<span class='[class]'><a href='byond://?src=\ref[F];origin=\ref[target];ping=[TRUE]'>[prefix]: Interrupt request, target: [target] in [get_area(target)].</a></span>")
 	playsound_global(src.traces + src.flockmind, 'sound/misc/flockmind/ping.ogg', 50, 0.5)
 
 // ANNOTATIONS
@@ -894,6 +894,8 @@ proc/get_default_flock()
 
 	// Update all HUD icons.
 	for (var/mob/living/intangible/flock/flockmob in (src.traces + src.flockmind))
+		if (QDELETED(flockmob)) //aaa
+			continue
 		if (istype(flockmob.loc, /mob/living/critter/flock/drone))
 			var/mob/living/critter/flock/drone/drone = flockmob.loc
 			var/datum/hud/critter/flock/drone/flockhud = drone.hud
@@ -1064,7 +1066,7 @@ proc/get_default_flock()
 						success = TRUE
 						break
 				if (istype(O, /obj/machinery/computer))
-					if (istype(O, /obj/machinery/computer/card/portable) || istype(O, /obj/machinery/computer/security/wooden_tv) || istype(O, /obj/machinery/computer/secure_data/detective_computer) || istype(O, /obj/machinery/computer/airbr) || istype(O, /obj/machinery/computer/tanning) || istype(O, /obj/machinery/computer/tour_console) || istype(O, /obj/machinery/computer/arcade) || istype(O, /obj/machinery/computer/tetris))
+					if (istype(O, /obj/machinery/computer/card/portable) || istype(O, /obj/machinery/computer/television) || istype(O, /obj/machinery/computer/secure_data/detective_computer) || istype(O, /obj/machinery/computer/airbr) || istype(O, /obj/machinery/computer/tanning) || istype(O, /obj/machinery/computer/tour_console) || istype(O, /obj/machinery/computer/arcade) || istype(O, /obj/machinery/computer/tetris))
 						break
 				if (istype(O, /obj/machinery/light/lamp) || istype(O, /obj/machinery/computer3/generic/personal) || istype(O, /obj/machinery/computer3/luggable))
 					break

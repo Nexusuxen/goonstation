@@ -379,9 +379,11 @@
 
 			src.net_id = generate_net_id(src)
 
+			#ifndef ALL_ROBOT_AND_COMPUTERS_MUST_SHUT_THE_HELL_UP
 			MAKE_DEFAULT_RADIO_PACKET_COMPONENT(src.net_id, "control", control_freq)
 			MAKE_DEFAULT_RADIO_PACKET_COMPONENT(src.net_id, "beacon", beacon_freq)
 			MAKE_SENDER_RADIO_PACKET_COMPONENT(src.net_id, "pda", FREQ_PDA)
+			#endif
 
 			var/obj/machinery/guardbot_dock/dock = null
 			if(setup_spawn_dock)
@@ -1739,7 +1741,7 @@
 
 			else
 
-				dat += "Status: <a href='?src=\ref[src];power=1'>[src.on ? "On" : "Off"]</a><br>"
+				dat += "Status: <a href='byond://?src=\ref[src];power=1'>[src.on ? "On" : "Off"]</a><br>"
 
 			dat += "<br>Network ID: <b>\[[uppertext(src.net_id)]\]</b><br>"
 
@@ -3742,7 +3744,6 @@ TYPEINFO(/obj/item/device/guardbot_module)
 			if(pause_for_beacon)
 				src.awaiting_beacon += round((remaining / MAPTEXT_SLICE_SIZE)*(MAPTEXT_PAUSE/proc_delay))
 
-			master.say(text)
 			while(remaining - slice > MAPTEXT_SLICE_SIZE)
 				slice = findlasttext(text," ", slice+MAPTEXT_SLICE_SIZE, slice+1)
 				if(!slice)
@@ -4342,13 +4343,13 @@ TYPEINFO(/obj/machinery/guardbot_dock)
 		dat += "Host Connection: "
 		dat += "<table border='1' style='background-color:[readout_color]'><tr><td><font color=white>[readout]</font></td></tr></table><br>"
 
-		dat += "<a href='?src=\ref[src];reset=1'>Reset Connection</a><br>"
+		dat += "<a href='byond://?src=\ref[src];reset=1'>Reset Connection</a><br>"
 
 		if (src.panel_open)
 			dat += "<br>Configuration Switches:<br><table border='1' style='background-color:#7A7A7A'><tr>"
 			for (var/i = 8, i >= 1, i >>= 1)
 				var/styleColor = (net_number & i) ? "#60B54A" : "#CD1818"
-				dat += "<td style='background-color:[styleColor]'><a href='?src=\ref[src];dipsw=[i]' style='color:[styleColor]'>##</a></td>"
+				dat += "<td style='background-color:[styleColor]'><a href='byond://?src=\ref[src];dipsw=[i]' style='color:[styleColor]'>##</a></td>"
 
 			dat += "</tr></table>"
 
@@ -4778,6 +4779,7 @@ TYPEINFO(/obj/machinery/guardbot_dock)
 	icon_state = "tour"
 	pixel_y = 8
 	var/obj/machinery/bot/guardbot/linked_bot = null
+	object_flags = NO_BLOCK_TABLE
 
 	New()
 		..()
@@ -4798,7 +4800,7 @@ TYPEINFO(/obj/machinery/guardbot_dock)
 			dat += "<b>Guide:</b> <center>\[[linked_bot.name]]</center><br>"
 
 			if ((linked_bot in orange(1, src)) && linked_bot.charge_dock)
-				dat += "<center><a href='?src=\ref[src];start_tour=1'>Begin Tour</a></center>"
+				dat += "<center><a href='byond://?src=\ref[src];start_tour=1'>Begin Tour</a></center>"
 
 			else
 				var/area/guideArea = get_area(linked_bot)
@@ -4877,7 +4879,7 @@ TYPEINFO(/obj/machinery/bot/guardbot/old)
 
 		else
 
-			dat += "Status: <a href='?src=\ref[src];power=1'>[src.on ? "On" : "Off"]</a><br>"
+			dat += "Status: <a href='byond://?src=\ref[src];power=1'>[src.on ? "On" : "Off"]</a><br>"
 
 		dat += "<br>Network ID: <b>\[[uppertext(src.net_id)]]</b><br>"
 
@@ -5023,6 +5025,17 @@ TYPEINFO(/obj/machinery/bot/guardbot/old)
 	New()
 		..()
 		src.hat.name = "Mabel's beret"
+
+/obj/machinery/bot/guardbot/old/tourguide/neon
+	name = "Earle"
+	desc = "A PR-4 Robuddy. These are pretty old, you didn't know there were any still around! This one has a little name tag on the front labeled 'Earle'."
+	access_lookup = "Staff Assistant"
+	beacon_freq = FREQ_TOUR_NAVBEACON
+	HatToWear = /obj/item/clothing/head/sea_captain
+
+	New()
+		..()
+		src.hat.name = "Earle's ship captain hat"
 
 /obj/machinery/computer/hug_console
 	name = "Hug Console"

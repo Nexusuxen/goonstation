@@ -10,7 +10,7 @@
 		var/atom/movable/outermost
 		var/matched_loc = FALSE
 
-		while (!isturf(speaker_loc))
+		while (ismovable(speaker_loc))
 			if (isnull(speaker_loc))
 				return
 
@@ -60,6 +60,7 @@
 
 /datum/listen_module/input/outloud/ears/ai
 	id = LISTEN_INPUT_EARS_AI
+	priority = LISTEN_INPUT_PRIORITY_HIGH
 
 
 SET_UP_LISTEN_CONTROL(/datum/listen_module/input/outloud/ears/ghost, LISTEN_CONTROL_TOGGLE_GLOBAL_HEARING_GHOST)

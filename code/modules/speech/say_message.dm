@@ -78,7 +78,7 @@ var/regex/forbidden_character_regex = regex(@"[\u2028\u202a\u202b\u202c\u202d\u2
 	var/datum/listen_module/input/received_module = null
 	/// If set, this say message datum will be sent to these atoms as opposed to being broadcast over a say channel.
 	var/list/atom/atom_listeners_override = null
-	/// If set, and `atom_listeners_override` is not set, this say message datum will not be send to the atoms in this list when being broadcast over a say channel. Note that this is an associative list.
+	/// If set, and `atom_listeners_override` is not set, this say message datum will not be sent to the atoms in this list when being broadcast over a say channel. Note that this is an associative list.
 	var/list/atom/atom_listeners_to_be_excluded = null
 	/// A bitflag of the various way that this message has been retransmitted. Used to prevent feedback loops.
 	var/relay_flags = null
@@ -146,7 +146,7 @@ var/regex/forbidden_character_regex = regex(@"[\u2028\u202a\u202b\u202c\u202d\u2
 
 	src.say_verb ||= speaker.speech_verb_say
 
-	// A deplorably disgusting hack to get `card_ident`.
+	// A deplorable, disgusting hack to get `card_ident`.
 	if (hasvar(speaker, "wear_id"))
 		src.card_ident = speaker:wear_id?:registered
 
@@ -242,10 +242,10 @@ var/regex/forbidden_character_regex = regex(@"[\u2028\u202a\u202b\u202c\u202d\u2
 
 /// Determines the say sound that this message should use, and plays it.
 /datum/say_message/proc/process_say_sound()
-	if (world.time < src.speaker.last_voice_sound + VOICE_SOUND_COOLDOWN)
+	if (world.time < src.message_origin.last_voice_sound + VOICE_SOUND_COOLDOWN)
 		return
 
-	if (src.say_sound == "")
+	if (src.say_sound == NO_SAY_SOUND)
 		return
 
 	if (!src.say_sound && !src.speaker.voice_type && !src.speaker.voice_sound_override)
@@ -272,8 +272,8 @@ var/regex/forbidden_character_regex = regex(@"[\u2028\u202a\u202b\u202c\u202d\u2
 	if (islist(src.say_sound))
 		src.say_sound = pick(src.say_sound)
 
-	src.speaker.last_voice_sound = world.time
-	playsound(src.speaker, src.say_sound, 55, 0.01, 8, voice_pitch, ignore_flag = SOUND_SPEECH)
+	src.message_origin.last_voice_sound = world.time
+	playsound(src.message_origin, src.say_sound, 55, 0.01, 8, voice_pitch, ignore_flag = SOUND_SPEECH)
 
 /// Determines the speech bubble that this message should use, and displays it on the speaker.
 /datum/say_message/proc/process_speech_bubble()
@@ -324,12 +324,12 @@ var/regex/forbidden_character_regex = regex(@"[\u2028\u202a\u202b\u202c\u202d\u2
 	var/mob/mob_listener = listener
 	if (istype(mob_listener) && mob_listener.client)
 		// Display maptext to the listener, if applicable.
-		if (!(src.flags & SAYFLAG_NO_MAPTEXT) && !mob_listener.client.preferences.flying_chat_hidden)
+		if (!(src.flags & SAYFLAG_NO_MAPTEXT))
 			src.maptext_css_values["color"] ||= living_maptext_color(src.speaker.name)
 			src.message_origin.maptext_manager ||= new /atom/movable/maptext_manager(src.message_origin)
-			src.message_origin.maptext_manager.add_maptext(mob_listener.client, global.message_maptext(src))
+			src.message_origin.maptext_manager.add_maptext(mob_listener.client, NEW_MAPTEXT(/image/maptext/message, src))
 
-		/// Handle hear sounds.
+		// Handle hear sounds.
 		if (src.hear_sound && !src.received_module.say_channel.suppress_hear_sound)
 			mob_listener.playsound_local_not_inworld(src.hear_sound, 55, 0.01, flags = SOUND_IGNORE_SPACE)
 

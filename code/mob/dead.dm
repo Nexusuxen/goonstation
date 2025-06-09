@@ -7,7 +7,7 @@ TYPEINFO(/mob/dead)
 
 /mob/dead
 	stat = STAT_DEAD
-	event_handler_flags =  IMMUNE_MANTA_PUSH | IMMUNE_SINGULARITY | IMMUNE_TRENCH_WARP
+	event_handler_flags =  IMMUNE_OCEAN_PUSH | IMMUNE_SINGULARITY | IMMUNE_TRENCH_WARP
 	pass_unstable = FALSE
 	use_speech_bubble = TRUE
 	default_speech_output_channel = SAY_CHANNEL_DEAD
@@ -59,7 +59,7 @@ TYPEINFO(/mob/dead)
 		..()
 	else
 		if (GET_DIST(src, target) > 0)
-			src.set_dir(get_dir(src, target))
+			src.set_dir(get_dir_accurate(src, target))
 		src.examine_verb(target)
 
 /mob/dead/process_move(keys)

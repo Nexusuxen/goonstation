@@ -227,7 +227,6 @@
 	afterattack(atom/target as mob|obj|turf|area, mob/user as mob)
 		if (!mounted && GET_DIST(src, target) == 1)
 			if (isturf(target) && target.density)
-				//if (get_dir(src,target) == NORTH || get_dir(src,target) == EAST || get_dir(src,target) == SOUTH || get_dir(src,target) == WEST)
 				if (get_dir(src,target) in cardinal)
 					src.visible_message(SPAN_NOTICE("<b>[user] mounts [src] on [target].</b>"))
 					user.drop_item()
@@ -294,8 +293,13 @@
 		src.active = 1
 		playsound(src, "rustle", 75, 1)
 		A.invisibility = INVIS_ALWAYS_ISH
-		FLICK("bbasket1", src)
-		SPAWN(1.5 SECONDS)
+		if (istype(A, /obj/item/organ/head))
+			var/obj/item/organ/head/head = A
+			if (head.organ_name == "bony head")
+				FLICK("bbasket2", src)
+		else
+			FLICK("bbasket1", src)
+		SPAWN(2.3 SECONDS)
 			A.invisibility = INVIS_NONE
 			src.active = 0
 

@@ -301,8 +301,12 @@ ADMIN_INTERACT_PROCS(/obj/machinery/power/apc, proc/toggle_operating, proc/zapSt
 
 		if (cell)
 			// if opened, update overlays for cell
-			var/image/I_cell = SafeGetOverlayImage("cell", 'icons/obj/power.dmi', "apc-[cell.icon_state]")
-			AddOverlays(I_cell, "cell")
+			var/image/i_cell
+			if(cell.artifact)
+				i_cell = SafeGetOverlayImage("cell", 'icons/obj/power.dmi', "apc-[cell.artifact.artiappear.name]")
+			else
+				i_cell = SafeGetOverlayImage("cell", 'icons/obj/power.dmi', "apc-[cell.icon_state]")
+			AddOverlays(i_cell, "cell")
 
 	else if(emagged)
 		icon_state = "apcemag"
@@ -1457,6 +1461,11 @@ ADMIN_INTERACT_PROCS(/obj/machinery/power/apc, proc/toggle_operating, proc/zapSt
 	if(.) return
 	operating = 0
 	update()
+
+/obj/machinery/power/apc/overload_act()
+	if(src.hardened)
+		return FALSE
+	return !src.set_broken()
 
 // overload all the lights in this APC area
 

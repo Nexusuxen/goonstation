@@ -12,14 +12,13 @@
 
 	// Prevent speech if the speaker is dead or unconscious.
 	if (speaker.stat != STAT_ALIVE)
-		qdel(message)
-		return null
+		return NO_MESSAGE
 
 	// Handle breath modifiers.
 	if (iscarbon(speaker))
 		var/mob/living/carbon/C = speaker
 		if (((C.stamina < STAMINA_WINDED_SPEAK_MIN) && !(message.flags & SAYFLAG_IGNORE_STAMINA)) || ((C.oxyloss > 10) && !HAS_ATOM_PROPERTY(C, PROP_MOB_REBREATHING)) || (C.losebreath >= 4) || C.hasStatus("muted") || (C.reagents?.has_reagent("capulettium_plus") && C.hasStatus("resting")))
-			message.flags |= SAYFLAG_WHISPER
+			message.flags |= SAYFLAG_WHISPER | SAYFLAG_DO_NOT_PASS_TO_EQUIPPED_MODULES
 			message.whisper_verb = message.speaker.speech_verb_gasp
 			message.loudness -= 1
 

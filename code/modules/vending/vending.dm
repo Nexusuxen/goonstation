@@ -352,6 +352,9 @@ ADMIN_INTERACT_PROCS(/obj/machinery/vending, proc/throw_item)
 	src.emagged = 0
 	return 1
 
+/obj/machinery/vending/overload_act()
+	return !src.set_broken()
+
 /obj/machinery/vending/proc/scan_card(var/obj/item/card/id/card as obj, var/mob/user as mob)
 	if (!card || !user || !src.acceptcard)
 		return
@@ -994,6 +997,8 @@ ADMIN_INTERACT_PROCS(/obj/machinery/vending, proc/throw_item)
 	var/turf/vicTurf = get_turf(victim)
 	src.icon_state = "[initial(icon_state)]-fallen"
 	playsound(src.loc, 'sound/machines/vending_crash.ogg', 50, 0)
+	if(!req_access) // so it's not a valid strategy for getting things with access locks to vend free shit i guess
+		src.throw_item()
 	if (istype(victim) && vicTurf && (BOUNDS_DIST(vicTurf, src) == 0))
 		victim.do_disorient(80, 5 SECONDS, 5 SECONDS, 0, 3 SECONDS, FALSE, DISORIENT_NONE, FALSE)
 		src.visible_message("<b>[SPAN_ALERT("[src.name] tips over onto [victim]!")]</b>")
@@ -1467,11 +1472,11 @@ TYPEINFO(/obj/machinery/vending/medical)
 		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/emergency_injector/antihistamine, 2, cost=PAY_TRADESMAN/5)
 		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/emergency_injector/spaceacillin, 2, cost=PAY_TRADESMAN/2)
 		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/ampoule/smelling_salts, 2, cost=PAY_TRADESMAN/5)
-		product_list += new/datum/data/vending_product(/obj/item/device/analyzer/healthanalyzer, 2, cost=PAY_TRADESMAN/4)
+		product_list += new/datum/data/vending_product(/obj/item/device/analyzer/healthanalyzer, 4, cost=PAY_TRADESMAN/3)
 		product_list += new/datum/data/vending_product(/obj/item/bandage, 5, cost=PAY_TRADESMAN/10)
 		product_list += new/datum/data/vending_product(/obj/item/clothing/mask/surgical, 5, cost=PAY_TRADESMAN/10)
 		product_list += new/datum/data/vending_product(/obj/item/clothing/gloves/latex, 5, cost=PAY_TRADESMAN/10)
-		product_list += new/datum/data/vending_product(/obj/item/device/analyzer/healthanalyzer_upgrade, rand(0, 2), hidden=1, cost=PAY_TRADESMAN/4)
+		product_list += new/datum/data/vending_product(/obj/item/device/analyzer/healthanalyzer_upgrade, rand(1, 3), hidden=1, cost=PAY_TRADESMAN)
 		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/patch/mini/synthflesh, rand(0, 5), hidden=1, cost=PAY_TRADESMAN/4)
 		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/vape/medical, 1, hidden=1, cost=PAY_TRADESMAN)
 		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/bath_bomb, rand(2, 5), hidden=1, cost=PAY_TRADESMAN)
@@ -1667,6 +1672,7 @@ ABSTRACT_TYPE(/obj/machinery/vending/cola)
 	create_products(restocked)
 		..()
 		product_list += new/datum/data/vending_product(/obj/item/paper/book/from_file/mechanicbook, 30)
+		product_list += new/datum/data/vending_product(/obj/item/paper/book/from_file/text_to_music_com, 5)
 		product_list += new/datum/data/vending_product(/obj/item/mechanics/andcomp, 30)
 		product_list += new/datum/data/vending_product(/obj/item/mechanics/association, 30)
 		product_list += new/datum/data/vending_product(/obj/item/mechanics/math, 30)
@@ -1705,6 +1711,7 @@ ABSTRACT_TYPE(/obj/machinery/vending/cola)
 		product_list += new/datum/data/vending_product(/obj/item/mechanics/sigbuilder, 30)
 		product_list += new/datum/data/vending_product(/obj/item/mechanics/sigcheckcomp, 30)
 		product_list += new/datum/data/vending_product(/obj/item/mechanics/textmanip, 30)
+		product_list += new/datum/data/vending_product(/obj/item/mechanics/text_to_music, 5)
 		product_list += new/datum/data/vending_product(/obj/item/mechanics/synthcomp, 30)
 		product_list += new/datum/data/vending_product(/obj/item/mechanics/telecomp, 30)
 		product_list += new/datum/data/vending_product(/obj/item/mechanics/zapper, 10)
@@ -1932,6 +1939,7 @@ ABSTRACT_TYPE(/obj/machinery/vending/cola)
 		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/food/snacks/condiment/ketchup, 5)
 		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/food/snacks/condiment/soysauce, 10)
 		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/food/snacks/condiment/gravyboat, 10)
+		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/food/snacks/ingredient/vanilla_extract, 5)
 		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/food/snacks/plant/tomato, 10)
 		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/food/snacks/plant/apple, 10)
 		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/food/snacks/plant/lettuce, 10)
@@ -2627,14 +2635,14 @@ TYPEINFO(/obj/machinery/vending/monkey)
 		product_list += new/datum/data/vending_product(/obj/item/device/prox_sensor, 8)
 		product_list += new/datum/data/vending_product(/obj/item/device/igniter, 8)
 		product_list += new/datum/data/vending_product(/obj/item/device/radio/signaler, 8)
-		product_list += new/datum/data/vending_product(/obj/item/wirecutters, 1)
+		product_list += new/datum/data/vending_product(/obj/item/screwdriver, 1)
+		product_list += new/datum/data/vending_product(/obj/item/wrench, 1)
 		product_list += new/datum/data/vending_product(/obj/item/device/timer, 8)
 		product_list += new/datum/data/vending_product(/obj/item/device/analyzer/atmosanalyzer_upgrade, 3)
 		product_list += new/datum/data/vending_product(/obj/item/pressure_crystal, 5)
 		product_list += new/datum/data/vending_product(/obj/item/device/pressure_sensor, 2)
 
 		product_list += new/datum/data/vending_product(/obj/item/device/light/flashlight, rand(1, 6), hidden=1)
-		//product_list += new/datum/data/vending_product(/obj/item/device/timer, rand(1, 6), hidden=1)
 
 
 /obj/machinery/vending/standard/toxins
@@ -2645,7 +2653,8 @@ TYPEINFO(/obj/machinery/vending/monkey)
 		product_list += new/datum/data/vending_product(/obj/item/device/prox_sensor, 10)
 		product_list += new/datum/data/vending_product(/obj/item/device/igniter, 10)
 		product_list += new/datum/data/vending_product(/obj/item/device/radio/signaler, 10)
-		product_list += new/datum/data/vending_product(/obj/item/wirecutters, 1)
+		product_list += new/datum/data/vending_product(/obj/item/screwdriver, 1)
+		product_list += new/datum/data/vending_product(/obj/item/wrench, 1)
 		product_list += new/datum/data/vending_product(/obj/item/device/timer, 10)
 		product_list += new/datum/data/vending_product(/obj/item/device/analyzer/atmospheric, 2)
 		product_list += new/datum/data/vending_product(/obj/item/device/analyzer/atmosanalyzer_upgrade, 3)
@@ -2752,7 +2761,8 @@ TYPEINFO(/obj/machinery/vending/monkey)
 		..()
 		product_list += new/datum/data/vending_product(/obj/item/paper/thermal/fortune, 25, cost=PAY_UNTRAINED/10)
 		product_list += new/datum/data/vending_product(/obj/item/card_box/tarot, 5, cost=PAY_UNTRAINED/2)
-		product_list += new/datum/data/vending_product(/obj/item/zolscroll, 100, cost=PAY_UNTRAINED, hidden=1) //weird burrito
+		product_list += new/datum/data/vending_product(/obj/item/reagent_containers/food/snacks/fortune_cookie, 10, cost=PAY_UNTRAINED/5, hidden=TRUE)
+		product_list += new/datum/data/vending_product(/obj/item/ghostboard, 2, cost=PAY_UNTRAINED*2, hidden=TRUE)
 
 	prevend_effect()
 		if(src.seconds_electrified || src.extended_inventory)
@@ -2823,34 +2833,6 @@ TYPEINFO(/obj/machinery/vending/monkey)
 			playsound(src.loc, sound_laugh, 65, 1)
 			src.say("Ha ha ha ha ha!")
 		return
-
-	attackby(obj/item/weapon, mob/user) //pretty much just player zoldorf stuffs :)
-		if((istype(weapon, /obj/item/zolscroll)) && istype(user,/mob/living/carbon/human) && (src.z == 1))
-			var/obj/item/zolscroll/scroll = weapon
-			var/mob/living/carbon/human/h = user
-			if(h.unkillable)
-				boutput(user,SPAN_ALERT("<b>Your soul is shielded and cannot be sold!</b>"))
-				return
-			if(scroll.icon_state != "signed")
-				boutput(h, SPAN_ALERT("It doesn't seem to be signed yet."))
-				return
-			if(scroll.signer == h.real_name)
-				var/obj/machinery/playerzoldorf/pz = new /obj/machinery/playerzoldorf
-				pz.credits = src.credit
-				if(the_zoldorf.len)
-					if(the_zoldorf[1].homebooth)
-						//var/obj/booth = the_zoldorf[1].homebooth
-						boutput(h, SPAN_ALERT("<b>There can only be one!</b>")) // Maybe add a way to point where the booth is if people are being jerks
-					else
-						pz.booth(h,src.loc,scroll)
-						qdel(src)
-				else
-					pz.booth(h,src.loc,scroll)
-					qdel(src)
-			else
-				user.visible_message(SPAN_ALERT("<b>[h.name] tries to sell [scroll.signer]'s soul to [src]! How dare they...</b>"),SPAN_ALERT("<b>You can only sell your own soul!</b>"))
-		else
-			..()
 
 /obj/machinery/vending/fortune/necromancer
 	name = "Necromancer Zoldorf"

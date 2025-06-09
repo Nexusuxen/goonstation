@@ -15,6 +15,8 @@ TYPEINFO(/mob)
 
 	appearance_flags = KEEP_TOGETHER | PIXEL_SCALE | LONG_GLIDE
 
+	open_to_sound = FALSE
+
 	speech_verb_say = "says"
 	speech_verb_ask = "asks"
 	speech_verb_exclaim = "exclaims"
@@ -146,8 +148,6 @@ TYPEINFO(/mob)
 	var/faction = list()
 
 	var/nodamage = 0
-
-	var/spellshield = 0
 
 	var/voice_name = "unidentifiable voice"
 	var/oldname = null
@@ -350,7 +350,7 @@ TYPEINFO(/mob)
 		LAZYLISTREMOVE(observers, TO)
 		TO.ghostize()
 
-	for(var/mob/m in src) //zoldorfs, aieyes, other terrible code
+	for(var/mob/m in src) //aieyes, other terrible code
 		if(m.observing == src)
 			m.stopObserving()
 		else
@@ -723,7 +723,7 @@ TYPEINFO(/mob)
 
 			else if (tmob.a_intent == "help" && src.a_intent == "help" \
 				&& tmob.canmove && src.canmove \
-				&& !tmob.buckled && !src.buckled \
+				&& !tmob.buckled?.anchored && !src.buckled?.anchored \
 				&& !src.throwing && !tmob.throwing \
 				&& !(src.pulling && src.pulling.density) && !(tmob.pulling && tmob.pulling.density)) // mutual brohugs all around!
 				var/turf/oldloc = src.loc
@@ -742,6 +742,11 @@ TYPEINFO(/mob)
 
 				src.set_loc(newloc)
 				tmob.set_loc(oldloc)
+
+				if(tmob.buckled)
+					tmob.buckled.set_loc(oldloc)
+				if(src.buckled)
+					src.buckled.set_loc(newloc)
 
 				if (istype(tmob.loc, /turf/space))
 					logTheThing(LOG_COMBAT, src, "trades places with (Help Intent) [constructTarget(tmob,"combat")], pushing them into space.")
@@ -792,7 +797,6 @@ TYPEINFO(/mob)
 			var/list/pulling = list()
 			if ((BOUNDS_DIST(old_loc, src.pulling) > 0 && BOUNDS_DIST(src, src.pulling) > 0) || src.pulling == src) // fucks sake
 				src.remove_pulling()
-				//hud.update_pulling() // FIXME
 			else
 				pulling += src.pulling
 			for (var/obj/item/grab/G in src.equipped_list(check_for_magtractor = 0))
@@ -905,6 +909,12 @@ TYPEINFO(/mob)
 	src.a_intent = intent
 	if (src.equipped()?.item_function_flags & USE_INTENT_SWITCH_TRIGGER)
 		src.equipped().intent_switch_trigger(src)
+
+/// Set movement intent variable on a mob
+/mob/proc/set_m_intent(intent)
+	if (!intent)
+		return
+	src.m_intent = intent
 
 // medals
 
@@ -1213,7 +1223,7 @@ TYPEINFO(/mob)
 
 /mob/proc/death(gibbed = FALSE)
 	SHOULD_CALL_PARENT(TRUE)
-	SEND_SIGNAL(src, COMSIG_MOB_DEATH)
+	SEND_SIGNAL(src, COMSIG_MOB_DEATH, gibbed)
 	//Traitor's dead! Oh no!
 	if (src.mind && src.mind.special_role && !istype(get_area(src),/area/afterlife))
 		message_admins(SPAN_ALERT("Antagonist [key_name(src)] ([src.mind.special_role]) died at [log_loc(src)]."))
@@ -1481,18 +1491,25 @@ TYPEINFO(/mob)
 	if (src.mind.last_memory_time + 10 <= world.time) // leaving it using this var cause vOv
 		src.mind.last_memory_time = world.time // why not?
 
-		var/new_rights = input(usr, "Change what you will say with the Say Miranda Rights verb.", "Set Miranda Rights", src.mind.get_miranda() || DEFAULT_MIRANDA) as null|text
-		if (!new_rights || new_rights == src.mind.miranda)
-			src.show_text("Miranda rights not changed.", "red")
-			return
+		var/choice = tgui_alert(usr, "Edit Miranda's rights?", "Miranda Rights", list("Edit", "Reset", "Cancel"))
+		switch(choice)
+			if("Edit")
+				var/new_rights = tgui_input_text(usr, "Change what you will say with the Say Miranda Rights verb.", "Set Miranda Rights", src.mind.get_miranda() || DEFAULT_MIRANDA)
+				if (!new_rights || new_rights == src.mind.miranda)
+					src.show_text("Miranda rights not changed.", "red")
+					return
 
-		new_rights = copytext(new_rights, 1, MAX_MESSAGE_LEN)
-		new_rights = sanitize(strip_html(new_rights))
+				new_rights = copytext(new_rights, 1, MAX_MESSAGE_LEN)
+				new_rights = sanitize(strip_html(new_rights))
 
-		src.mind.set_miranda(new_rights)
+				src.mind.set_miranda(new_rights)
 
-		logTheThing(LOG_TELEPATHY, src, "has set their miranda rights quote to: [src.mind.miranda]")
-		src.show_text("Miranda rights set to \"[src.mind.miranda]\"", "blue")
+				logTheThing(LOG_TELEPATHY, src, "has set their miranda rights quote to: [src.mind.miranda]")
+				src.show_text("Miranda rights set to \"[src.mind.miranda]\"", "blue")
+			if("Reset")
+				src.mind.set_miranda(null)
+				logTheThing(LOG_TELEPATHY, src, "has reset their miranda rights.")
+				src.show_text("Miranda rights reset.", "blue")
 
 /mob/verb/abandon_mob()
 	set name = "Respawn"
@@ -1687,7 +1704,7 @@ TYPEINFO(/mob)
 
 /// Adds a 20-length color matrix to the mob's list of color matrices
 /// cmatrix is the color matrix (must be a 16-length list!), label is the string to be used for dupe checks and removal
-/mob/proc/apply_color_matrix(list/cmatrix, label)
+/mob/proc/apply_color_matrix(list/cmatrix, label, animate = 0)
 	if (!cmatrix || !label)
 		return
 
@@ -1696,10 +1713,10 @@ TYPEINFO(/mob)
 
 	LAZYLISTADDASSOC(src.color_matrices, label, cmatrix)
 
-	src.update_active_matrix()
+	src.update_active_matrix(animate)
 
 /// Removes whichever matrix is associated with the label. Must be a string!
-/mob/proc/remove_color_matrix(label)
+/mob/proc/remove_color_matrix(label, animate = 0)
 	if (!label || !length(src.color_matrices))
 		return
 
@@ -1710,11 +1727,12 @@ TYPEINFO(/mob)
 	else
 		LAZYLISTREMOVE(src.color_matrices, label)
 
-	src.update_active_matrix()
+	src.update_active_matrix(animate)
 
 /// Multiplies all of the mob's color matrices together and puts the result into src.active_color_matrix
 /// This matrix will be applied to the mob at the end of this proc, and any time the client logs in
-/mob/proc/update_active_matrix()
+/// If animate is present, animate the transition for that many DS
+/mob/proc/update_active_matrix(animate = 0)
 	if (!length(src.color_matrices))
 		src.active_color_matrix = null
 	else
@@ -1729,7 +1747,10 @@ TYPEINFO(/mob)
 				else
 					color_matrix_2_apply = mult_color_matrix(color_matrix_2_apply, src.color_matrices[cmatrix])
 			src.active_color_matrix = color_matrix_2_apply
-	src.client?.set_color(src.active_color_matrix, src.respect_view_tint_settings)
+	if (animate)
+		src.client?.animate_color(src.active_color_matrix, animate, respect_view_tint_settings = src.respect_view_tint_settings)
+	else
+		src.client?.set_color(src.active_color_matrix, src.respect_view_tint_settings)
 
 /mob/proc/adjustBodyTemp(actual, desired, incrementboost, divisor)
 	var/temperature = actual
@@ -1750,6 +1771,20 @@ TYPEINFO(/mob)
 
 	return temperature
 
+/// Change the mob's body temperature without leaving the specified bounds
+/mob/proc/changeBodyTemp(var/amount, var/min_temp = 0 KELVIN, var/max_temp = INFINITY)
+	if(amount <= 0)
+		if(src.bodytemperature <= min_temp) // Keep body temp as is if below min
+			return
+		src.bodytemperature += amount
+		if(src.bodytemperature < min_temp)
+			src.bodytemperature = min_temp
+	else
+		if(src.bodytemperature >= max_temp)  // Keep body temp as is if above max
+			return
+		src.bodytemperature += amount
+		if(src.bodytemperature > max_temp)
+			src.bodytemperature = max_temp
 
 //Gets rid of the mob without all the messy fuss of a gib
 /mob/proc/remove()
@@ -2545,6 +2580,22 @@ TYPEINFO(/mob)
 		setalive(src)
 	src.update_body()
 
+/// Attempt to bring a mob just out of crit without immediately dropping back into crit
+/mob/proc/stabilize()
+	SHOULD_CALL_PARENT(TRUE)
+	src.losebreath = min(src.losebreath, 2)
+	src.delStatus("burning")
+	src.delStatus("radiation")
+	src.take_radiation_dose(-INFINITY)
+	src.change_eye_blurry(-INFINITY)
+	src.take_eye_damage(-INFINITY)
+	src.take_eye_damage(-INFINITY, 1)
+	src.take_ear_damage(-INFINITY)
+	src.take_ear_damage(-INFINITY, 1)
+	src.take_brain_damage(-(max(src.get_brain_damage()-10, 0))) // leave them with up to 10 brain damage
+	src.health = max(src.health, 10)
+	src.update_body()
+
 /mob/proc/shock(var/atom/origin, var/wattage, var/zone, var/stun_multiplier = 1, var/ignore_gloves = 0)
 	return 0
 
@@ -2770,6 +2821,8 @@ TYPEINFO(/mob)
 	return mobs
 
 /mob/get_examine_tag(mob/examiner)
+	if (GET_ATOM_PROPERTY(src, PROP_MOB_NOEXAMINE) >= 3)
+		return null
 	return src.name_tag
 
 /mob/proc/protected_from_space()
@@ -3444,3 +3497,12 @@ TYPEINFO(/mob)
 	if (src.bioHolder?.mobAppearance)
 		return src.bioHolder.mobAppearance.s_tone
 	return "#042069"
+
+/mob/proc/update_movement_modifiers()
+	process_movespeed_update()
+
+/mob/proc/scald_temp()
+	return src.base_body_temp + (src.temp_tolerance * 4)
+
+/mob/proc/frostburn_temp()
+	return src.base_body_temp - (src.temp_tolerance * 4)

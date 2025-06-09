@@ -1,6 +1,6 @@
 // emote
 
-/mob/living/carbon/human/emote(var/act, var/voluntary = 0, var/emoteTarget = null) //mbc : if voluntary is 2, it's a hotkeyed emote and that means that we can skip the findtext check. I am sorry, cleanup later
+/mob/living/carbon/human/emote(var/act, var/voluntary = 0, var/emoteTarget = null, var/dead_check = TRUE) //mbc : if voluntary is 2, it's a hotkeyed emote and that means that we can skip the findtext check. I am sorry, cleanup later
 	set waitfor = FALSE
 	..()
 	var/param = null
@@ -10,7 +10,7 @@
 	if(voluntary && !src.emote_allowed)
 		return
 
-	if (isdead(src))
+	if (dead_check && isdead(src))
 		src.emote_allowed = FALSE
 		return
 
@@ -666,7 +666,7 @@
 							else
 								message = "<B>[src]</B> wiggles [his_or_her(src)] fingers a bit.[prob(10) ? " Weird." : null]"
 								maptext_out = "<I>wiggles [his_or_her(src)] fingers a bit.</I>"
-			if ("twirl", "spin"/*, "juggle"*/)
+			if ("twirl", "spin")
 				if (!src.restrained())
 					if (src.emote_check(voluntary, 25))
 						m_type = 1
@@ -2205,7 +2205,8 @@
 
 			if ("miranda")
 				if (src.emote_check(voluntary, 50))
-					if (src.mind && (src.mind.assigned_role in list("Captain", "Head of Personnel", "Head of Security", "Security Officer", "Security Assistant", "Detective", "Vice Officer", "Inspector")))
+					var/datum/job/job = find_job_in_controller_by_string(src.mind.assigned_role)
+					if (src.mind && job.receives_miranda)
 						src.recite_miranda()
 
 			if ("dab") //I'm honestly not sure how I'm ever going to code anything lower than this - Readster 23/04/19
@@ -2222,12 +2223,8 @@
 						dab_id.dab_count++
 						dab_id.tooltip_rebuild = 1
 					src.add_karma(-4)
-					if(!dab_id && locate(/obj/machinery/bot/secbot/beepsky) in view(7, get_turf(src)))
-						var/datum/db_record/sec_record = data_core.security.find_record("name", src.name)
-						if(sec_record && sec_record["criminal"] != ARREST_STATE_ARREST)
-							sec_record["criminal"] = ARREST_STATE_ARREST
-							sec_record["mi_crim"] = "Public dabbing."
-							src.update_arrest_icon()
+					if(!dab_id)
+						src.apply_automated_arrest("Public dabbing.")
 
 					if(src.reagents) src.reagents.add_reagent("dabs",5)
 
@@ -2292,8 +2289,15 @@
 					src.say("Woof.")
 					return
 				else
-					message = "<b>[src]</b> woofs!"
-					playsound(src.loc, 'sound/voice/urf.ogg', 60, channel=VOLUME_CHANNEL_EMOTE)
+					src.remove_stamina(STAMINA_DEFAULT_WOOF_COST)
+					if (src.get_stamina() > 0 && !GET_COOLDOWN(src, "pug_woof_wheeze"))
+						message = "<b>[src]</b> woofs!"
+						playsound(src.loc, 'sound/voice/urf.ogg', 60, channel=VOLUME_CHANNEL_EMOTE)
+					else
+						if (!ON_COOLDOWN(src, "pug_woof_wheeze", 3 SECONDS))
+							src.take_oxygen_deprivation(STAMINA_DEFAULT_WOOF_COST)
+							src.changeStatus("knockdown", 4 SECONDS)
+							return src.emote("wheeze", voluntary, emoteTarget, dead_check) //tail recursion, geddit?
 			else
 				if (voluntary)
 					src.show_text("Unusable emote '[act]'. 'Me help' for a list.", "blue")
@@ -2304,36 +2308,25 @@
 	if (!message)
 		return
 
-	var/list/client/recipients = list()
+	var/list/mob/recipients = list()
 	if (m_type & 1)
-		for (var/mob/M as anything in viewers(src, null))
-			if (!M.client)
-				continue
-
-			recipients += M.client
+		recipients = viewers(src, null)
 
 	else if (m_type & 2)
-		for (var/mob/M in hearers(src, null))
-			if (!M.client)
-				continue
-
-			recipients += M.client
+		recipients = hearers(src, null)
 
 	else if (!isturf(src.loc))
 		var/atom/A = src.loc
 		for (var/mob/M in A.contents)
-			if (!M.client)
-				continue
-
-			recipients += M.client
+			recipients += M
 
 	logTheThing(LOG_SAY, src, "EMOTE: [message]")
 	act = lowertext(act)
-	for (var/client/client as anything in recipients)
-		client.mob.show_message(SPAN_EMOTE("[message]"), m_type, group = "[src]_[act]_[custom]")
+	for (var/mob/M as anything in recipients)
+		M.show_message(SPAN_EMOTE("[message]"), m_type, group = "[src]_[act]_[custom]")
 
 	if (maptext_out && !ON_COOLDOWN(src, "emote maptext", 0.5 SECONDS))
-		global.display_emote_maptext(src, recipients, maptext_out)
+		DISPLAY_MAPTEXT(src, recipients, MAPTEXT_MOB_RECIPIENTS_WITH_OBSERVERS, /image/maptext/emote, maptext_out)
 
 /mob/living/carbon/human/proc/expel_fart_gas(var/oxyplasmafart)
 	var/turf/T = get_turf(src)

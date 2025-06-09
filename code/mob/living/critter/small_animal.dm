@@ -68,7 +68,7 @@ ABSTRACT_TYPE(/mob/living/critter/small_animal)
 	health_burn_vuln = 1
 	void_mindswappable = TRUE
 	is_npc = TRUE
-	ai_type = /datum/aiHolder/wanderer
+	ai_type = /datum/aiHolder/wanderer/floor_only
 	ai_retaliates = TRUE
 	ai_retaliate_patience = 2
 	ai_retaliate_persistence = RETALIATE_ONCE
@@ -328,6 +328,9 @@ proc/filter_carrier_pets(var/type)
 	use_custom_color = FALSE
 	player_can_spawn_with_pet = FALSE
 	shiny_chance = 0
+	gender = MALE
+	///Remy tries not to suggest the same thing twice in a row
+	var/last_recipe = null
 
 	New()
 		. = ..()
@@ -353,382 +356,38 @@ proc/filter_carrier_pets(var/type)
 		HH.limb_name = "teeth"					// name for the dummy holder
 		HH.can_hold_items = 0
 
-/* ============================================= */
-/* ------------------ Turtle ------------------- */
-/* ============================================= */
-
-/mob/living/critter/small_animal/turtle
-	name = "turtle"
-	real_name = "turtle"
-	desc = "A turtle. They are noble creatures of the land and sea."
-	icon_state = "turtle"
-	icon_state_dead = "turtle-dead"
-	health_brute = 20
-	health_burn = 20
-	stamina = 0 // Turtles are slow
-	hand_count = 2
-	ai_retaliate_persistence = RETALIATE_ONCE
-	player_can_spawn_with_pet = TRUE
-	density = FALSE
-	drop_contents_on_death = FALSE
-
-	var/shell_count = 0		//Count down to 0. Measured in process cycles. If they are in their shell when this is 0, exit.
-	var/rigged = FALSE
-	var/rigger = null
-	var/exploding = FALSE
-	var/costume_name = null
-	var/image/costume_alive = null
-	var/image/costume_shell = null
-	var/image/costume_dead = null
-
-	var/obj/item/wearing_beret = null
-	var/beret_remove_job_needed = null
-	var/list/allowed_hats = list(/obj/item/clothing/head/hos_hat, /obj/item/clothing/head/hosberet, new/obj/item/clothing/head/NTberet/commander)
-
-	add_abilities = list(/datum/targetable/critter/charge)
-	ai_attacks_per_ability = 0
-
-	New(loc)
-		. = ..()
-		START_TRACKING
-
-		#ifdef HALLOWEEN
-		var/r = rand(1,4)
-		costume_name = "sylv_costume_[r]"
-		#endif
-
-		if(!src.gender)
-			if(prob(50))
-				src.gender = MALE
-			else
-				src.gender = FEMALE
-
-		if (costume_name)
-			costume_alive = image(src.icon, "[costume_name]")
-			costume_shell = image(src.icon, "[costume_name]-shell")
-			costume_dead = image(src.icon, "[costume_name]-dead")
-
-	disposing()
-		. = ..()
-		STOP_TRACKING
-
-	get_desc()
-		..()
-		if (src.wearing_beret)
-			. += "<br>[src] is wearing an adorable beret!."
-		else
-			. += "<br>[src] looks cold without some sort of hat on."
-
-		if (src.costume_name)
-			. += "And he's wearing an adorable costume! Wow!"
-
-	update_icon()
-		if (isalive(src))
-			if (src.shell_count)
-				src.icon_state = "turtle-shell"
-			else if (src.wearing_beret)
-				if (istype(wearing_beret, /obj/item/clothing/head/hos_hat) || istype(wearing_beret, /obj/item/clothing/head/hosberet))
-					src.icon_state = "turtle-beret"
-				else if (istype(wearing_beret, /obj/item/clothing/head/NTberet/commander))
-					src.icon_state = "turtle-beret-com"
-			else
-				src.icon_state = "turtle"
-			if (costume_name)
-				src.UpdateOverlays(costume_alive, "costume")
-
-		else
-			if (src.wearing_beret)
-				if (istype(wearing_beret, /obj/item/clothing/head/hos_hat) || istype(wearing_beret, /obj/item/clothing/head/hosberet))
-					src.icon_state = "turtle-dead-beret"
-				else if (istype(wearing_beret, /obj/item/clothing/head/NTberet/commander))
-					src.icon_state = "turtle-dead-beret-com"
-			else
-				src.icon_state = "turtle-dead"
-			if (costume_name)
-				src.UpdateOverlays(costume_dead, "costume")
-
-	bullet_act(var/obj/projectile/P)
-		switch(P.proj_data.damage_type)
-			if(D_KINETIC,D_PIERCING,D_SLASHING)
-				if (prob(70))
-					src.enter_shell()
-		..()
-
-	attack_hand(mob/user)
-		if (user.a_intent == INTENT_HARM && prob(80))
-			src.enter_shell()
-		.=..()
-
-	attackby(obj/item/I, mob/living/user)
-		for (var/hat_type in src.allowed_hats)
-			if (istype(I, hat_type))
-				if (give_beret(I, user))
-					return
-		if (prob(80))
-			src.enter_shell() //Turtle is spooked
-		. = ..()
-
-	mouse_drop(atom/over_object as mob|obj)
-		if (over_object == usr && ishuman(usr))
-			var/mob/living/carbon/human/H = usr
-			if (in_interact_range(src, H))
-				if (take_beret(H))
-					return
-		..()
-
-	ex_act(severity)
-		if(src.exploding)
-			return
-		if (src.shell_count)
-			src.shell_count = 0
-
-	setup_hands()
-		..()
-		var/datum/handHolder/HH = hands[1]
-		HH.limb = new /datum/limb/small_critter
-		HH.icon = 'icons/mob/critter_ui.dmi'
-		HH.icon_state = "handn"
-		HH.name = "foreleg"
-		HH.limb_name = "foot"
-
-		HH = hands[2]
-		HH.limb = new /datum/limb/mouth/small
-		HH.icon = 'icons/mob/critter_ui.dmi'
-		HH.icon_state = "mouth"
-		HH.name = "mouth"
-		HH.limb_name = "teeth"
-		HH.can_hold_items = 0
-
-	Life(datum/controller/process/mobs/parent)
-		if (..(parent))
-			return 1
-
-		if (getStatusDuration("burning"))
+	attackby(obj/item/reagent_containers/food/food, mob/user)
+		if (!istype(food))
 			return ..()
-
-		if (isdead(src))
-			return 0
-
-		if (src.shell_count > 0)
-			src.shell_count--
-			if(!src.shell_count)
-				src.exit_shell()
-		..()
-
-	death(var/gibbed)
-		..()
-		for (var/mob/living/M in mobs)
-			if (M.mind && M.mind.assigned_role == "Head of Security")
-				boutput(M, SPAN_ALERT("You feel a wave of sadness wash over you, something terrible has happened."))
-		src.UpdateIcon()
-
-	full_heal()
-		..()
-		src.UpdateIcon()
-
-	critter_ability_attack(mob/target)
-		var/datum/targetable/critter/charge/charge = src.abilityHolder.getAbility(/datum/targetable/critter/charge)
-		if (charge && !charge.disabled && charge.cooldowncheck())
-			charge.handleCast(target)
-			return TRUE
-
-	critter_basic_attack(var/the_target)
-		if (istype(the_target, /obj/critter)) //grrrr obj critters
-			var/obj/critter/C = the_target
-			if (C.health <= 0 && C.alive)
-				playsound(src.loc, 'sound/impact_sounds/Wood_Hit_1.ogg', 20, 1, -1)
-				C.health -= 2
-				return TRUE
-			return FALSE
-		if (!ismob(the_target))
+		if (ON_COOLDOWN(src, "consider_food", 5 SECONDS))
 			return
-		var/mob/target = the_target
-		if(istype(target, /mob/living/critter/small_animal/mouse/weak/mentor) && prob(90))
-			src.visible_message(SPAN_COMBAT("<B>[src]</B> tries to bite [target] but \the [target] dodges [pick("nimbly", "effortlessly", "gracefully")]!"))
-			return FALSE
-		src.set_hand(2) //mouth
-		src.set_a_intent(INTENT_HARM)
-		src.hand_attack(target)
-		if (ishuman(target))
-			var/mob/living/carbon/human/human = target
-			var/obj/item/heldthing = human.r_hand ? human.r_hand : human.l_hand ? human.l_hand : null
-			if (prob(10) && heldthing)
-				human.drop_item(heldthing)
-				boutput(target, SPAN_ALERT("[src] bites your hand so hard you drop [heldthing]! [pick("Bad turtle", "Piece of shit", "Ow")]!"))
-		return TRUE
-
-//NOOOOOOO
-	proc/rig_to_explode(mob/user)
-		for (var/mob/living/M in mobs)
-			if (M.mind && M.mind.assigned_role == "Head of Security")
-				boutput(M, SPAN_ALERT("You feel a foreboding feeling about the imminent fate of a certain turtle in [get_area(src)], better act quick."))
-
-		message_admins("[key_name(user)] rigged [src] to explode in [user.loc.loc], [log_loc(user)].")
-		logTheThing(LOG_COMBAT, user, "rigged [src] to explode in [user.loc.loc] ([log_loc(user)])")
-		src.rigged = TRUE
-		src.rigger = user
-
-		var/area/A = get_area(src)
-		if(A?.lightswitch && A?.power_light)
-			src.explode()
-
-	proc/explode()
-		SPAWN(0)
-			src.rigged = FALSE
-			src.rigger = null
-			src.enter_shell()	//enter shell first to give a warning
-			src.exploding = TRUE
-			sleep(0.2 SECONDS)
-			explosion(src, get_turf(src), 0, 1, 2, 2)
-			sleep(4 SECONDS)
-			src.exploding = FALSE
-			src.say("Check please!")
-			playsound(src.loc, 'sound/misc/rimshot.ogg', 50, 1)
-
-	proc/enter_shell()
-		if (src.shell_count) return 0
-		src.shell_count = 10
+		src.visible_message("[src] sniffs \the [food].")
+		var/list/possible_recipes = list()
+		for (var/datum/cookingrecipe/recipe in global.oven_recipes)
+			if (istypes(food, recipe.ingredients))
+				possible_recipes += recipe
+		src.set_dir(get_dir(src, user))
 		src.ai.disable()
+		SPAWN(2 SECONDS)
+			if (length(possible_recipes))
+				if (length(possible_recipes) > 2)
+					possible_recipes -= src.last_recipe
+				src.emote("scream")
+				var/datum/cookingrecipe/chosen = pick(possible_recipes)
+				boutput(user, chosen.render())
+			else
+				src.visible_message("[src] shakes [his_or_her(src)] head sadly.")
+			sleep(1 SECOND)
+			src.ai.enable()
 
-		APPLY_ATOM_PROPERTY(src, PROP_MOB_EXPLOPROT, "turtle_shell", 80)
-		APPLY_ATOM_PROPERTY(src, PROP_MOB_MELEEPROT_HEAD, "turtle_shell", 80)
-		APPLY_ATOM_PROPERTY(src, PROP_MOB_MELEEPROT_BODY, "turtle_shell", 80)
-
-		if (costume_name)
-			src.UpdateOverlays(costume_shell, "costume")
-		density = TRUE
-		src.UpdateIcon()
-		src.visible_message(SPAN_ALERT("<b>[src]</b> retreats into [his_or_her(src)] shell!"))
-		return 1
-
-	proc/exit_shell()
-
-		src.shell_count = 0
-		src.ai.enable()
-
-		REMOVE_ATOM_PROPERTY(src, PROP_MOB_EXPLOPROT, "turtle_shell")
-		REMOVE_ATOM_PROPERTY(src, PROP_MOB_MELEEPROT_HEAD, "turtle_shell")
-		REMOVE_ATOM_PROPERTY(src, PROP_MOB_MELEEPROT_BODY, "turtle_shell")
-
-		if (costume_name)
-			src.UpdateOverlays(costume_alive, "costume")
-		density = FALSE
-		src.UpdateIcon()
-		src.visible_message(SPAN_NOTICE("<b>[src]</b> comes out of [his_or_her(src)] shell!"))
-		return 1
-
-
-	proc/give_beret(var/obj/hat, var/mob/user)
-		if (src.shell_count || src.wearing_beret) return 0
-
-		var/obj/item/clothing/head/hos_hat/beret = hat
-		if (istype(beret))
-			if (beret.folds == 0)
-				beret.folds = 1
-				beret.name = "HoS Beret"
-				beret.icon_state = "hosberet"
-				beret.item_state = "hosberet"
-				boutput(user, SPAN_NOTICE("[src] folds the hat into a beret before putting it on! "))
-		user.drop_item()
-		hat.set_loc(src)
-		src.wearing_beret = hat
-		src.UpdateIcon()
-		return 1
-
-	proc/take_beret(var/mob/M)
-		if (src.shell_count || !src.wearing_beret) return 0
-
-		var/obj/item/clothing/head/beret = wearing_beret
-		if (beret)
-			if (ishuman(M))
-				var/mob/living/carbon/human/H = M
-				if ((H.job == src.beret_remove_job_needed) || !src.beret_remove_job_needed)
-					H.put_in_hand_or_drop(beret)
-				else
-					if (isalive(src))
-						boutput(M, SPAN_ALERT("You try to grab the beret, but [src] pulls into his shell before you can!"))
-						playsound(src.loc, "rustle", 10, 1)
-						src.enter_shell()
-					return 0
-			src.wearing_beret = null
-			src.UpdateIcon()
-			return 1
-		return 0
-
-//The HoS's pet turtle. He can wear the beret!
-/mob/living/critter/small_animal/turtle/sylvester
-	name = "Sylvester"
-	desc = "This turtle looks both cute and indimidating. It's a tough line to walk, but he does it effortlessly."
-	health_brute = 50
-	health_burn = 50
-	gender = MALE
-	player_can_spawn_with_pet = FALSE
-	is_pet = 2
-	ai_type = /datum/aiHolder/aggressive
-	ai_retaliate_patience = 1
-	ai_retaliate_persistence = RETALIATE_UNTIL_INCAP
-	#ifdef HALLOWEEN
-	costume_name = "sylv_costume_1"
-	#endif
-
-	on_pet(mob/user)
-		if (..())
-			return 1
-		if (src.ai?.enabled && ishuman(user))
-			var/mob/living/carbon/human/human = user
-			var/clown_tally = human.clown_tally()
-			if (clown_tally>=2 || human.traitHolder.hasTrait("training_clown"))
-				src.ai.priority_tasks += src.ai.get_instance(/datum/aiTask/sequence/goalbased/critter/attack, list(src, src.ai.default_task))
-				src.ai.interrupt()
-				src.visible_message(SPAN_ALERT("[src] knocks [human] over!"))
-				human.setStatus("resting", duration = INFINITE_STATUS)
-
-	seek_target(range)
-		. = list()
-		var/list/hearers_list = hearers(range, src)
-		for (var/mob/living/M in hearers_list)
-			if (istype(M, /mob/living/carbon/human))
-				var/mob/living/carbon/human/human = M
-				var/clown_tally = human.clown_tally()
-				if (isalive(human) && (clown_tally>=2 || human.traitHolder.hasTrait("training_clown"))) //We only hate clowns
-					. += human
-		if (length(.))
-			if (!ON_COOLDOWN(src,"clown_charge_alert", 2 MINUTES))
-				src.visible_message(SPAN_ALERT("<b>[src]</b> notices a Clown and starts charging!"))
-
-//Starts with the beret on!
-/mob/living/critter/small_animal/turtle/sylvester/HoS
-	beret_remove_job_needed = "Head of Security"
-
-	New()
-		..()
-		//Make the beret
-		var/obj/item/clothing/head/hos_hat/beret = new/obj/item/clothing/head/hos_hat(src)
-		//fold it
-		beret.folds = 1
-		beret.name = "HoS Beret"
-		beret.icon_state = "hosberet"
-		beret.item_state = "hosberet"
-
-		wearing_beret = beret
-		src.UpdateIcon()
-
-/mob/living/critter/small_animal/turtle/sylvester/Commander
-	beret_remove_job_needed = "NanoTrasen Pod Commander"
-
-	New()
-		..()
-		var/obj/item/clothing/head/NTberet/commander/beret = new/obj/item/clothing/head/NTberet/commander(src)
-		//fold it
-		beret.name = "Sylvester's Beret"
-		wearing_beret = beret
-		src.UpdateIcon()
-
-		START_TRACKING_CAT(TR_CAT_PW_PETS)
-
-	disposing()
-		STOP_TRACKING_CAT(TR_CAT_PW_PETS)
-		..()
+	specific_emotes(var/act, var/param = null, var/voluntary = 0)
+		switch (act)
+			if ("scream")
+				if (src.emote_check(voluntary, 50))
+					playsound(src, 'sound/voice/animal/mouse_squeak.ogg', 80, TRUE, channel=VOLUME_CHANNEL_EMOTE)
+					FLICK("remy-exclaim", src)
+					return SPAN_EMOTE("<b>[src]</b> squeaks!")
+		return ..()
 
 
 /* ============================================= */
@@ -3679,7 +3338,7 @@ var/list/mob_bird_species = list("smallowl" = /mob/living/critter/small_animal/b
 	base_move_delay = 6
 	base_walk_delay = 8
 	var/slime_chance = 22
-	butcherable = TRUE
+	butcherable = BUTCHER_ALLOWED
 	name_the_meat = FALSE
 	meat_type = /obj/item/reagent_containers/food/snacks/ingredient/meat/lesserSlug
 	player_can_spawn_with_pet = TRUE
@@ -4558,7 +4217,7 @@ TYPEINFO(/mob/living/critter/small_animal/mouse/weak/mentor/admin)
 		ghost_spawned = FALSE
 		new /obj/item/implant/access/infinite/admin_mouse(src)
 		SPAWN(1 SECOND)
-			src.bioHolder.AddEffect("radio_brain", power = 3, do_stability = FALSE, magical = TRUE)
+			src.bioHolder?.AddEffect("radio_brain", power = 3, do_stability = FALSE, magical = TRUE)
 
 	setup_hands()
 		..()
@@ -4690,7 +4349,7 @@ TYPEINFO(/mob/living/critter/small_animal/mouse/weak/mentor/admin)
 	icon_state_dead = "lavacrab-dead"
 	density = TRUE
 	anchored = ANCHORED
-	butcherable = FALSE
+	butcherable = BUTCHER_NOT_ALLOWED
 	health_burn_vuln = 0.1
 	health_brute_vuln = 0.5
 	death_text = "%src% flops over dead!"
@@ -4992,7 +4651,7 @@ TYPEINFO(/mob/living/critter/small_animal/mouse/weak/mentor/admin)
 	health_burn = 10
 	flags = NOSPLASH | TABLEPASS
 	generic = FALSE
-	butcherable = FALSE
+	butcherable = BUTCHER_NOT_ALLOWED
 	no_stamina_stuns = TRUE
 	has_genes = FALSE
 
@@ -5153,3 +4812,158 @@ TYPEINFO(/mob/living/critter/small_animal/mouse/weak/mentor/admin)
 		..()
 		src.bioHolder.ActivatePoolEffect(src.bioHolder.GetEffectFromPool("jumpy"), overrideDNA=TRUE, grant_research=FALSE)
 
+/* =============================================== */
+/* -------------- Large Jellyfish ---------------- */
+/* =============================================== */
+
+/mob/living/critter/small_animal/large_jellyfish
+	name = "jellyfish"
+	real_name = "jellyfish"
+	desc = "An oversized and over-aggressive jellyfish. Oh no."
+	icon = 'icons/misc/sea_critter.dmi'
+	icon_state = "jellyfish_large"
+	icon_state_dead = "jellyfish_large-dead"
+	blood_id = "hemolymph"
+	pet_text = "pokes"
+	speech_verb_say = "quibbles"
+	speech_verb_exclaim = "shudders"
+	speech_verb_ask = "blorps"
+	health_brute = 15
+	health_burn = 15
+	hand_count = 1
+
+	density = TRUE
+
+	base_move_delay = 13
+	base_walk_delay = 15
+
+	ai_type = /datum/aiHolder/ranged
+
+	faction = list(FACTION_AQUATIC)
+
+	meat_type = /obj/item/device/light/glowstick/green_on
+
+	New()
+		..()
+		src.remove_stam_mod_max("small_animal")
+		src.add_stam_mod_max("hallucigenia", -(STAMINA_MAX-100))
+		src.color = random_saturated_hex_color()
+		var/list/color_list = rgb2num(src.color || "#ffffff")
+		src.add_medium_light("jellyglow", color_list + list(100))
+		src.bioHolder.AddNewPoolEffect("plasma_metabolism", scramble=TRUE)
+		#ifdef MAP_OVERRIDE_NEON // they need to be immune to plasma coral on neon, otherwise *shrug
+		APPLY_ATOM_PROPERTY(src, PROP_MOB_RADPROT_INT, src, 100)
+		#endif
+
+	setup_hands()
+		..()
+		var/datum/handHolder/HH = hands[1]
+		HH.limb = new /datum/limb/arcflash
+		HH.icon = 'icons/mob/critter_ui.dmi'
+		HH.icon_state = "handzap"
+		HH.name = "tendrils"
+		HH.limb_name = "tendrils"
+
+	specific_emotes(var/act, var/param = null, var/voluntary = 0)
+		switch (act)
+			if ("scream","chitter")
+				if (src.emote_check(voluntary, 50))
+					playsound(src, 'sound/voice/animal/bugchitter.ogg', 80, TRUE, pitch = 0.7, channel=VOLUME_CHANNEL_EMOTE)
+					return SPAN_EMOTE("<b>[src]</b> chitters!")
+		return null
+
+	specific_emote_type(var/act)
+		switch (act)
+			if ("scream","chitter")
+				return 2
+		return ..()
+
+	death(var/gibbed)
+		playsound(src, 'sound/voice/animal/bugchitter.ogg', 80, TRUE, pitch = 0.6, channel=VOLUME_CHANNEL_EMOTE)
+		new /obj/item/reagent_containers/food/snacks/healgoo(get_turf(src))
+		..()
+
+/mob/living/critter/small_animal/large_jellyfish/grabby
+	name = "jellyfish"
+	real_name = "jellyfish"
+	desc = "An oversized and over-aggressive jellyfish. Oh no."
+	icon = 'icons/misc/sea_critter.dmi'
+	icon_state = "jellyfish_large"
+	icon_state_dead = "jellyfish_large-dead"
+	blood_id = "hemolymph"
+	pet_text = "pokes"
+	speech_verb_say = "quibbles"
+	speech_verb_exclaim = "shudders"
+	speech_verb_ask = "blorps"
+	health_brute = 15
+	health_burn = 15
+	hand_count = 1
+
+	density = TRUE
+
+	base_move_delay = 2.3
+	base_walk_delay = 4
+
+	ai_type = /datum/aiHolder/pikaia
+	ai_retaliate_patience = 0
+	ai_retaliate_persistence = RETALIATE_UNTIL_DEAD
+
+	faction = list(FACTION_AQUATIC)
+
+	is_hulk()
+		.= 1
+
+	setup_hands()
+		..()
+		var/datum/handHolder/HH = hands[1]
+		HH.limb = new /datum/limb/small_critter/med
+		HH.icon = 'icons/mob/critter_ui.dmi'
+		HH.icon_state = "handn"
+		HH.name = "tendrils"
+		HH.limb_name = "tendrils"
+
+	emote(act, voluntary)
+		if (act == "flip")
+			if (!emote_check(voluntary, 2 SECONDS))
+				return
+			for (var/obj/item/grab/G in src.equipped_list(check_for_magtractor = 0))
+				var/mob/living/M = G.affecting
+				if (M == src)
+					continue
+				if (!G.affecting)
+					continue
+				animate_spin(src, prob(50) ? "L" : "R", 1, 0)
+				if (G.state >= GRAB_STRONG && isturf(src.loc) && isturf(G.affecting.loc))
+					src.emote("scream")
+					logTheThing(LOG_COMBAT, src, "crunches [constructTarget(G.affecting,"combat")] [log_loc(src)]")
+					M.lastattacker = get_weakref(src)
+					M.lastattackertime = world.time
+					G.affecting.TakeDamage("head", rand(2,8), 0, 0, DAMAGE_BLUNT)
+					playsound(src.loc, 'sound/impact_sounds/Flesh_Break_1.ogg', 50, 1, pitch = 1.3)
+					src.visible_message(SPAN_ALERT("<B>[src] crunches [G.affecting]!</B>"))
+		else
+			return ..()
+
+	critter_attack(mob/target)
+		src.set_a_intent(INTENT_GRAB)
+		src.set_dir(get_dir(src, target))
+
+		var/list/params = list()
+		params["left"] = TRUE
+		params["ai"] = TRUE
+
+		var/obj/item/grab/G = src.equipped()
+		if (!istype(G)) //if it hasn't grabbed something, try to
+			if(!isnull(G)) //if we somehow have something that isn't a grab in our hand
+				src.drop_item()
+			src.hand_attack(target, params)
+		else
+			if (G.affecting == null || G.assailant == null || G.disposed || isdead(G.affecting))
+				src.drop_item()
+				return
+
+			if (G.state <= GRAB_PASSIVE)
+				G.AttackSelf(src)
+			else
+				src.emote("flip")
+				src.ai?.move_away(target,1)

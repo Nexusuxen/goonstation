@@ -2,6 +2,8 @@
 	id = LISTEN_INPUT_EARS_AI
 
 /datum/shared_input_format_module/ai_ears/process(datum/say_message/message)
+	. = message
+
 	// Restrict this behaviour to radio messages.
 	if (!(message.relay_flags & SAY_RELAY_RADIO))
 		return
@@ -18,19 +20,19 @@
 	else if (isAI(message.original_speaker))
 		job_title = "AI"
 
+	else if (isshell(message.original_speaker))
+		job_title = "Shell"
+
 	else if (isrobot(message.original_speaker))
 		job_title = "Cyborg"
 
 	else if (istype(message.original_speaker, /obj/machinery/computer))
 		job_title = "Computer"
 
-	message.speaker_to_display = message.real_ident
-
-	message.format_speaker_prefix += "<a href='?src=\ref[src];action=track;heard_name=[message.real_ident]'>"
+	message.format_speaker_prefix += "<a href='byond://?src=\ref[src];action=track;heard_name=[message.speaker_to_display]'>"
 	message.format_verb_prefix = " ([job_title])</a>" + message.format_verb_prefix
 
-// I dislike implementing AI tracking here, however the alternative, performing the above formatting per listener and using
-// `/mob/living/silicon/Topic` would incur a performance cost.
+// I dislike implementing AI tracking here, however the alternative, performing the above formatting per listener and using `/mob/living/silicon/Topic` would incur a performance cost.
 /datum/shared_input_format_module/ai_ears/Topic(href, href_list)
 	if (usr.stat)
 		return

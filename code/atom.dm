@@ -191,6 +191,7 @@ TYPEINFO(/atom)
 
 		fingerprints_full = null
 		tag = null
+		src.forensic_holder = null
 
 		if(length(src.statusEffects))
 			for(var/datum/statusEffect/effect as anything in src.statusEffects)
@@ -540,10 +541,6 @@ TYPEINFO(/atom/movable)
 
 
 /atom/movable/disposing()
-	if (temp_flags & MANTA_PUSHING)
-		mantaPushList.Remove(src)
-		temp_flags &= ~MANTA_PUSHING
-
 	if (temp_flags & SPACE_PUSHING)
 		EndSpacePush(src)
 
@@ -707,6 +704,7 @@ TYPEINFO(/atom/movable)
 		user.set_pulling(src)
 
 		SEND_SIGNAL(user, COMSIG_MOB_TRIGGER_THREAT)
+		SEND_SIGNAL(src, COMSIG_MOB_PULL_TRIGGER, user)
 
 /atom/movable/set_dir(new_dir)
 	..()
@@ -1409,3 +1407,12 @@ TYPEINFO(/atom/movable)
 ///Should this atom emit particles when hit by a projectile, when the projectile is of the given type
 /atom/proc/does_impact_particles(var/kinetic_impact = TRUE)
 	return TRUE
+
+///Removes anything that is glued to this atom
+/atom/proc/unglue_attached_to()
+	var/atom/Aloc = isturf(src) ? src : src.loc
+	for(var/atom/movable/AM in Aloc)
+		var/datum/component/glued/glued_comp = AM.GetComponent(/datum/component/glued)
+		// possible idea for a future change: instead of direct deletion just decrease dries_up_time and only delete if <= current time
+		if(glued_comp?.glued_to == src && !isnull(glued_comp.glue_removal_time))
+			qdel(glued_comp)

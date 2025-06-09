@@ -1,6 +1,6 @@
 /**
- *	Auxiliary speech module tree datums handle adding and removing their own output and modifier modules to a specified target
- *	output module tree, and transferring modules when the target changes. These are used as output module trees for datums that
+ *	Auxiliary speech module tree datums handle adding and removing their own modules to a specified target speech module
+ *	tree, and transferring modules when the target changes. These are used as speech module trees for datums that
  *	frequently change between atoms with their own trees, such as clients or minds.
  */
 /datum/speech_module_tree/auxiliary
@@ -8,8 +8,8 @@
 	var/datum/speech_module_tree/target_speech_tree
 
 /datum/speech_module_tree/auxiliary/New(atom/parent, list/outputs = list(), list/modifiers = list(), list/prefixes = list(), datum/speech_module_tree/target_speech_tree)
-	src.target_speech_tree = target_speech_tree
 	. = ..()
+	src.update_target_speech_tree(target_speech_tree)
 
 /datum/speech_module_tree/auxiliary/disposing()
 	src.update_target_speech_tree(null)
@@ -31,6 +31,9 @@
 		return FALSE
 
 	src.speech_output_ids_with_subcount[module_id] -= count
+	if (!src.speech_output_ids_with_subcount[module_id])
+		src.speech_output_ids_with_subcount -= module_id
+
 	src.target_speech_tree?.RemoveSpeechOutput(output_id, subchannel, count)
 	return TRUE
 
@@ -50,6 +53,9 @@
 		return FALSE
 
 	src.speech_modifier_ids_with_subcount[modifier_id] -= count
+	if (!src.speech_modifier_ids_with_subcount[modifier_id])
+		src.speech_modifier_ids_with_subcount -= modifier_id
+
 	src.target_speech_tree?.RemoveSpeechModifier(modifier_id, count)
 	return TRUE
 
@@ -66,6 +72,9 @@
 		return FALSE
 
 	src.speech_prefix_ids_with_subcount[prefix_id] -= count
+	if (!src.speech_prefix_ids_with_subcount[prefix_id])
+		src.speech_prefix_ids_with_subcount -= prefix_id
+
 	src.target_speech_tree?.RemoveSpeechPrefix(prefix_id, count)
 	return TRUE
 

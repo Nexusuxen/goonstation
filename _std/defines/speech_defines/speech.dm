@@ -31,3 +31,8 @@
 #define WHISPER_EAVESDROPPING_RANGE 2
 /// The maximum distance from which LOOC messages may be heard.
 #define LOOC_RANGE 8
+
+
+//------------ Other ------------//
+#define NO_MESSAGE null
+#define NO_SAY_SOUND ""

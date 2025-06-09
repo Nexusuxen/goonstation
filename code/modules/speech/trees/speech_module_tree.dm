@@ -1,7 +1,7 @@
 /**
- *	Speech module tree datums handle applying the effects of prefix, modifier, and speech output modules to say message
- *	datums sent by the parent atom. All say message datums will be processed here prior to being passed to the speech
- *	manager to be disseminated to listen input modules.
+ *	Speech module tree datums handle applying the effects of speech prefix, modifier, and output modules to say message
+ *	datums sent by the parent atom. All say message datums will be processed here prior to being passed to the appropriate
+ *	say channel by a speech output module.
  */
 /datum/speech_module_tree
 	/// The owner of this speech module tree.
@@ -131,13 +131,13 @@
 		for (var/modifier_id in src.speech_modifiers_by_id)
 			message = src.speech_modifiers_by_id[modifier_id].process(message)
 			// If the module consumed the message, no need to process any further.
-			if (QDELETED(message))
+			if (!message)
 				return
 	else
 		for (var/modifier_id in src.persistent_speech_modifiers_by_id)
 			message = src.persistent_speech_modifiers_by_id[modifier_id].process(message)
 			// If the module consumed the message, no need to process any further.
-			if (QDELETED(message))
+			if (!message)
 				return
 
 	// If a combination of message modifiers caused the message's content to become uncool, log the modifier combination and garble the uncool words.
@@ -269,6 +269,7 @@
 		src.speech_outputs_by_channel[src.speech_outputs_by_id[module_id].channel] -= src.speech_outputs_by_id[module_id]
 		qdel(src.speech_outputs_by_id[module_id])
 		src.speech_outputs_by_id -= module_id
+		src.speech_output_ids_with_subcount -= module_id
 
 	return TRUE
 
@@ -314,6 +315,7 @@
 		qdel(src.speech_modifiers_by_id[modifier_id])
 		src.speech_modifiers_by_id -= modifier_id
 		src.persistent_speech_modifiers_by_id -= modifier_id
+		src.speech_modifier_ids_with_subcount -= modifier_id
 
 	return TRUE
 
@@ -360,6 +362,7 @@
 
 		qdel(prefix_module)
 		src.speech_prefixes_by_id -= prefix_id
+		src.speech_prefix_ids_with_subcount -= prefix_id
 
 	return TRUE
 
@@ -367,6 +370,11 @@
 /datum/speech_module_tree/proc/GetPrefixByID(prefix_id)
 	RETURN_TYPE(/datum/speech_module/prefix)
 	return src.speech_prefixes_by_id[prefix_id]
+
+/// Returns the speech prefix module that matches the specified prefix text.
+/datum/speech_module_tree/proc/GetPrefixByPrefixText(prefix_text)
+	RETURN_TYPE(/datum/speech_module/prefix)
+	return src.premodifier_speech_prefixes_by_prefix_id[prefix_text] || src.postmodifier_speech_prefixes_by_prefix_id[prefix_text]
 
 /// Returns all speech prefix modules on this speech tree.
 /datum/speech_module_tree/proc/GetAllPrefixes()

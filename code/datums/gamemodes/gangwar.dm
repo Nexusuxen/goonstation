@@ -211,7 +211,7 @@
 
 /proc/broadcast_to_all_gangs(message)
 	for (var/datum/gang/gang as anything in global.get_all_gangs())
-		gang.announcer_say_source.say(message)
+		gang.announcer_say_source.say(message, flags = SAYFLAG_IGNORE_HTML)
 
 /// For a given tile, this contains the number of gang tags that see or influence this tile for a gang. Used to track overlays.
 /datum/gangtileclaim
@@ -624,7 +624,7 @@
 		else
 			content = "+[score]\n [vandalism_tracker[targetArea]]/[vandalism_tracker_target[targetArea]]"
 
-		global.display_gang_vandalism_maptext(location, (src.members + src.leader), content)
+		DISPLAY_MAPTEXT(location, (src.members + src.leader), MAPTEXT_MIND_RECIPIENTS_WITH_OBSERVERS, /image/maptext/gang_vandalism, content)
 
 	/// Checks to see if <location> is one the gang has to vandalise. If so, adds <amount> progress.
 	proc/do_vandalism(amount, turf/location)
@@ -672,9 +672,9 @@
 		if (!showText)
 			return
 		if (location)
-			global.display_gang_score_maptext(location, (src.members + src.leader), amount)
+			DISPLAY_MAPTEXT(location, (src.members + src.leader), MAPTEXT_MIND_RECIPIENTS_WITH_OBSERVERS, /image/maptext/gang_score, amount)
 		else if (bonusMind)
-			global.display_gang_score_maptext(bonusMob, list(bonusMind), amount)
+			DISPLAY_MAPTEXT(bonusMob, list(bonusMind), MAPTEXT_MIND_RECIPIENTS_WITH_OBSERVERS, /image/maptext/gang_score, amount)
 
 	proc/can_be_joined() //basic for now but might be expanded on so I'm making it a proc of its own
 		if(length(src.members) >= src.current_max_gang_members)
@@ -1937,7 +1937,7 @@
 		if (!is_aggregating_item_scores)
 			is_aggregating_item_scores = TRUE
 			SPAWN (aggregate_item_score_time)
-				global.display_gang_score_maptext(get_turf(src), (src.gang.members + src.gang.leader), src.aggregate_score_count)
+				DISPLAY_MAPTEXT(src, (src.gang.members + src.gang.leader), MAPTEXT_MIND_RECIPIENTS_WITH_OBSERVERS, /image/maptext/gang_score, src.aggregate_score_count)
 				aggregate_score_count = 0
 				is_aggregating_item_scores = FALSE
 		aggregate_score_count += score
@@ -2408,11 +2408,7 @@
 		H.reagents.reaction(get_turf(H.loc),TOUCH, H.reagents.total_volume)
 		H.vomit()
 		H.nauseate(6)
-		//un-kill organs
-		for (var/organ_slot in H.organHolder.organ_list)
-			var/obj/item/organ/O = H.organHolder.organ_list[organ_slot]
-			if(istype(O))
-				O.unbreakme()
+		H.organHolder.unbreak_all_organs()
 		if (H.organHolder) //would be nice to make these heal to desired_health_pct but requires new organHolder functionality...
 			H.organHolder.heal_organs(1000,1000,1000, list("brain", "left_eye", "right_eye", "heart", "left_lung", "right_lung", "left_kidney", "right_kidney", "liver", "stomach", "intestines", "spleen", "pancreas", "appendix", "tail"))
 		H.remove_ailments()
@@ -2584,7 +2580,7 @@
 	name = "Armored Vest"
 	desc = "Grants you protection, and lets you keep your wicked style bonus!"
 	class2 = "clothing"
-	price = 7500
+	price = 3500
 	item_path = /obj/item/clothing/suit/armor/gang
 
 /datum/gang_item/weapon/lead_pipe
@@ -2909,7 +2905,7 @@
 		score = ceil(mappedHeat * GANG_TAG_POINTS_PER_HEAT)
 		owners.score_turf += score
 		owners.add_points(score)
-		global.display_gang_score_maptext(get_turf(src), (src.owners.members + src.owners.leader), score)
+		DISPLAY_MAPTEXT(src, (src.owners.members + src.owners.leader), MAPTEXT_MIND_RECIPIENTS_WITH_OBSERVERS, /image/maptext/gang_score, score)
 		heatTracker.icon_state = "gang_heat_[mappedHeat]"
 
 	New()

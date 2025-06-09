@@ -1,7 +1,7 @@
 /**
- *	Listen module tree datums handle applying the effects of listen modifier modules to say message datums received by
- *	the parent atom from an listen input module. All say message datums will be processed here prior to being passed to
- *	listen effect modules.
+ *	Listen module tree datums handle applying the effects of languages and listen modifier modules to say message datums
+ *	received by any listen input modules registered to itself. Processed messages are then stored in the message buffer
+ *	before being sent to listen effect modules.
  */
 /datum/listen_module_tree
 	/// If disabled, this listen module tree will not receive any messages.
@@ -161,37 +161,35 @@
 		else
 			message = message.language.heard_not_understood(message)
 
-		if (QDELETED(message))
+		if (!message)
 			return
 
 		for (var/modifier_id in src.listen_modifiers_by_id)
 			message = src.listen_modifiers_by_id[modifier_id].process(message)
 			// If the module consumed the message, no need to process any further.
-			if (QDELETED(message))
+			if (!message)
 				return
 	else
 		for (var/modifier_id in src.persistent_listen_modifiers_by_id)
 			message = src.persistent_listen_modifiers_by_id[modifier_id].process(message)
 			// If the module consumed the message, no need to process any further.
-			if (QDELETED(message))
+			if (!message)
 				return
 
+	// Add a copy of the message to the message buffers of all importing listen module trees.
+	if (!(message.flags & SAYFLAG_DO_NOT_PASS_TO_IMPORTING_TREES))
+		for (var/datum/listen_module_tree/tree as anything in src.message_importing_trees)
+			if (!tree.enabled)
+				continue
+
+			tree.add_message_to_buffer(message.Copy())
+
 	src.add_message_to_buffer(message)
-
-	if (message.flags & SAYFLAG_DO_NOT_PASS_TO_IMPORTING_TREES)
-		return
-
-	for (var/datum/listen_module_tree/tree as anything in src.message_importing_trees)
-		if (!tree.enabled)
-			continue
-
-		tree.add_message_to_buffer(message.Copy())
 
 /// Adds a message to the message buffer, and registers the appropriate signals to the tree.
 /datum/listen_module_tree/proc/add_message_to_buffer(datum/say_message/message)
 	// If a message of this ID already exists in the buffer, do not buffer the new message unless it was heard by a higher priority module.
 	if (src.message_buffer[message.id] && (message.received_module.priority <= src.message_buffer[message.id].received_module.priority))
-		qdel(message)
 		return
 
 	src.message_buffer[message.id] = message
@@ -202,18 +200,17 @@
 
 /// Outputs all messages stored in the message buffer to the listener parent.
 /datum/listen_module_tree/proc/flush_message_buffer()
-	for (var/id in src.message_buffer)
-		var/datum/say_message/message = src.message_buffer[id]
+	while (length(src.message_buffer))
+		var/message_id = src.message_buffer[1]
+		var/datum/say_message/message = src.message_buffer[message_id]
+		src.message_buffer -= message_id
+
 		for (var/effect_id in src.listen_effects_by_id)
 			src.listen_effects_by_id[effect_id].process(message)
 
 		if (src.signal_recipients[message.signal_recipient])
 			src.UnregisterSignal(message.signal_recipient, COMSIG_FLUSH_MESSAGE_BUFFER)
 			src.signal_recipients -= message.signal_recipient
-
-		qdel(message)
-
-	src.message_buffer = list()
 
 /// Enable this listen module tree, allowing it's modules to receive messages.
 /datum/listen_module_tree/proc/enable()
@@ -328,6 +325,7 @@
 		src.listen_inputs_by_channel[src.listen_inputs_by_id[module_id].channel] -= src.listen_inputs_by_id[module_id]
 		qdel(src.listen_inputs_by_id[module_id])
 		src.listen_inputs_by_id -= module_id
+		src.listen_input_ids_with_subcount -= module_id
 
 	return TRUE
 
@@ -373,6 +371,7 @@
 		qdel(src.listen_modifiers_by_id[modifier_id])
 		src.listen_modifiers_by_id -= modifier_id
 		src.persistent_listen_modifiers_by_id -= modifier_id
+		src.listen_modifier_ids_with_subcount -= modifier_id
 
 	return TRUE
 
@@ -406,6 +405,7 @@
 	if (!src.listen_effect_ids_with_subcount[effect_id])
 		qdel(src.listen_effects_by_id[effect_id])
 		src.listen_effects_by_id -= effect_id
+		src.listen_effect_ids_with_subcount -= effect_id
 
 	return TRUE
 
@@ -439,6 +439,7 @@
 	if (!src.listen_control_ids_with_subcount[control_id])
 		qdel(src.listen_controls_by_id[control_id])
 		src.listen_controls_by_id -= control_id
+		src.listen_control_ids_with_subcount -= control_id
 
 	return TRUE
 
@@ -474,6 +475,7 @@
 	src.known_language_ids_with_subcount[language_id] -= count
 	if (!src.known_language_ids_with_subcount[language_id])
 		src.known_languages_by_id -= language_id
+		src.known_language_ids_with_subcount -= language_id
 
 	return TRUE
 
@@ -490,6 +492,7 @@
 
 	src.known_language_ids_with_subcount[LANGUAGE_ALL] -= count
 	if (!src.known_language_ids_with_subcount[LANGUAGE_ALL])
+		src.known_language_ids_with_subcount -= LANGUAGE_ALL
 		src.understands_all_languages = FALSE
 
 	return TRUE

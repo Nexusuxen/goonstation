@@ -46,8 +46,8 @@ var/list/pw_rewards_tier3 = null
 	var/datum/pod_wars_team/team_SY
 
 	var/atom/movable/screen/hud/score_board/board
-	var/round_limit = 70 MINUTES
-	var/activate_control_points_time = 15 MINUTES
+	var/round_limit = 45 MINUTES
+	var/activate_control_points_time = 5 MINUTES
 	var/round_start_time					//value of TIME macro at post_setup proc call. IDK if this value is stored somewhere already.
 	var/did_ion_storm_happen = FALSE 		//set to true when the ion storm comes.
 
@@ -88,7 +88,7 @@ var/list/pw_rewards_tier3 = null
 	for(var/client/C)
 		var/mob/new_player/player = C.mob
 		if (!istype(player)) continue
-		if (player.ready && player.mind)
+		if (player.ready_play && player.mind)
 			readied_minds += player.mind
 
 	if (islist(readied_minds))
@@ -831,15 +831,8 @@ ABSTRACT_TYPE(/obj/machinery/vehicle/pod_wars_dingy)
 	New()
 		..()
 		/obj/item/shipcomponent/mainweapon/phaser/short
-
-		src.m_w_system = new weapon_type( src )
-		src.m_w_system.ship = src
-		src.components += src.m_w_system
-
-		src.lock = new /obj/item/shipcomponent/secondary_system/lock/pw_id( src )
-		src.lock.ship = src
-		src.components += src.lock
-
+		src.install_part(null, new weapon_type(src), POD_PART_MAIN_WEAPON)
+		src.install_part(null, new /obj/item/shipcomponent/secondary_system/lock/pw_id(src), POD_PART_LOCK)
 		myhud.update_systems()
 		myhud.update_states()
 		return
@@ -850,10 +843,7 @@ ABSTRACT_TYPE(/obj/machinery/vehicle/pod_wars_dingy)
 		// src.sensors = new /obj/item/shipcomponent/sensor/mining( src )
 		// src.sensors.ship = src
 		// src.components += src.sensors
-
-		src.sec_system = new /obj/item/shipcomponent/secondary_system/orescoop( src )
-		src.sec_system.ship = src
-		src.components += src.sec_system
+		src.install_part(null, new /obj/item/shipcomponent/secondary_system/orescoop(src), POD_PART_SECONDARY)
 
 
 	nanotrasen

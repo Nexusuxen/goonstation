@@ -3736,7 +3736,7 @@
 				reaction_loc.visible_message(SPAN_ALERT("[bicon(my_atom)] The mixture turns into pure energy which promptly flows into the alchemy circle."))
 				var/gathered = 0
 				for(var/mob/living/M in view(5,reaction_loc))
-					boutput(M, SPAN_ALERT("You feel a wracking pain as some of your life is ripped out.")) //Anima ravages the soul, but doesn't actually remove any part of it, so it's still saleable to Zoldorf
+					boutput(M, SPAN_ALERT("You feel a wracking pain as some of your life is ripped out.")) //Anima ravages the soul, but doesn't actually remove any part of it
 					gathered += round(M.max_health / 2)
 					var/datum/statusEffect/maxhealth/decreased/current_status = M.hasStatus("maxhealth-")
 					var/old_maxhealth_decrease = current_status ? current_status.change : 0
@@ -5164,7 +5164,7 @@
 			for(var/turf/T in range(1, get_turf(holder.my_atom)))
 				for(var/mob/mob in T)
 					if(!mob.is_heat_resistant())
-						mob.bodytemperature += 10
+						mob.changeBodyTemp(10 KELVIN)
 				T.hotspot_expose(1000, 100, holder.my_atom)
 				var/obj/particle/heat_swirl/swirl = new /obj/particle/heat_swirl
 				swirl.set_loc(T)
@@ -5216,7 +5216,7 @@
 			for(var/turf/T in range(1, get_turf(holder.my_atom)))
 				for(var/mob/mob in T)
 					if(!mob.is_cold_resistant() || ischangeling(mob))
-						mob.bodytemperature -= 10
+						mob.changeBodyTemp(-10 KELVIN)
 				T.hotspot_expose(0, 100, holder.my_atom)
 				var/obj/particle/cryo_sparkle/sparkle = new /obj/particle/cryo_sparkle
 				sparkle.set_loc(T)

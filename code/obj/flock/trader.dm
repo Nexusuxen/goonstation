@@ -109,6 +109,8 @@ TYPEINFO(/turf/simulated/floor/shuttlebay/flock)
 // TELEPORT MARKER
 ///////////////////
 /obj/fakeobject/flock/telepad
+	plane = PLANE_NOSHADOW_BELOW
+	layer = FLOOR_EQUIP_LAYER1
 	icon_state = "telemarker"
 	name = "glowing marker"
 	desc = "I got nothin'."
@@ -270,7 +272,7 @@ TYPEINFO(/turf/simulated/floor/shuttlebay/flock)
 		src.icon_state = "totem"
 		src.visible_message("<b>[src.name] calms down.</b>")
 		src.desc = "[src] looks a bit annoyed."
-		src.temp = "[src.name] has calmed down.<BR><A href='?src=\ref[src];mainmenu=1'>OK</A>"
+		src.temp = "[src.name] has calmed down.<BR><A href='byond://?src=\ref[src];mainmenu=1'>OK</A>"
 		src.angry = 0
 
 /obj/npc/trader/flock/death()

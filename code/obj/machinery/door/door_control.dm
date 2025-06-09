@@ -11,6 +11,7 @@ TYPEINFO(/obj/machinery/door_control)
 	icon = 'icons/obj/stationobjs.dmi'
 	icon_state = "doorctrl0"
 	desc = "A remote control switch for a door."
+	speech_verb_say = "beeps"
 	/// Match to a door to have it be controlled.
 	var/id = null
 	var/timer = 0
@@ -28,7 +29,8 @@ TYPEINFO(/obj/machinery/door_control)
 	///colour value for speak proc
 	var/welcome_text_color = "#FF0100"
 	var/controlmode = 1 // 1 = open/close doors, 2 = toggle bolts (will close if open), 3 = nulls access (non-reversable!) - Does not change behavior for poddoors or conveyors
-	speech_verb_say = "beeps"
+	var/single_use = FALSE //If TRUE will qdel self after use
+
 
 	// Please keep synchronizied with these lists for easy map changes:
 	// /obj/machinery/r_door_control (door_control.dm)
@@ -604,6 +606,10 @@ TYPEINFO(/obj/machinery/door_control)
 						M.operating = 0
 			M.setdir()
 
+	if(src.single_use)
+		qdel(src)
+		return
+
 	if(src.cooldown)
 		inuse = TRUE
 		sleep(src.cooldown)
@@ -660,8 +666,11 @@ TYPEINFO(/obj/machinery/door_control)
 	if (ON_COOLDOWN(src, "scan", 2 SECONDS))
 		return
 	playsound(src.loc, 'sound/effects/handscan.ogg', 50, 1)
-	if (user.mind?.get_antagonist(ROLE_SLEEPER_AGENT) || user.mind?.get_antagonist(ROLE_TRAITOR) || user.mind?.get_antagonist(ROLE_NUKEOP) || user.mind?.get_antagonist(ROLE_NUKEOP_COMMANDER))
-		src.toggle()
+	if (istrainedsyndie(user))
+		var/datum/listening_post/listening_post = get_singleton(/datum/listening_post)
+		if (listening_post.unlocked)
+			listening_post.first_unlock(user)
+		src.toggle(user)
 		if (src.entrance_scanner)
 			src.say("Biometric profile accepted. Welcome, Agent. All facilities permanently unlocked.")
 	else
@@ -1185,16 +1194,17 @@ ABSTRACT_TYPE(/obj/machinery/activation_button)
 		if(GET_DIST(usr, src) < 16)
 			if(istype(usr.loc, /obj/machinery/vehicle))
 				var/obj/machinery/vehicle/V = usr.loc
-				if (!V.com_system)
+				var/obj/item/shipcomponent/communications/comms_part = V.get_part(POD_PART_COMMS)
+				if (!comms_part)
 					boutput(usr, SPAN_ALERT("Your pod has no comms system installed!"))
 					return ..()
-				if (!V.com_system.active)
+				if (!comms_part.active)
 					boutput(usr, SPAN_ALERT("Your communications array isn't on!"))
 					return ..()
 				if (!access_type)
 					open_door()
 				else
-					if(V.com_system.access_type.Find(src.access_type))
+					if(comms_part.access_type.Find(src.access_type))
 						open_door()
 					else
 						boutput(usr, SPAN_ALERT("Access denied. Comms system not recognized."))
@@ -1284,6 +1294,14 @@ ABSTRACT_TYPE(/obj/machinery/activation_button)
 	name = "Remote Door Bolt Control"
 	desc = "A remote control switch for a door's locking bolts."
 	controlmode = 2
+
+	New()
+		..()
+		START_TRACKING
+
+	disposing()
+		STOP_TRACKING
+		..()
 
 	new_walls
 		north

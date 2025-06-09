@@ -357,6 +357,12 @@
 /obj/machinery/proc/on_add_contents(obj/item/I)
 	return
 
+/// Called when machines are overloaded with power.
+///
+/// Returns TRUE if it did something, or FALSE if it did not.
+/obj/machinery/proc/overload_act()
+	return FALSE
+
 /obj/machinery/bug_reporter
 	name = "bug reporter"
 	desc = "Creates bug reports."
@@ -373,7 +379,8 @@
 		if(A1) A1.machines -= src
 		if(A2) A2.machines += src
 		// call power_change on machine so it can check if the new area is powered and update it's status flag appropriately
-		src.power_change()
+		if (!QDELETED(src))
+			src.power_change()
 
 /obj/machinery/Move(atom/target)
 	var/area/A1 = get_area(src)

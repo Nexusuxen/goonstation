@@ -75,8 +75,7 @@ TYPEINFO(/mob)
 		if (src.hasStatus("phoenix_vulnerable"))
 			src.radiate_cold(get_turf(src))
 
-		if (src.bodytemperature >= initial(src.bodytemperature))
-			src.bodytemperature = max(initial(src.bodytemperature), src.bodytemperature - 10)
+		src.changeBodyTemp(-10 KELVIN, min_temp = initial(src.bodytemperature))
 
 	death(gibbed)
 		if (src.hasStatus("phoenix_revive_ready") && !gibbed)
@@ -149,7 +148,7 @@ TYPEINFO(/mob)
 			return
 		M.TakeDamage("All", burn = 5)
 		M.changeStatus("shivering", 1 SECOND, TRUE)
-		M.bodytemperature -= 5
+		M.changeBodyTemp(-5 KELVIN)
 		boutput(M, SPAN_ALERT("[src] is freezing cold!!!"))
 
 	TakeDamage(zone, brute, burn, tox, damage_type, disallow_limb_loss)
@@ -359,6 +358,14 @@ TYPEINFO(/mob)
 		else
 			src.blocked_dirs = NORTH | SOUTH
 		..()
+
+	attackby(obj/item/W, mob/user)
+		if (!istype(W, /obj/item/sheet))
+			return ..()
+		var/obj/item/sheet/sheet_stack = W
+		if (!sheet_stack.amount_check(2, user))
+			return ..()
+		actions.start(new /datum/action/bar/icon/build(/obj/structure/girder, src, 1, 3 SECONDS, sheet_stack, 2, null, null, sheet_stack.material, 'icons/obj/structures.dmi', "girder", name = "girder"), user)
 
 /obj/space_phoenix_statue
 	icon = 'icons/mob/critter/nonhuman/spacephoenix.dmi'

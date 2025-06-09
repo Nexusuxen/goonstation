@@ -146,7 +146,7 @@
 	pixel_y = 4 // so we don't have to have two sets of the skin sprites, we're just gunna bump this up a bit
 	var/build_step = 0
 	var/created_name = "Medibot" //To preserve the name if it's a unique medbot I guess
-	var/skin = null // same as the bots themselves: options are brute1/2, burn1/2, toxin1/2, brain1/2, O21/2/3/4, berserk1/2/3, and psyche
+	var/skin = null // same as the bots themselves: options are brute1/2, burn1/2, toxin1/2, brain1/2, O21/2/3/4, berserk1/2/3, mental1/2/3, and psyche
 	w_class = W_CLASS_NORMAL
 
 /obj/item/firstaid_arm_assembly/New()
@@ -206,30 +206,30 @@
 
 	var/dat
 	dat += "<TT><B>Automatic Medical Unit v1.0</B></TT><BR><BR>"
-	dat += "Status: <A href='?src=\ref[src];power=1'>[src.on ? "On" : "Off"]</A><BR>"
+	dat += "Status: <A href='byond://?src=\ref[src];power=1'>[src.on ? "On" : "Off"]</A><BR>"
 	dat += "Beaker: "
 	if (src.reagent_glass)
-		dat += "<A href='?src=\ref[src];eject=1'>Loaded \[[src.reagent_glass.reagents.total_volume]/[src.reagent_glass.reagents.maximum_volume]\]</a>"
+		dat += "<A href='byond://?src=\ref[src];eject=1'>Loaded \[[src.reagent_glass.reagents.total_volume]/[src.reagent_glass.reagents.maximum_volume]\]</a>"
 	else
 		dat += "None Loaded"
 	dat += "<br>Behaviour controls are [src.locked ? "locked" : "unlocked"]"
 	if (!src.locked)
 		dat += "<hr><TT>Healing Threshold: "
-		dat += "<a href='?src=\ref[src];adj_threshold=-10'>--</a> "
-		dat += "<a href='?src=\ref[src];adj_threshold=-5'>-</a> "
+		dat += "<a href='byond://?src=\ref[src];adj_threshold=-10'>--</a> "
+		dat += "<a href='byond://?src=\ref[src];adj_threshold=-5'>-</a> "
 		dat += "[src.heal_threshold] "
-		dat += "<a href='?src=\ref[src];adj_threshold=5'>+</a> "
-		dat += "<a href='?src=\ref[src];adj_threshold=10'>++</a>"
+		dat += "<a href='byond://?src=\ref[src];adj_threshold=5'>+</a> "
+		dat += "<a href='byond://?src=\ref[src];adj_threshold=10'>++</a>"
 		dat += "</TT><br>"
 
 		dat += "<TT>Injection Level: "
-		dat += "<a href='?src=\ref[src];adj_inject=-5'>-</a> "
+		dat += "<a href='byond://?src=\ref[src];adj_inject=-5'>-</a> "
 		dat += "[src.injection_amount] "
-		dat += "<a href='?src=\ref[src];adj_inject=5'>+</a> "
+		dat += "<a href='byond://?src=\ref[src];adj_inject=5'>+</a> "
 		dat += "</TT><br>"
 
 		dat += "Reagent Source: "
-		dat += "<a href='?src=\ref[src];use_beaker=1'>[src.use_beaker ? "Loaded Beaker (When available)" : "Internal Synthesizer"]</a><br>"
+		dat += "<a href='byond://?src=\ref[src];use_beaker=1'>[src.use_beaker ? "Loaded Beaker (When available)" : "Internal Synthesizer"]</a><br>"
 
 	if (user.client?.tooltipHolder)
 		user.client.tooltipHolder.showClickTip(src, list(
@@ -420,7 +420,7 @@
 			continue
 
 		if (src.assess_patient(C))
-			if(C.traitHolder.hasTrait("wasitsomethingisaid") && !src.emagged && !src.terrifying) //they still try to kill you if they can
+			if(C.traitHolder?.hasTrait("wasitsomethingisaid") && !src.emagged && !src.terrifying) //they still try to kill you if they can
 				ON_COOLDOWN(src, "[MEDBOT_LASTPATIENT_COOLDOWN]-[ckey(C?.name)]", src.last_patient_cooldown * 10) //don't bother insulting them for a good while
 				if (!ON_COOLDOWN(src, "[MEDBOT_POINT_COOLDOWN]-[ckey(src.patient?.name)]", src.point_cooldown)) //Don't spam this either!
 					src.point(C, 1)
