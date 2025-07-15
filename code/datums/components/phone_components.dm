@@ -6,9 +6,9 @@
  - Maybe later on we can get switchboards or magic phones that allow seeing other networks
 */
 
-/// Stores all phone_ids as phone_id = parent
+/// Stores all addresss as address = parent
 var/global/list/phone_numbers = list()
-/// Stores all phoneids as parent = phone_id
+/// Stores all phoneids as parent = address
 var/global/list/phone_numbers_inv = list()
 
 // kinda meh approach but
@@ -19,8 +19,8 @@ proc/generate_phone_name()
 
 	/// Our unique identifier. Currently this is just a unique name.
 	/// In the future proper phone numbers should be the unique identifier we use
-	var/phone_id = null
-	/// Our display name in UIs. Currently indistinguishable from phone_id
+	var/address = null
+	/// Our display name in UIs. Currently indistinguishable from address
 	var/phone_name = null
 	/// Our category in the phonebook
 	var/address_category = null
@@ -29,16 +29,18 @@ proc/generate_phone_name()
 	/// Keeps track of the switchboard we're registered to, if any
 	/// Still try to use signals when possible, in case we're meant to not have a switchboard
 	var/datum/phone_switchboard/our_switchboard = null
+	// Maybe we could have multiple switchboards in the future, but for now it's just the one
+
 	/// Our local copy of the phonebook
 	var/list/phonebook = null
-	// Maybe we could have multiple switchboards in the future, but for now it's just the one
-	/// Are we on the line and unable to accept inbound connections?
-	var/busy = FALSE
 	/// A list of information on whoever's calling us
 	/// list(phone number, name)
 	var/list/current_caller_info
 	/// Are we currently in an active call?
 	var/pending_call = FALSE
+
+	/// Bitfield. Stores various conditions about the overall status of the phone.
+	var/status = 0
 
 	var/datum/our_ui
 	var/datum/our_mic
@@ -59,7 +61,7 @@ proc/generate_phone_name()
 		RegisterSignal(parent, COMSIG_PHONE_UPDATE_INFO, PROC_REF(update_info))
 		if(isnull(_phone_name)) // remove when phone numbers are added
 			CRASH("Tried to generate a phone without a name from [parent]!")
-		phone_id = _phone_name // replace with actual phone numbers sometime
+		address = _phone_name // replace with actual phone numbers sometime
 		// They should probably in the format of 131234, with the first 2 digits denoting some kind of group
 		// Rendered as 13-1234 or (13) 1234 or whatever
 		// This would be in-line with the 7 beeps you hear when dialing a number (6 digits, 1 to enter)
@@ -68,6 +70,7 @@ proc/generate_phone_name()
 		// todo: make it impossible to have duplicate names
 		address_category = _address_category
 		add_phone_to_global_list()
+		phone_status |= PHONE_ACTIVE
 		// src is added here since try_register_switchboard can also be called from a signal
 		try_register_switchboard(src, switchboard_name)
 
@@ -77,11 +80,11 @@ proc/generate_phone_name()
 		remove_phone_from_global_list()
 
 	proc/add_phone_to_global_list()
-		phone_numbers[phone_id] += parent
-		phone_numbers_inv[parent] += phone_id
+		phone_numbers[address] += parent
+		phone_numbers_inv[parent] += address
 
 	proc/remove_phone_from_global_list()
-		phone_numbers.Remove(phone_id)
+		phone_numbers.Remove(address)
 		phone_numbers_inv.Remove(parent)
 
 	proc/try_register_switchboard(var/signal_parent, switchboard_name)
@@ -93,7 +96,7 @@ proc/generate_phone_name()
 			switchboard = global_switchboards[global_switchboards[sb]]
 		else
 			switchboard = new(switchboard_name)
-		var/R = SEND_SIGNAL(switchboard, COMSIG_PHONE_SWITCHBOARD_REGISTER, parent, phone_id, phone_name, address_category, hidden)
+		var/R = SEND_SIGNAL(switchboard, COMSIG_PHONE_SWITCHBOARD_REGISTER, parent, address, phone_name, address_category, hidden)
 		if(R & PHONE_SUCCESS)
 			our_switchboard = switchboard
 		else
@@ -111,7 +114,7 @@ proc/generate_phone_name()
 
 	/// Handles inbound call requests
 	proc/inbound_connection_attempt(var/signal_parent, caller_info)
-		if(busy)
+		if(status & PHONE_BUSY)
 			return PHONE_FAIL
 		else
 			SEND_SIGNAL(parent, COMSIG_PHONE_START_RING, caller_info)
@@ -131,11 +134,11 @@ proc/generate_phone_name()
 		. |= PHONE_ANSWERED
 
 	proc/picked_up()
-		busy = TRUE
+		status |= PHONE_BUSY
 		pending_call = FALSE
 		SEND_SIGNAL(parent, COMSIG_PHONE_STOP_RING)
 	proc/hanged_up()
-		busy = FALSE
+		status &= ~PHONE_BUSY
 		SEND_SIGNAL(parent, COMSIG_PHONE_STOP_RING)
 
 	proc/update_info(signal_parent, new_name, new_category, new_hidden)
@@ -277,8 +280,6 @@ proc/generate_phone_name()
 	var/voltronnable
 	/// Can a nerd blow their vape to us?
 	var/vapeable
-
-	var/datum/controller/process/phone_ringing/ring_process = null
 
 	Initialize(var/net_parent, var/do_voltron = TRUE, var/do_vape = TRUE)
 		. = ..()

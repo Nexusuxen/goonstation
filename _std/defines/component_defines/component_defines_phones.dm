@@ -76,6 +76,13 @@
 	/// if a phone is already connected or registered to a phone/switchboard
 	#define PHONE_ALREADY_CONNECTED (1<<3)
 
+// Status bitflags
+
+	/// Is the phone currently powered/active/online?
+	#define PHONE_ACTIVE (1<<0)
+	/// Is the phone currently busy? (e.g handset picked up, inbound call)
+	#define PHONE_BUSY (1<<1)
+
 // Misc junk
 
 	/// Default ring sound heard through a phone's speaker
