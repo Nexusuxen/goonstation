@@ -9,7 +9,12 @@ ABSTRACT_TYPE(/datum/game_mode)
 
 	var/shuttle_available = 1 // 0: Won't dock. | 1: Normal. | 2: Won't dock if called too early.
 	var/shuttle_available_threshold = 12000 // 20 min. Only works when shuttle_available == SHUTTLE_AVAILABLE_DELAY.
-	var/shuttle_auto_call_time = 90 MINUTES // 120 minutes.  Shuttle auto-called at this time and then again at this time + 1/2 this time, then every 1/2 this time after that. Set to 0 to disable.
+	///Shuttle auto-called at this time and then again at this time + 1/2 this time, then every 1/2 this time after that. Set to 0 to disable.
+	#ifdef RP_MODE
+	var/shuttle_auto_call_time = 90 MINUTES
+	#else
+	var/shuttle_auto_call_time = 60 MINUTES
+	#endif
 	var/shuttle_last_auto_call = 0
 	var/shuttle_initial_auto_call_done = 0 // set to 1 after first call so we know to start checking shuttle_auto_call_time/2
 	var/shuttle_prevent_recall_time = 120 MINUTES // After how long do we prevent recalling the Shuttle (only applied upon an automatic call)
@@ -64,7 +69,7 @@ ABSTRACT_TYPE(/datum/game_mode)
 			announcement += " Central Command has prohibited further recalls."
 		else
 			announcement += " Please recall the shuttle to extend the shift."
-		command_alert(announcement,"Shift Shuttle Update")
+		command_alert(announcement,"Shift Shuttle Update", alert_origin=ALERT_GENERAL)
 		shuttle_last_auto_call = ticker.round_elapsed_ticks
 		if (!shuttle_initial_auto_call_done)
 			shuttle_initial_auto_call_done = 1
@@ -183,9 +188,7 @@ ABSTRACT_TYPE(/datum/game_mode)
 				continue
 			var/datum/job/job = find_job_in_controller_by_string(C.mob.job)
 			if (job)
-				if(!job.allow_traitors)
-					continue
-				if (!job.can_join_gangs && (type == ROLE_GANG_LEADER || type == ROLE_GANG_MEMBER))
+				if(!job.can_be_antag(type))
 					continue
 		else
 			continue

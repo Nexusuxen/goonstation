@@ -245,7 +245,7 @@ TYPEINFO(/obj/machinery/recharge_station)
 			if (isunconscious(user))
 				return
 			else
-				user.visible_message("<b>[user]</b> moves [R] into  [src].")
+				user.visible_message("<b>[user]</b> moves [R] into [src].")
 		R.remove_pulling()
 		R.set_loc(src)
 		src.occupant = R
@@ -277,9 +277,10 @@ TYPEINFO(/obj/machinery/recharge_station)
 		actions.start(try_convert, user)
 
 /obj/machinery/recharge_station/receive_silicon_hotkey(mob/user)
-	. = ..()
+	if(..())
+		return
 
-	if (!isAI(user))
+	if (!isAI(user)) // this is AI only
 		return
 
 	var/mob/living/silicon/ai/mainframe = null
@@ -442,6 +443,7 @@ TYPEINFO(/obj/machinery/recharge_station)
 	is_syndicate = 1
 	anchored = UNANCHORED
 	p_class = 1.5
+	SYNDICATE_STEALTH_DESCRIPTION("It is full of sharp instruments designed to tear open human flesh.", null)
 
 /obj/machinery/recharge_station/syndicate/attackby(obj/item/W, mob/user)
 	if (iswrenchingtool(W))
@@ -704,7 +706,7 @@ TYPEINFO(/obj/machinery/recharge_station)
 			R.real_name = "[newname]"
 			R.UpdateName()
 			if (R.internal_pda)
-				R.internal_pda.name = "[R.name]'s Internal PDA Unit"
+				R.internal_pda.name = "[R.name]’s Internal PDA Unit"
 				R.internal_pda.owner = "[R.name]"
 			. = TRUE
 		if("occupant-eject")
