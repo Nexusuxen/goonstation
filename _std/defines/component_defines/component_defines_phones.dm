@@ -14,7 +14,7 @@
 
 	/// Request to dial the provided phone ID
 	#define COMSIG_PHONE_ATTEMPT_CONNECT "phone_attempt_connect"
-	/// When we pick up the phone, accepting any call requests
+	/// When we pick up the phone, accepting any call requests or starting a session with the switchboard
 	#define COMSIG_PHONE_PICKUP "phone_pickup"
 	/// When we deny or terminate a pending or active call
 	#define COMSIG_PHONE_HANGUP "phone_hangup"
@@ -25,18 +25,17 @@
 	#define COMSIG_PHONE_VAPE_OUT "phone_vape_out"
 	/// When a phone transmits a voltron-using nerd
 	#define COMSIG_PHONE_VOLTRON_OUT "phone_voltron_out"
-	/// When a phone transmits a sound
-	#define COMSIG_PHONE_SOUND_OUT "phone_sound_out"
+	/// When a phone transmits a sound (currently only supports sound file and volume as arguments)
+	#define COMSIG_PHONE_SOUND_OUT "phone_sound_out" // maybe add support for more playsound() args?
 
 // Inbound signals
 
-	/// When another phone wants to start calling us
-	/// Expected to return 0 if ignored, 1 if accepted (even if we don't pick up yet)
-	#define COMSIG_PHONE_INBOUND_CONNECTION_ATTEMPT "phone_inbound_connection_attempt"
-	/// When the phone is picked up
-	#define COMSIG_PHONE_CALL_REQUEST_ACCEPTED "phone_call_request_accepted"
-	/// When a call is denied or ends
-	#define COMSIG_PHONE_CONNECTION_CLOSED "phone_connection_closed"
+	/// When another phone starts calling us
+	#define COMSIG_PHONE_INBOUND_CONNECTION "phone_inbound_connection_attempt"
+	/// Signals that a call has successfully been started and that we should ring if possible
+	#define COMSIG_PHONE_START_RING "phone_start_ring"
+	/// Signals that a call has ended and that we should stop ringing if we already are
+	#define COMSIG_PHONE_STOP_RING "phone_stop_ring"
 
 	/// When a phone receives speech
 	#define COMSIG_PHONE_SPEECH_IN "phone_speech_in"
@@ -44,8 +43,8 @@
 	#define COMSIG_PHONE_VAPE_IN "phone_vape_in"
 	/// When a phone receives a voltron-using nerd
 	#define COMSIG_PHONE_VOLTRON_IN "phone_voltron_in"
-	/// When a phone receives a sound
-	#define COMSIG_PHONE_SOUND_IN "phone_sound_in" //todo add handling for more args
+	/// When a phone receives a sound (currently only supports sound file and volume as arguments)
+	#define COMSIG_PHONE_SOUND_IN "phone_sound_in"
 
 // Internal signals
 
@@ -56,32 +55,10 @@
 	#define COMSIG_PHONE_UI_INTERACT "phone_ui_interact"
 	/// Signals a ui_component to close the UI
 	#define COMSIG_PHONE_UI_CLOSE "phone_ui_close"
-	/// orders the ringer component (if any) to start ringing
-	#define COMSIG_PHONE_START_RING "phone_start_ring"
-	/// orders the ringer component (if any) to stop ringing
-	#define COMSIG_PHONE_STOP_RING "phone_stop_ring"
 	/// Sent by /datum/controller/process/phone_ringing to ring phones
 	#define COMSIG_PHONE_RINGER_PROCESS_TICK "phone_ring_process_tick"
 	/// Sent to update any changes to things like name and category
 	#define COMSIG_PHONE_UPDATE_INFO "phone_update_info"
-
-// Return bitflags
-
-	/// attempted action failed
-	#define PHONE_FAIL (1<<0)
-	/// attempted action successful
-	#define PHONE_SUCCESS (1<<1)
-	/// action resulted in a phonecall being answered
-	#define PHONE_ANSWERED (1<<2)
-	/// if a phone is already connected or registered to a phone/switchboard
-	#define PHONE_ALREADY_CONNECTED (1<<3)
-
-// Status bitflags
-
-	/// Is the phone currently powered/active/online?
-	#define PHONE_ACTIVE (1<<0)
-	/// Is the phone currently busy? (e.g handset picked up, inbound call)
-	#define PHONE_BUSY (1<<1)
 
 // Misc junk
 

@@ -17,6 +17,7 @@ TYPEINFO(/obj/machinery/phone)
 	var/answered_icon = "phone_answered"
 	var/dialicon = "phone_dial"
 	var/phone_icon = "phone"
+	var/ringing = FALSE
 	var/ringing_icon = "phone_ringing"
 	var/last_called = null
 	var/caller_id_message = null
@@ -24,8 +25,6 @@ TYPEINFO(/obj/machinery/phone)
 	var/phone_id = null
 	var/stripe_color = null
 	var/handset_taken = FALSE
-	// todo: make do something. currently does nothing.
-	var/can_talk_across_z_levels = TRUE
 	var/connected = TRUE
 	// Deprecated. todo: remove all instances of this var
 	var/emagged = FALSE
@@ -73,21 +72,8 @@ TYPEINFO(/obj/machinery/phone)
 	stripe_image.appearance_flags = RESET_COLOR | PIXEL_SCALE
 	src.UpdateOverlays(stripe_image, "stripe")
 
-	// Generate a name for the phone.
 	if (isnull(src.phone_id))
-		var/temp_name = src.name
-		if ((temp_name == src::name) && location)
-			temp_name = location.name
-
-		var/name_counter = 1
-		for_by_tcl(M, /obj/machinery/phone)
-			if (M.phone_id && (M.phone_id == temp_name))
-				name_counter++
-
-		if (name_counter > 1)
-			temp_name = "[temp_name] [name_counter]"
-
-		src.phone_id = temp_name
+		src.phone_id = make_name()
 
 	src.add_components()
 	src.handset = new /obj/item/phone_handset(src)
@@ -99,9 +85,28 @@ TYPEINFO(/obj/machinery/phone)
 	RegisterSignal(src, COMSIG_PHONE_BOOK_DATA, PROC_REF(update_phonebook))
 	START_TRACKING
 
+/obj/machinery/phone/proc/make_name(var/inputted_name)
+	// Generate a name for the phone.
+	// This is intended to ensure that no 2 phones share the exact same name
+	// If and when actual phone numbers get added, naming won't need to be as strict
+	var/temp_name = src.name
+	var/area/location = get_area(src)
+	if (inputted_name)
+		temp_name = inputted_name
+	else if ((temp_name == src::name) && location)
+		temp_name = location.name
+	var/test_name = temp_name
+	var/name_counter = 1
+	for_by_tcl(M, /obj/machinery/phone)
+		if (M.phone_id && (M.phone_id == test_name))
+			name_counter++
+			test_name = "[temp_name] [name_counter]"
+	return test_name
+
 /obj/machinery/phone/disposing()
-	qdel(src.handset)
 	UnregisterSignal(src, COMSIG_CORD_RETRACT)
+	src.hang_up(disposing = TRUE)
+	qdel(src.handset)
 	STOP_TRACKING
 	. = ..()
 
@@ -114,9 +119,9 @@ TYPEINFO(/obj/machinery/phone)
 		return " There is a small label on the phone that reads \"[src.phone_id]\"."
 
 /obj/machinery/phone/proc/add_components()
-	var/datum/component/phone_networker/net_comp = src.AddComponent(/datum/component/phone_networker, phone_id, phone_category, switchboard)
-	src.AddComponent(/datum/component/phone_ui, src, phone_id, net_comp)
-	src.AddComponent(/datum/component/phone_ringer_atom, src, net_comp, TRUE)
+	src.AddComponent(/datum/component/phone_networker, phone_id, phone_category, switchboard, null, unlisted, stripe_color)
+	src.AddComponent(/datum/component/phone_ui, src, phone_id)
+	src.AddComponent(/datum/component/phone_ringer_atom, src, TRUE)
 
 /obj/machinery/phone/attack_ai(mob/user)
 	return
@@ -154,7 +159,7 @@ TYPEINFO(/obj/machinery/phone)
 		if (!text || !in_interact_range(src, user))
 			return
 
-		src.phone_id = text
+		src.phone_id = make_name(text)
 		boutput(user, SPAN_NOTICE("You rename the phone to \"[src.phone_id]\"."))
 		update_info()
 		return
@@ -188,11 +193,13 @@ TYPEINFO(/obj/machinery/phone)
 	src.UpdateIcon()
 	playsound(user, 'sound/machines/phones/pick_up.ogg', 50, FALSE)
 
-	if(!(SEND_SIGNAL(src, COMSIG_PHONE_PICKUP) & PHONE_ANSWERED))
-		if(!src.connected)
-			boutput(user,SPAN_ALERT("As you pick up the phone you notice that the cord has been cut!"))
-		else
-			SEND_SIGNAL(src, COMSIG_PHONE_UI_INTERACT, user, FALSE)
+	if(!src.connected)
+		boutput(user,SPAN_ALERT("As you pick up the phone you notice that the cord has been cut!"))
+	else if(!src.ringing)
+		SEND_SIGNAL(src, COMSIG_PHONE_UI_INTERACT, user, FALSE)
+
+	SEND_SIGNAL(src, COMSIG_PHONE_PICKUP)
+	SEND_SIGNAL(src, COMSIG_PHONE_SOUND_OUT, 'sound/machines/phones/remote_answer.ogg', 30)
 
 /obj/machinery/phone/proc/update_phonebook(var/signal_parent, var/list/phonebook_new, var/append = FALSE)
 	if(!append)
@@ -214,7 +221,7 @@ TYPEINFO(/obj/machinery/phone)
 	if (length(phonebook))
 		var/list/prank_category = pick(phonebook)["category"]
 		var/prank_name = prank_category["phones"]["id"]
-		var/prank_color = "#b65f08"
+		var/prank_color
 		switch(prank_category)
 			if("security")
 				prank_color = "#ff0000"
@@ -226,6 +233,8 @@ TYPEINFO(/obj/machinery/phone)
 				prank_color = "#8409ff"
 			if ("medical")
 				prank_color = "#3838ff"
+			if("uncategorized")
+				prank_color = "#b65f08"
 		prank_caller = "<span style=\"color: [prank_color];\">[prank_name]</span>"
 	else
 		prank_caller = "<span style=\"color: #cccccc;\">???</span>"
@@ -261,15 +270,21 @@ TYPEINFO(/obj/machinery/phone)
 	if (..())
 		return
 
-/obj/machinery/phone/proc/start_ring(var/signal_parent, var/list/caller_info)
-	if(isnull(caller_info))
+/obj/machinery/phone/proc/start_ring()
+	if(handset_taken)
 		return // we're the one making the call, no need to shake
+	src.ringing = TRUE
 	src.icon_state = "[src.ringing_icon]"
 	src.UpdateIcon()
 
 /obj/machinery/phone/proc/stop_ring()
+	src.ringing = FALSE
 	if(handset_taken)
 		return
+
+	// we only wanna do this hangup signal if the handset is down
+	SEND_SIGNAL(src, COMSIG_PHONE_HANGUP) // we do this to let the switchboard know we're already hung up
+	// otherwise, if we never answered, we wouldn't receive anymore calls until we pick up then hang up
 
 	src.icon_state = "[phone_icon]"
 	src.UpdateIcon()
@@ -282,64 +297,7 @@ TYPEINFO(/obj/machinery/phone)
 		user.visible_message(SPAN_ALERT("<b>[user] bashes the [src] into [his_or_her(user)] head repeatedly!</b>"))
 		user.TakeDamage("head", 150, 0)
 		return TRUE
-/* Deprecated, holding onto for reference for now just in case
-/obj/machinery/phone/ui_interact(mob/user, datum/tgui/ui)
-	ui = tgui_process.try_update_ui(user, src, ui)
-	if (!ui)
-		ui = new(user, src, "Phone")
-		ui.open()
 
-/obj/machinery/phone/ui_data(mob/user)
-	var/list/list/list/phonebook = list()
-	for_by_tcl(P, /obj/machinery/phone)
-		var/match_found = FALSE
-		if (P.unlisted || P == src)
-			continue
-		if (!(src.can_talk_across_z_levels && P.can_talk_across_z_levels) && (get_z(P) != get_z(src)))
-			continue
-		if (length(phonebook))
-			for (var/i in 1 to length(phonebook))
-				if (phonebook[i]["category"] == P.phone_category)
-					match_found = TRUE
-					phonebook[i]["phones"] += list(list(
-						"id" = P.phone_id
-					))
-					break
-		if (!match_found)
-			phonebook += list(list(
-				"category" = P.phone_category,
-				"phones" = list(list(
-					"id" = P.phone_id
-				))
-			))
-
-	. = list(
-		"dialing" = src.dialing,
-		"inCall" = src.linked,
-		"lastCalled" = src.last_called,
-		"name" = src.name
-	)
-
-	.["phonebook"] = phonebook
-
-/obj/machinery/phone/ui_act(action, params)
-	. = ..()
-	if (.)
-		return
-	switch (action)
-		if ("call")
-			if (src.dialing == TRUE || src.linked)
-				return
-			. = TRUE
-			src.add_fingerprint(usr)
-			var/id = params["target"]
-			for_by_tcl(P, /obj/machinery/phone)
-				if (P.phone_id == id)
-					//src.call_other(P)
-					SEND_SIGNAL()
-					return
-			boutput(usr, SPAN_ALERT("Unable to connect!"))
-*/
 /obj/machinery/phone/update_icon()
 	. = ..()
 	src.UpdateOverlays(src.SafeGetOverlayImage("stripe", 'icons/obj/machines/phones.dmi',"[src.icon_state]-stripe"), "stripe")
@@ -347,20 +305,27 @@ TYPEINFO(/obj/machinery/phone)
 /obj/machinery/phone/proc/explode()
 	src.blowthefuckup(strength = 2.5, delete = TRUE)
 
-/obj/machinery/phone/proc/hang_up()
-	src.handset_taken = FALSE
+/obj/machinery/phone/proc/hang_up(var/disposing = FALSE)
+	if(disposing) // this sound is the closest thing we got to "oh the phone im calling just Broke"
+	// a better one would be appreciated, but it'll do for now
+		SEND_SIGNAL(src, COMSIG_PHONE_SOUND_OUT, 'sound/machines/glitch4.ogg', 30)
+	else
+		SEND_SIGNAL(src, COMSIG_PHONE_SOUND_OUT, 'sound/machines/phones/remote_hangup.ogg', 30)
 	SEND_SIGNAL(src, COMSIG_PHONE_HANGUP)
-	src.RemoveComponentsOfType(/datum/component/cord)
-	src.handset?.force_drop(sever = TRUE)
-	src.handset.loc = src
-	src.icon_state = "[phone_icon]"
 	SEND_SIGNAL(src, COMSIG_PHONE_UI_CLOSE)
+	if(disposing)
+		return
+	src.handset_taken = FALSE
+	src.RemoveComponentsOfType(/datum/component/cord)
+	src.handset.force_drop(sever = TRUE)
+	src.handset.set_loc(src)
+	src.icon_state = "[phone_icon]"
 	src.UpdateIcon()
 	playsound(src.loc, 'sound/machines/phones/hang_up.ogg', 50, 0)
 
-/// Signals our phone component our current name, category, and hidden status
+/// Signals our phone component our current name, category, unlisted status, and color
 /obj/machinery/phone/proc/update_info()
-	SEND_SIGNAL(src, COMSIG_PHONE_UPDATE_INFO, phone_id, phone_category, unlisted)
+	SEND_SIGNAL(src, COMSIG_PHONE_UPDATE_INFO, phone_id, phone_category, unlisted, color)
 
 
 TYPEINFO(/obj/machinery/phone/wall)

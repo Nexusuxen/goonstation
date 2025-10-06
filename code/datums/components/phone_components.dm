@@ -4,6 +4,9 @@
   phone_packets should be transmitted this way rather than broadcasted to all phones
 - Networks! Phones only see what's on their network. For now just have the "NT13 Network".
  - Maybe later on we can get switchboards or magic phones that allow seeing other networks
+
+PHONES SHOULD NOT GIVE A DAMN ABOUT HEARING ANYTHING THAT A SPEAKER CANNOT PICK UP
+the switchboard should handle all of the call logic, the phones themselves just send/receive signals
 */
 
 /// Stores all addresss as address = parent
@@ -25,19 +28,19 @@ proc/generate_phone_name()
 	/// Our category in the phonebook
 	var/address_category = null
 	/// Determines if we should show up in phonebooks
-	var/hidden = FALSE
+	var/unlisted = FALSE
+	var/color = "#b65f08"
 	/// Keeps track of the switchboard we're registered to, if any
 	/// Still try to use signals when possible, in case we're meant to not have a switchboard
 	var/datum/phone_switchboard/our_switchboard = null
 	// Maybe we could have multiple switchboards in the future, but for now it's just the one
-
 	/// Our local copy of the phonebook
 	var/list/phonebook = null
 	/// A list of information on whoever's calling us
 	/// list(phone number, name)
 	var/list/current_caller_info
 	/// Are we currently in an active call?
-	var/pending_call = FALSE
+	var/pending_call = FALSE //todo: REMOVE?
 
 	/// Bitfield. Stores various conditions about the overall status of the phone.
 	var/status = 0
@@ -48,16 +51,12 @@ proc/generate_phone_name()
 	var/datum/our_ringer
 
 	/// Leave switchboard_name null to not immediately try to connect to a switchboard
-	Initialize(var/_phone_name, var/_address_category, var/switchboard_name = null, var/desired_phone_number = null)
+	Initialize(var/_phone_name, var/_address_category, var/switchboard_name = null, var/desired_phone_number = null, var/do_unlisted = FALSE, var/desired_color = "#b65f08")
 		. = ..()
 		RegisterSignal(parent, COMSIG_PHONE_SWITCHBOARD_REGISTER, PROC_REF(try_register_switchboard))
 		RegisterSignal(parent, COMSIG_PHONE_SWITCHBOARD_UNREGISTER, PROC_REF(unregister_switchboard))
 		RegisterSignal(parent, COMSIG_PHONE_BOOK_DATA, PROC_REF(update_phonebook))
-		RegisterSignal(parent, COMSIG_PHONE_INBOUND_CONNECTION_ATTEMPT, PROC_REF(inbound_connection_attempt))
-		RegisterSignal(parent, COMSIG_PHONE_CONNECTION_CLOSED, PROC_REF(connection_closed))
-		RegisterSignal(parent, COMSIG_PHONE_CALL_REQUEST_ACCEPTED, PROC_REF(call_request_accepted))
-		RegisterSignal(parent, COMSIG_PHONE_PICKUP, PROC_REF(picked_up))
-		RegisterSignal(parent, COMSIG_PHONE_HANGUP, PROC_REF(hanged_up))
+		RegisterSignal(parent, COMSIG_PHONE_INBOUND_CONNECTION, PROC_REF(inbound_connection))
 		RegisterSignal(parent, COMSIG_PHONE_UPDATE_INFO, PROC_REF(update_info))
 		if(isnull(_phone_name)) // remove when phone numbers are added
 			CRASH("Tried to generate a phone without a name from [parent]!")
@@ -69,19 +68,19 @@ proc/generate_phone_name()
 		phone_name = _phone_name
 		// todo: make it impossible to have duplicate names
 		address_category = _address_category
+		unlisted = do_unlisted
+		color = desired_color
 		add_phone_to_global_list()
-		phone_status |= PHONE_ACTIVE
-		// src is added here since try_register_switchboard can also be called from a signal
 		try_register_switchboard(src, switchboard_name)
 
 	disposing()
-		. = ..()
-		unregister_switchboard()
+		unregister_switchboard(src)
 		remove_phone_from_global_list()
+		. = ..()
 
 	proc/add_phone_to_global_list()
-		phone_numbers[address] += parent
-		phone_numbers_inv[parent] += address
+		phone_numbers[address] = parent
+		phone_numbers_inv[parent] = address
 
 	proc/remove_phone_from_global_list()
 		phone_numbers.Remove(address)
@@ -96,8 +95,7 @@ proc/generate_phone_name()
 			switchboard = global_switchboards[global_switchboards[sb]]
 		else
 			switchboard = new(switchboard_name)
-		var/R = SEND_SIGNAL(switchboard, COMSIG_PHONE_SWITCHBOARD_REGISTER, parent, address, phone_name, address_category, hidden)
-		if(R & PHONE_SUCCESS)
+		if(SEND_SIGNAL(switchboard, COMSIG_PHONE_SWITCHBOARD_REGISTER, parent, address, phone_name, address_category, unlisted, color))
 			our_switchboard = switchboard
 		else
 			// This runtime call should be removed when a phone is added that's meant to not have a switchboard
@@ -107,44 +105,20 @@ proc/generate_phone_name()
 
 	proc/unregister_switchboard()
 		if(!isnull(our_switchboard))
-			SEND_SIGNAL(our_switchboard, COMSIG_PHONE_SWITCHBOARD_UNREGISTER)
+			SEND_SIGNAL(our_switchboard, COMSIG_PHONE_SWITCHBOARD_UNREGISTER, parent)
 
 	// we might not need this, just the UI component
 	proc/update_phonebook()
 
 	/// Handles inbound call requests
-	proc/inbound_connection_attempt(var/signal_parent, caller_info)
-		if(status & PHONE_BUSY)
-			return PHONE_FAIL
-		else
-			SEND_SIGNAL(parent, COMSIG_PHONE_START_RING, caller_info)
-			current_caller_info = caller_info
-			pending_call = TRUE
-			return PHONE_SUCCESS
+	proc/inbound_connection(var/signal_parent, caller_info)
+		current_caller_info = caller_info
+		pending_call = TRUE
 
-	proc/connection_closed(var/signal_parent, datum/partner)
-		SEND_SIGNAL(parent, COMSIG_PHONE_STOP_RING)
-		SEND_SIGNAL(parent, COMSIG_PHONE_SOUND_IN, 'sound/machines/phones/hang_up.ogg')
-		pending_call = FALSE
-
-	proc/call_request_accepted(var/signal_parent, datum/partner)
-		SEND_SIGNAL(parent, COMSIG_PHONE_STOP_RING)
-		SEND_SIGNAL(parent, COMSIG_PHONE_SOUND_IN, 'sound/machines/phones/remote_answer.ogg')
-		pending_call = FALSE
-		. |= PHONE_ANSWERED
-
-	proc/picked_up()
-		status |= PHONE_BUSY
-		pending_call = FALSE
-		SEND_SIGNAL(parent, COMSIG_PHONE_STOP_RING)
-	proc/hanged_up()
-		status &= ~PHONE_BUSY
-		SEND_SIGNAL(parent, COMSIG_PHONE_STOP_RING)
-
-	proc/update_info(signal_parent, new_name, new_category, new_hidden)
+	proc/update_info(signal_parent, new_name, new_category, new_unlisted)
 		phone_name = new_name
 		address_category = new_category
-		hidden = new_hidden
+		unlisted = new_unlisted
 
 /// Handles UI actions for phones. Displaying TGUI to a client, relaying input to the networker, etc.
 /// May have a different parent than its networker
@@ -152,26 +126,27 @@ proc/generate_phone_name()
 
 	/// The parent holder containing our networker
 	var/datum/networker_parent
-	// todo remove before pr
-	var/datum/component/phone_networker/our_net_comp
 	/// Our list of phones we can see in the UI
 	var/list/phonebook
-	/// what we should be called, i guess
 	var/our_name
-
+	/// The name of the last phone we tried to dial
+	var/last_called = "None"
 	/// If we're in the middle of dialing
 	var/dialing = FALSE
 
-	Initialize(var/datum/net_parent, var/to_name = "placeholder name", var/net_component)
+	var/ringing = FALSE
+
+	Initialize(var/datum/net_parent, var/to_name = "placeholder name")
 		. = ..()
 		networker_parent = net_parent
 		our_name = to_name
-		our_net_comp = net_component
 
 		RegisterSignal(networker_parent, COMSIG_PHONE_UI_INTERACT, PROC_REF(phone_ui_interact))
 		RegisterSignal(networker_parent, COMSIG_PHONE_UI_CLOSE, PROC_REF(phone_ui_close))
 		RegisterSignal(networker_parent, COMSIG_PHONE_BOOK_DATA, PROC_REF(update_phonebook))
 		RegisterSignal(networker_parent, COMSIG_PHONE_HANGUP, PROC_REF(hangup))
+		RegisterSignal(networker_parent, COMSIG_PHONE_START_RING, PROC_REF(start_ring))
+		RegisterSignal(networker_parent, COMSIG_PHONE_STOP_RING, PROC_REF(stop_ring))
 
 	proc/update_phonebook(var/signal_parent, var/list/new_phonebook, var/append = FALSE)
 		//todo: if append, just stick it to the end of our existing phonebook
@@ -188,6 +163,12 @@ proc/generate_phone_name()
 	proc/hangup()
 		dialing = FALSE
 
+	proc/start_ring()
+		ringing = TRUE
+
+	proc/stop_ring()
+		ringing = FALSE
+
 	ui_interact(mob/user, datum/tgui/ui)
 		ui = tgui_process.try_update_ui(user, src, ui)
 		if(!ui)
@@ -198,7 +179,7 @@ proc/generate_phone_name()
 		. = list(
 			"dialing" = FALSE,
 			"inCall" = null,
-			"lastCalled" = "lastCalled",
+			"lastCalled" = last_called,
 			"name" = our_name
 		)
 
@@ -215,17 +196,16 @@ proc/generate_phone_name()
 				call_target(id)
 
 	proc/call_target(target)
+		if(dialing || ringing)
+			return
 		SEND_SIGNAL(networker_parent, COMSIG_PHONE_SOUND_IN, 'sound/machines/phones/dial.ogg')
 		dialing = TRUE
 		SPAWN(4 SECONDS)
 			if(!dialing) // we've been interrupted!
 				return
 			dialing = FALSE
-			if(SEND_SIGNAL(networker_parent, COMSIG_PHONE_ATTEMPT_CONNECT, target))
-				SEND_SIGNAL(networker_parent, COMSIG_PHONE_START_RING)
-				return
-			boutput(usr, SPAN_ALERT("Unable to connect!"))
-			SEND_SIGNAL(networker_parent, COMSIG_PHONE_SOUND_IN, 'sound/machines/phones/phone_busy.ogg')
+			last_called = target
+			SEND_SIGNAL(networker_parent, COMSIG_PHONE_ATTEMPT_CONNECT, target)
 
 /// Hears anything spoken into its owner and sends to networker.
 /// May have a different owner than its networker
@@ -234,7 +214,6 @@ proc/generate_phone_name()
 
 	/// The parent holder containing our networker
 	var/datum/networker_parent
-
 	/// Are we able to transmit voltron-wielding nerds?
 	var/voltronnable
 	/// Can we send sick vapes through the wires?
@@ -274,25 +253,33 @@ proc/generate_phone_name()
 
 	/// The parent holder containing our networker
 	var/datum/networker_parent = null
-
-	var/datum/component/phone_networker/our_networker = null
 	/// Can a voltron user travel to us?
 	var/voltronnable
 	/// Can a nerd blow their vape to us?
 	var/vapeable
+
+	var/ringing = FALSE
 
 	Initialize(var/net_parent, var/do_voltron = TRUE, var/do_vape = TRUE)
 		. = ..()
 		if(!istype(parent, /atom))
 			return COMPONENT_INCOMPATIBLE
 		networker_parent = net_parent
-		our_networker = networker_parent.GetComponent(/datum/component/phone_networker)
 		voltronnable = do_voltron
 		vapeable = do_vape
 		RegisterSignal(networker_parent, COMSIG_PHONE_SPEECH_IN, PROC_REF(receive_speech))
 		RegisterSignal(networker_parent, COMSIG_PHONE_VAPE_IN, PROC_REF(receive_vape))
 		RegisterSignal(networker_parent, COMSIG_PHONE_VOLTRON_IN, PROC_REF(receive_voltron))
 		RegisterSignal(networker_parent, COMSIG_PHONE_SOUND_IN, PROC_REF(receive_sound))
+
+		RegisterSignal(networker_parent, COMSIG_PHONE_START_RING, PROC_REF(start_ring))
+		RegisterSignal(networker_parent, COMSIG_PHONE_STOP_RING, PROC_REF(stop_ring))
+
+	proc/start_ring()
+		ringing = TRUE
+
+	proc/stop_ring()
+		ringing = FALSE
 
 	proc/get_user()
 		var/atom/P = parent
@@ -302,6 +289,8 @@ proc/generate_phone_name()
 	proc/receive_speech(var/signal_parent, var/datum/say_message/message)
 		if(!istype(message, /datum/say_message))
 			CRASH("[src].receive_speech() (Parent: [parent]) received [message], expected type /datum/say_message!")
+		if(ringing)
+			return
 		var/atom/P = parent
 		message = message.Copy()
 		message.speaker = P
@@ -309,7 +298,7 @@ proc/generate_phone_name()
 		P.ensure_speech_tree().process(message)
 
 	proc/receive_vape(var/signal_parent, var/obj/item/reagent_containers/vape/vape)
-		if(!vapeable || our_networker.pending_call)
+		if(!vapeable)
 			return
 		var/user = get_user()
 		if(user)
@@ -317,21 +306,21 @@ proc/generate_phone_name()
 		vape.phone_target = parent
 
 	proc/receive_voltron(var/signal_parent, var/obj/item/device/voltron/voltron)
-		if(!voltronnable || our_networker.pending_call)
-			return PHONE_FAIL
+		if(!voltronnable)
+			return
+		if(!isatom(parent))
+			return
 		var/atom/A = parent
-		if(!isturf(A.loc))
-			return PHONE_FAIL
-		var/turf/destination = A.loc
-		if(isrestrictedz(destination.z))
-			return PHONE_FAIL
+		var/turf/destination = get_turf(A)
+		if(isrestrictedz(destination.z)) //REVIEW: is this sufficient or should there be more restrictions?
+			return
 		voltron.target_atom = parent
-		return PHONE_SUCCESS
+		return
 
-	proc/receive_sound(var/signal_parent, var/sound_to_play)
+	proc/receive_sound(var/signal_parent, var/sound_to_play, var/vol = 30)
 		var/mob/user = get_user()
 		if(user)
-			user.playsound_local(user, sound_to_play, 50, 0)
+			user.playsound_local(user, sound_to_play, vol, 0)
 
 
 /// Handles animations and noises for inbound ringing
@@ -342,8 +331,6 @@ proc/generate_phone_name()
 
 	/// The parent holder containing our networker
 	var/datum/networker_parent
-	/// Reference to our networker, if any
-	var/datum/component/phone_networker/our_networker
 	/// Info on whoever's trying to call us
 	var/list/current_caller_info
 
@@ -351,51 +338,56 @@ proc/generate_phone_name()
 	var/announce_incoming
 	var/speaker_ring_sound = null
 	var/parent_ring_sound = null
+	var/wait2ring = FALSE
 
 
 // Review: I dislike this method of changing parent appearance. Is there a way you, reviewer, would recommend?
 // (just feels like a good deal of boilerplate, but maybe I'm overreacting)
 	Initialize(
 	var/datum/net_parent,
-	var/net_comp,
 	var/_announce_incoming = TRUE,
 	var/_speaker_ring_sound = PHONE_DEFAULT_RING_SPEAKER,
 	var/_parent_ring_sound = PHONE_DEFAULT_RING_EXTERNAL)
 		. = ..()
 		networker_parent = net_parent
-		our_networker = net_comp
 		announce_incoming = _announce_incoming
 		speaker_ring_sound = _speaker_ring_sound
 		parent_ring_sound = _parent_ring_sound
+		RegisterSignal(parent, COMSIG_PHONE_INBOUND_CONNECTION, PROC_REF(inbound_connection))
+		RegisterSignal(networker_parent, COMSIG_PHONE_START_RING, PROC_REF(start_ring))
+		RegisterSignal(networker_parent, COMSIG_PHONE_STOP_RING, PROC_REF(stop_ring))
+
+	proc/inbound_connection(var/signal_parent, var/caller_info)
+		current_caller_info = caller_info
+
+	proc/start_ring()
 		if(processScheduler)
 			for(var/datum/controller/process/phone_ringing/P in processScheduler.processes)
 				ring_process = P
 				break
-		RegisterSignal(networker_parent, COMSIG_PHONE_START_RING, PROC_REF(start_ring))
-		RegisterSignal(networker_parent, COMSIG_PHONE_STOP_RING, PROC_REF(stop_ring))
-
-	proc/start_ring(var/signal_parent, var/caller_info)
+		// we do this to give the switchboard a moment to fully register us as in a call
+		// otherwise, the mic would hear the first ring message and the switchboard would just send it to our partner
+		SPAWN(0 SECONDS)
+			do_ring()
+			wait2ring = TRUE
 		RegisterSignal(ring_process, COMSIG_PHONE_RINGER_PROCESS_TICK, PROC_REF(do_ring))
-		current_caller_info = caller_info
+		// so we can immediately ring without risking rings overlapping
+		SPAWN(4 SECONDS)
+			wait2ring = FALSE
 
 	proc/stop_ring()
 		UnregisterSignal(ring_process, COMSIG_PHONE_RINGER_PROCESS_TICK)
+		current_caller_info = null
 
 	proc/do_ring()
-		. = 0
+		if(wait2ring) return
 		if(speaker_ring_sound && isnull(current_caller_info))
 			SEND_SIGNAL(networker_parent, COMSIG_PHONE_SOUND_IN, PHONE_DEFAULT_RING_SPEAKER)
-			.++
 		else if(istype(parent, /atom) && !isnull(current_caller_info))
 			var/atom/P = parent
 			if(parent_ring_sound)
-				playsound(P, PHONE_DEFAULT_RING_EXTERNAL, 40, 0)
-				.++
+				playsound(P, parent_ring_sound, 40, 0)
 			if(announce_incoming)
 				var/name2announce = current_caller_info[2]
-				P.say("Call from [name2announce]", flags = SAYFLAG_IGNORE_HTML)
-				.++
-		if(. == 0)
-			//LogTheThing(LOG_DEBUG, src, "[src] on [parent] failed to do anything when ringing. Either a ringer component is unneeded or setup improperly.")
-			//this is throwing an Undefined Proc error here what the hell. fix this shit.
-			world << "nex wuz here"
+				var/color2announce = current_caller_info[3]
+				P.say("Call from <span style=\"color: [color2announce];\">[name2announce]</span>", flags = SAYFLAG_IGNORE_HTML)

@@ -6,16 +6,6 @@
 	if (!istype(handset))
 		return
 
-/* old signal code
-	var/datum/signal/signal = get_free_signal()
-	signal.transmission_method = TRANSMISSION_RADIO
-	signal.source = handset.parent
-	signal.encryption = "\ref[handset.parent]"
-	signal.data["message"] = message.Copy()
-	signal.data["address_1"] = handset.parent.linked.net_id
-
-	SEND_SIGNAL(handset.parent, COMSIG_MOVABLE_POST_RADIO_PACKET, signal, null, handset.parent.frequency)
-*/
 	SEND_SIGNAL(handset.parent, COMSIG_PHONE_SPEECH_OUT, message)
 
 	handset.last_talk = TIME

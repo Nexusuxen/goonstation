@@ -301,15 +301,16 @@
 			else if(user.r_hand == src && !isnull(user.l_hand))
 				held_item = user.l_hand
 			if(held_item && held_item.GetComponent(/datum/component/phone_microphone)) // travel through space line
-				var/try_voltron = SEND_SIGNAL(held_item, COMSIG_PHONE_ATTEMPT_VOLTRON, src)
-				if(!(try_voltron & PHONE_SUCCESS))
+				SEND_SIGNAL(held_item, COMSIG_PHONE_ATTEMPT_VOLTRON, src)
+				if(!target_atom)
 					boutput(user, "You can't seem to enter the phone for some reason!")
-					return // we assume the other end does all the necessary checks
-				// CHECKS NEEDED: restricted z and location is turf
+					return // we assume that, if we got a target_atom, the other side did their job in checking restricted Zs n stuff
+
 				user.visible_message("[user] enters the phone line using their [src].", "You enter the phone line using your [src].", "You hear a strange sucking noise.")
 				playsound(user.loc, 'sound/effects/singsuck.ogg', 40, 1)
 				user.drop_item(held_item)
-				user.set_loc(target_atom.loc)
+				var/turf/destination = get_turf(target_atom)
+				user.set_loc(destination)
 				playsound(user.loc, 'sound/effects/singsuck.ogg', 40, 1)
 				user.visible_message("[user] suddenly emerges from the [target_atom]. [pick("","What the fuck?")]", "You emerge from the [target_atom].", "You hear a strange sucking noise.")
 				target_atom = null

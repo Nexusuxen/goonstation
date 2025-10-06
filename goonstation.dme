@@ -38,6 +38,8 @@
 #endif
 
 // BEGIN_INCLUDE
+#include "_std\__build.dm"
+#include "_std\__build.dm"
 #include "_std\defines\component_defines\component_defines_phones.dm"
 #include "code\area.dm"
 #include "code\atom.dm"
