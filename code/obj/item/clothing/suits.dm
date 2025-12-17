@@ -11,7 +11,6 @@ ABSTRACT_TYPE(/obj/item/clothing/suit)
 	wear_layer = MOB_ARMOR_LAYER
 	var/fire_resist = T0C+100
 	/// If TRUE the suit will hide whoever is wearing it's hair
-	var/over_hair = FALSE
 	w_class = W_CLASS_NORMAL
 	var/restrain_wearer = 0
 	var/bloodoverlayimage = 0
@@ -784,11 +783,10 @@ TYPEINFO(/obj/item/clothing/suit/hazard/paramedic/armored)
 	w_class = W_CLASS_TINY
 	throw_speed = 2
 	throw_range = 10
-	c_flags = COVERSEYES | COVERSMOUTH | ONBACK
+	c_flags = COVERSEYES | COVERSMOUTH | COVERSHAIR | ONBACK
 	hides_from_examine = C_UNIFORM|C_GLOVES|C_SHOES|C_GLASSES|C_EARS|C_MASK
 	body_parts_covered = TORSO|ARMS
 	see_face = FALSE
-	over_hair = TRUE
 	wear_layer = MOB_FULL_SUIT_LAYER
 	var/eyeholes = FALSE //Did we remember to cut eyes in the thing?
 	var/cape = FALSE
@@ -868,11 +866,13 @@ TYPEINFO(/obj/item/clothing/suit/hazard/paramedic/armored)
 						boutput(user, SPAN_ALERT("You were interrupted!"))
 						return
 					else
+						var/list/bandages = list()
 						for (var/i=3, i>0, i--)
-							new /obj/item/bandage(get_turf(src))
+							bandages.Add(new /obj/item/bandage(get_turf(src)))
 						playsound(src.loc, 'sound/items/Scissor.ogg', 100, 1)
 						boutput(user, "You cut [src] into bandages.")
 						user.u_equip(src)
+						SEND_SIGNAL(src, COMSIG_ITEM_CONVERTED, bandages, user)
 						qdel(src)
 						return
 				if ("Cut cable")
@@ -893,15 +893,13 @@ TYPEINFO(/obj/item/clothing/suit/hazard/paramedic/armored)
 			src.icon_state = "bedcape[src.bcolor ? "-[bcolor]" : null]"
 			src.item_state = src.icon_state
 			see_face = TRUE
-			over_hair = FALSE
-			src.c_flags = ONBACK
+			src.c_flags &= ~COVERSHAIR
 			wear_layer = MOB_BACK_LAYER + 0.2
 		else
 			src.icon_state = "bedsheet[src.bcolor ? "-[bcolor]" : null][src.eyeholes ? "1" : null]"
 			src.item_state = src.icon_state
 			see_face = FALSE
 			src.c_flags = initial(src.c_flags)
-			over_hair = TRUE
 			wear_layer = MOB_OVER_TOP_LAYER
 
 	proc/cut_eyeholes()
@@ -923,10 +921,11 @@ TYPEINFO(/obj/item/clothing/suit/hazard/paramedic/armored)
 			src.bed.untuck_sheet()
 		src.bed = null
 		src.cape = TRUE
-		block_vision = FALSE
+		src.block_vision = FALSE
+		src.hides_from_examine = C_BACK
 		src.UpdateIcon()
 		src.update_examine()
-		desc = "It's a bedsheet that's been tied into a cape."
+		src.desc = "It's a bedsheet that's been tied into a cape."
 
 	proc/cut_cape()
 		if (!src.cape)
@@ -935,10 +934,11 @@ TYPEINFO(/obj/item/clothing/suit/hazard/paramedic/armored)
 			src.bed.untuck_sheet()
 		src.bed = null
 		src.cape = FALSE
-		block_vision = !src.eyeholes
+		src.block_vision = !src.eyeholes
+		src.hides_from_examine = initial(src.hides_from_examine)
 		src.UpdateIcon()
 		src.update_examine()
-		desc = "A linen sheet used to cover yourself while you sleep. Preferably on a bed."
+		src.desc = initial(src.desc)
 
 	proc/update_examine()
 		if(src.cape)
@@ -1310,6 +1310,7 @@ TYPEINFO(/obj/item/clothing/suit/hazard/fire/armored)
 
 		var/obj/item/newsuit = new /obj/item/clothing/suit/space/emerg
 		user.put_in_hand_or_drop(newsuit)
+		SEND_SIGNAL(src, COMSIG_ITEM_CONVERTED, newsuit, user)
 		qdel(src)
 
 /obj/item/clothing/suit/space/emerg/science
@@ -1768,9 +1769,8 @@ TYPEINFO(/obj/item/clothing/suit/space/industrial/salvager)
 	item_state = "cultist"
 	see_face = FALSE
 	magical = 1
-	over_hair = TRUE
 	wear_layer = MOB_FULL_SUIT_LAYER
-	c_flags = COVERSEYES | COVERSMOUTH
+	c_flags = COVERSEYES | COVERSMOUTH | COVERSHAIR
 	body_parts_covered = TORSO|LEGS|ARMS
 	hides_from_examine = C_UNIFORM
 
@@ -1809,10 +1809,9 @@ TYPEINFO(/obj/item/clothing/suit/space/industrial/salvager)
 	item_state = "flockcultistt"
 	see_face = FALSE
 	wear_layer = MOB_FULL_SUIT_LAYER
-	c_flags = COVERSEYES | COVERSMOUTH
+	c_flags = COVERSEYES | COVERSMOUTH | COVERSHAIR
 	body_parts_covered = TORSO|LEGS|ARMS
 	hides_from_examine = C_UNIFORM
-	over_hair = TRUE
 
 	setupProperties()
 		..()
@@ -2573,7 +2572,7 @@ ABSTRACT_TYPE(/obj/item/clothing/suit/sweater_vest)
 	wear_image_icon = 'icons/mob/clothing/overcoats/worn_suit_gimmick.dmi'
 	icon_state = "burnedrobe"
 	item_state = "burnedrobe"
-	over_hair = TRUE
+	c_flags = COVERSHAIR
 	wear_layer = MOB_FULL_SUIT_LAYER
 	body_parts_covered = TORSO|LEGS|ARMS
 	hides_from_examine = C_UNIFORM
@@ -2585,7 +2584,7 @@ ABSTRACT_TYPE(/obj/item/clothing/suit/sweater_vest)
 	wear_image_icon = 'icons/mob/clothing/overcoats/worn_suit_gimmick.dmi'
 	icon_state = "greenrobe"
 	item_state = "greenrobe"
-	over_hair = TRUE
+	c_flags = COVERSHAIR
 	wear_layer = MOB_FULL_SUIT_LAYER
 	body_parts_covered = TORSO|LEGS|ARMS
 	hides_from_examine = C_UNIFORM

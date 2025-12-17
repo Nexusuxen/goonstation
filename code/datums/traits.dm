@@ -27,6 +27,7 @@
 		"nohair",
 		"nowig",
 		"infrared",
+		"addiction",
 	)
 
 	var/list/traitData = list()
@@ -209,6 +210,15 @@
 
 	proc/hasTrait(var/id)
 		. = (id in traits)
+
+	/// Checks if the list contains a trait which this holder also contains. Returns the first id found, otherwise FALSE.
+	proc/hasTraitInList(var/list/trait_ids)
+		if (!islist(trait_ids))
+			return FALSE
+		for(var/id in trait_ids)
+			if (id in traits)
+				return id
+		return FALSE
 
 	proc/getTraitWithCategory(var/cat)
 		for(var/id in traits)
@@ -780,6 +790,11 @@ ABSTRACT_TYPE(/datum/trait/job)
 	desc = "Subject is a proficient surgeon."
 	id = "training_medical"
 
+/datum/trait/job/therapy
+	name = "Therapy Training"
+	desc = "Subject is trained to provide therapy and counseling."
+	id = "training_therapy"
+
 /datum/trait/job/scientist
 	name = "Scientist Training."
 	desc = "Subject is a experienced researcher."
@@ -1047,7 +1062,8 @@ TYPEINFO(/datum/trait/partyanimal)
 	points = 2
 	afterlife_blacklisted = TRUE
 	var/selected_reagent = "ethanol"
-	var/addictive_reagents = list("bath salts", "lysergic acid diethylamide", "space drugs", "psilocybin", "cat drugs", "methamphetamine", "ethanol", "nicotine")
+	var/addictive_reagents = list("space_drugs", "methamphetamine", "ethanol", "nicotine", "caffeine", "morphine", "cold_medicine",
+									 "crank", "krokodil")
 	var/do_addiction = FALSE
 
 	New()
@@ -1071,12 +1087,7 @@ TYPEINFO(/datum/trait/partyanimal)
 			addAddiction(owner)
 
 	proc/addAddiction(var/mob/living/owner)
-		var/datum/ailment_data/addiction/AD = get_disease_from_path(/datum/ailment/addiction).setup_strain()
-		AD.associated_reagent = selected_reagent
-		AD.last_reagent_dose = world.timeofday
-		AD.name = "[selected_reagent] addiction"
-		AD.affected_mob = owner
-		owner.contract_disease(/datum/ailment/addiction, null, AD, TRUE)
+		owner.contract_addiction(src.selected_reagent, TRUE, severity_override = HIGH_ADDICTION_SEVERITY)
 
 	onRemove(mob/owner)
 		for(var/datum/ailment_data/addiction/AD in owner.ailments)
@@ -1088,12 +1099,14 @@ TYPEINFO(/datum/trait/partyanimal)
 	desc = "You are more resistant to addiction."
 	id = "strongwilled"
 	icon_state = "nosmoking"
+	category = list("addiction")
 	points = -1
 
 /datum/trait/addictive_personality // different than addict because you just have a general weakness to addictions instead of starting with a specific one
 	name = "Addictive Personality"
 	desc = "You are less resistant to addiction."
 	id = "addictive_personality"
+	category = list("addiction")
 	icon_state = "syringe"
 	points = 1
 

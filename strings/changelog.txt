@@ -1,4 +1,453 @@
 
+(t)tue dec 16 25
+(u)CelineTheYeen
+(p)25312
+(e)🗺|A-Mapping
+(*)Oshan's central inner maintenance has received a facelift.
+(t)mon dec 15 25
+(u)glowbold
+(p)25258
+(e)⛔🎭🐣|C-Removal, A-RP, A-Respawning
+(*)Joining a round as an observer disables your respawn timer.
+(t)sun dec 14 25
+(u)JORJ949
+(p)25010
+(e)🆕📦🧑‍✈️|C-Feature, A-Game-Objects, A-Command
+(*)The AccessPro can now edit the access of secure crates and lockers.
+(t)sat dec 13 25
+(u)Driftered
+(p)25283
+(e)💅📦|C-QoL, A-Game-Objects
+(*)Cable coils can now be unstacked by hand.
+(t)thu dec 11 25
+(u)Munien
+(p)25260
+(e)🆕📦|C-Feature, A-Game-Objects
+(+)Ants can now be burned with magnifying glasses.
+(t)wed dec 10 25
+(u)LorrMaster
+(p)25196
+(e)🪲🎨🧱|C-Bug, C-Sprites, A-Materials
+(+)A number of custom items from the nanofabricator have been given new sprites.
+(u)JORJ949
+(p)24984
+(e)🔎🔨|C-Code-Quality, A-Player-Actions
+(+)The Midas Touch gene is now a targetable ability, meaning you cannot turn anything you can't click on gold (e.g. your internal organs)
+(t)sat dec 06 25
+(u)CelineTheYeen
+(p)25222
+(e)🗺|A-Mapping
+(+)The North West maintenance tunnels on Oshan have been redesigned
+(u)Munien
+(p)25259
+(e)⚖👮|C-Balance, A-Security
+(+)Removed the Forensic Scan program from several PDA cartridges (Security Officer, Captain, Generic Head) and limited the availability of Forensic PDAs.
+(u)JORJ949
+(p)25201
+(e)⚖🧛|C-Balance, A-Gamemodes
+(+)Antagonist scaling in the Changeling, Vampire and Arcfiend gamemodes has been increased to be the same as Intrigue.
+(t)wed dec 03 25
+(u)CalliopeSoups
+(p)25161
+(e)⛔📦🍝|C-Removal, A-Game-Objects, A-Catering
+(+)Slug eyestalks are obtained from cooking a slug, instead of the horrors.
+(u)Egregorious
+(p)25247
+(e)🆕💅🔊📨|C-Feature, C-QoL, C-Sound, A-Logistics
+(+)Added an AI assistant to mining helmets which plays sound alerts for certain mining events.
+(u)bag_o_cheese
+(p)25277
+(e)🎨|C-Sprites
+(+)Resprited the Detective reward, Aerostatic Jacket.
+(u)AMMIGGO
+(p)25280
+(e)|
+(+)Off-brand cola is now cheaper than regular cola
+(t)sun nov 30 25
+(u)Phoi
+(p)25198
+(e)🆕📦|C-Feature, A-Game-Objects
+(+)Adds sound notification to dowsing rod when placed on a pinnable turf
+(+)Adds text onto the pre-existing message when dowsing rod is placed on a pinnable turf
+(t)sat nov 29 25
+(u)Valtsu0
+(p)25124
+(e)🆕🎨💊|C-Feature, C-Sprites, A-Medical
+(+)Triage tags can now be found in medical apparel vendors and medical borg modules.
+(t)wed nov 26 25
+(u)Albassort
+(p)25159
+(e)|
+(*)Updated the pickup verb (default hotkey: p) to use TGUI. Now you can fuzzy search items!
+(u)LeahTheTech
+(+).38 Ricochet rounds now do bonus damage per bounce and throw the victim if they've bounced at least twice.
+(t)mon nov 24 25
+(u)lyzmat
+(p)25199
+(e)⚖🧛|C-Balance, A-Gamemodes
+(+)Traitor .38 Special variants are no longer locked to Detective operatives.
+(t)fri nov 21 25
+(u)CalliopeSoups
+(p)25215
+(e)💅⏰🍝|C-QoL, A-Status-Effects, A-Catering
+(+)Sweating is now less extreme for most foods.
+(u)Smallsandman
+(p)25058
+(e)🆕🗺👮|C-Feature, A-Mapping, A-Security
+(*)Added an evidence room to Cogmap 2.
+(u)Smallsandman
+(p)25068
+(e)🆕🗺👮|C-Feature, A-Mapping, A-Security
+(*)Added an evidence room to Donut2.
+(u)Smallsandman
+(p)25067
+(e)🆕🗺👮|C-Feature, A-Mapping, A-Security
+(*)Added an evidence room to Oshan Labs.
+(u)Skotcher
+(p)24993
+(e)🗺|A-Mapping
+(*)Created a contraband processing room in Kondaru.
+(u)Egregorious
+(p)25052
+(e)💅🔨|C-QoL, A-Player-Actions
+(+)The 'butt' accent has received some minor improvements to preserve tone.
+(u)Smallsandman
+(p)25047
+(e)🗺|A-Mapping
+(*)Added an evidence room to Nadir's security.
+(u)Smallsandman
+(p)25011
+(e)🗺⚖👮|A-Mapping, C-Balance, A-Security
+(*)Added a new evidence room and second solitary brig to donut 3.
+(u)Smallsandman
+(p)25065
+(e)🆕🗺👮|C-Feature, A-Mapping, A-Security
+(*)Added an evidence room to Clarion.
+(u)Smallsandman
+(p)25057
+(e)🆕🗺👮|C-Feature, A-Mapping, A-Security
+(*)Added an evidence room to Cogmap 1.
+(t)wed nov 19 25
+(u)SnugglyCactus
+(p)25173
+(e)🎨|C-Sprites
+(*)Hallucinations have been resprited to be 4-directional. Rejoice!
+(t)fri nov 14 25
+(u)LeahTheTech
+(+)Changeling transformation now includes traits.
+(t)wed nov 12 25
+(u)Studenterhue
+(p)25156
+(e)🆕📦|C-Feature, A-Game-Objects
+(+)The Book4u now has a book of three-sentence horror stories from the Goonstation Fall 2025 Seasonal Contest. Congratulations to Cropsey, Nautical-eX, FlameArrow57, Solenoid, Munien, Xenonia, and Asterion0!
+(+)Frank_Stein, sunkiisu, and Whele didn't win, but their stories were so good that they were included anyway.
+(t)tue nov 11 25
+(u)LeahTheTech
+(p)25167
+(e)⚖🧛|C-Balance, A-Gamemodes
+(*)The cyalume saber's swipe special attack now does full stamina damage and 0.8x base damage instead of 0.54x.
+(t)mon nov 10 25
+(u)lyzmat
+(p)25148
+(e)🆕🎨🧛|C-Feature, C-Sprites, A-Gamemodes
+(+)Syndicate detectives can now buy extra bouncy .38 special rounds from their uplinks.
+(t)sun nov 09 25
+(u)Egregorious
+(p)25103
+(e)🪲💅🍝|C-Bug, C-QoL, A-Catering
+(+)Deep fryers now cook much faster and more consistently, and are largely unaffected by the stresses placed upon the universe.
+(u)CalliopeSoups
+(p)25128
+(e)🆕🎨🍝🐁|C-Feature, C-Sprites, A-Catering, A-Critters
+(+)Lesser slugs can have an eyestalk harvested using a snipping tool, for use in swampy cocktails. Don't worry, eyes grow back.
+(+)Slugs, lesser slugs, slugburgers and snails have been resprited with animations.
+(u)LeahTheTech
+(p)25150
+(e)🔄💨|C-Rework, A-Atmospherics
+(+)Chemical fires now heat up the air less but much more consistently.
+(u)LeahTheTech
+(+)Blobs now have a slightly higher natural temperature tolerance.
+(t)fri nov 07 25
+(u)Smearfo
+(p)25078
+(e)🆕🔨|C-Feature, A-Player-Actions
+(+)Cyborgs can now *raisehand.
+(u)JORJ949
+(p)25090
+(e)⚖💊|C-Balance, A-Medical
+(+)Empowered xray now only grants meson level vision, instead of cloaker vision.
+(t)wed nov 05 25
+(u)CalliopeSoups
+(p)24914
+(e)⚖🛠️|C-Balance, A-Engineering
+(+)Mechcomp device frames and cabinets are now mechscannable.
+(u)Glamurio (Ryou)
+(p)24775
+(e)🎨💅🌱|C-Sprites, C-QoL, A-Hydroponics
+(*)Adds phytoscopic goggles. Analyzing plants has never been so easy! Check your local hydroponics locker.
+(+)Phytoscopic goggles do not scan genes by default. You can upgrade them via requisition reward.
+(u)glowbold
+(p)25101
+(e)⚖💊💡|C-Balance, A-Medical, A-Station-Systems
+(*)Death alerts only send messages to the medical and spiritualaffairs mailgroups and include the type of health implant that triggered the alert.
+(+)Death alerts only indicate if the person has a clone implant, not the location of the cloner. Rejoice, mindhackers!
+(u)LeahTheTech
+(p)25099
+(e)⚖⛔|C-Balance, C-Removal
+(+)Security roles no longer start with a panic button in their pouch.
+(u)CalliopeSoups
+(p)25113
+(e)🎨|C-Sprites
+(+)Lesser slugs can be placed in the microwave to promote healthy growth!
+(u)SnugglyCactus
+(p)24861
+(e)🆕🎨👽|C-Feature, C-Sprites, A-Mutantraces
+(*)Added distorts to amphibian clothing, toggleable with *clothes.
+(u)TemThrush
+(p)25028
+(e)🎨🎩|C-Sprites, A-Clothing
+(+)Adds a nightgown and half-mask to the masquerade and novelty clothing crate.
+(u)Red Screen Of Death
+(p)25001
+(e)🆕🧱|C-Feature, A-Materials
+(+)Recent material research reports that heating miracle ore may now rarely cause it to turn into negative matter.
+(u)Egregorious
+(p)25115
+(e)🪲⚖💪|C-Bug, C-Balance, A-Traits
+(+)The list of possible addictions from the addict trait has been reworked.
+(t)sun nov 02 25
+(u)AI-the-artificial-idiot
+(p)24936
+(e)🆕⚗|C-Feature A-Chemistry
+(*)Adds "juice that makes your head explode", a mixable disease reagent which infects the victim with exploding head syndrome.
+(u)LeahTheTech
+(+)Clicking on a turf to move your pulled object towards it now only works with an empty hand. Janitors rejoice as your mop bucket stays bloody still for once.
+(u)Skotcher
+(p)25016
+(e)🗺|A-Mapping
+(+)Pruned camera coverage across all of Kondaru. Crimers rejoice!
+(u)Valtsu0
+(p)24955
+(e)🆕🔨|C-Feature, A-Player-Actions
+(*)You now pull while being pulled, allowing you to form conga lines
+(t)sat nov 01 25
+(u)cringe
+(p)23994
+(e)🆕🎨🔊🧛|C-Feature, C-Sprites, C-Sound, A-Gamemodes
+(*)Pod wars now has a kill log, domination mechanics, and humiliation for the losing team. Read PR for more info.
+(u)Phoi
+(p)25066
+(e)💅🛠️|C-QoL, A-Engineering
+(+)Changes trench map to update hotspot color based on wether it is pinned or not
+(+)Adds pinned hotspot color to key
+(u)Ikea
+(p)25075
+(e)💅📦🔬|C-QoL, A-Game-Objects, A-Science
+(+)The handheld pipe dispenser is now manufacturable from the science manufacturer.
+(t)fri oct 31 25
+(u)Ikea
+(p)25074
+(e)🎨💅📦|C-Sprites, C-QoL, A-Game-Objects
+(+)The science manufacturer can now print purple tools alongside a purple wrench.
+(u)CalliopeSoups
+(p)19627
+(e)🆕🗺🎨🔧🔊⏰📜|C-Feature, A-Mapping, C-Sprites, A-Tooling, C-Sound, A-Status-Effects, C-Documentation
+(+)The boxing ring is now a bit more functional, featuring a new bell, vaultable entrances and sfx for being KOd.
+(u)Egregorious
+(p)25000
+(e)🪲🔎🍝|C-Bug, C-Code-Quality, A-Catering
+(+)Items such as cake and dough will more consistently remain attached to kitchen islands when sliced or otherwise altered.
+(u)JORJ949
+(p)25061
+(e)💅📄|C-QoL, A-UI
+(+)Emagged and Syndicate cyborgs will now appear in the other/minor antagonists section of the round summary, rather than as main antagonists.
+(u)Driftered
+(p)25076
+(e)🎨|C-Sprites
+(*)Adds the wizard skull mask to the game
+(u)JORJ949
+(p)25072
+(e)🆕🗺|C-Feature, A-Mapping
+(+)The sharks in Neon's listening post shark tank will now attack any non-syndies in the tank.
+(t)thu oct 30 25
+(u)LeahTheTech
+(+)Kitchen foodtech vending machines no longer have an access requirement.
+(u)Hawke
+(p)25077
+(e)|
+(+)The impact pad's stand now properly plays the extension animation.
+(u)RoflCopter4
+(p)24917
+(e)🎨🛠️|C-Sprites, A-Engineering
+(+)The connecting pipe segments between manifolds and other objects now match the color of the manifold after being welded.
+(u)Egregorious
+(p)24668
+(e)💅🔨📦|C-QoL, A-Player-Actions, A-Game-Objects
+(+)Dumping the content of storage items into a chute is now performed by click-dragging.
+(u)TDHooligan
+(p)25006
+(e)⚖⚗👮|C-Balance, A-Chemistry, A-Security
+(*)Rajaijah is now purged by Haloperidol.
+(t)wed oct 29 25
+(u)LeahTheTech
+(+)Turning around while holding a ladder will now knock over any clowns standing in the line of fire.
+(t)tue oct 28 25
+(u)Azrun
+(p)24574
+(e)🆕⚖📦|C-Feature, C-Balance, A-Game-Objects
+(+)Doors will now continue to attempt to autoclose.  Autoclose tied to AI Control wire where applicable.
+(t)sat oct 25 25
+(u)Mr. Moriarty
+(p)24633
+(e)🆕📄🐣|C-Feature, A-UI, A-Respawning
+(*)The latejoin window has been converted into TGUI.
+(u)RubberRats
+(p)24723
+(e)🎨🔨|C-Sprites, A-Player-Actions
+(*)11 new hairstyles are now available: Blunt Pompadour, Big Pompadour, Ducktail, Pageboy, Ringlets, Short Ringlets, Crown Braid, High Bun, Massive Braids, and Chignon
+(+)An additional, twelfth hairstyle can be given to you by barbers.
+(u)JORJ949
+(p)24994
+(e)🆕🔨|C-Feature, A-Player-Actions
+(*)Clowns have been granted access to the Civilian radio channel for scheming with each other and begging the botanists for banana peels.
+(u)Calphrick
+(p)24996
+(e)💅👮|C-QoL, A-Security
+(+)Gave Security flashlight modules in their PDAs.
+(t)fri oct 24 25
+(u)bork
+(p)25008
+(e)🆕🧱|C-Feature, A-Materials
+(+)pickles from the food processor can be refined into pickle clumps
+(t)thu oct 23 25
+(u)LorrMaster
+(p)24745
+(e)🆕🎨🧱|C-Feature, C-Sprites, A-Materials
+(*)Updated the coloring effects for more materials.
+(*)New material colors now combine properly in the nano-crucible.
+(u)LeahTheTech
+(p)24934
+(e)🔨|A-Player-Actions
+(+)Getting interrupted no longer closes your chatbox.
+(t)wed oct 22 25
+(u)JORJ949
+(p)24985
+(e)💅🧛|C-QoL, A-Gamemodes
+(*)Spy thieves will now be informed if a target bounty is in cryogenic storage
+(u)Kanthes
+(p)24947
+(e)🆕🔬|C-Feature, A-Science
+(*)Adds the Food Processor artifact, which will take biological materials to produce mysterious foods.
+(t)mon oct 20 25
+(u)Lord_Earthfire
+(p)24832
+(e)🆕🛠️|C-Feature, A-Engineering
+(+)Pressure sensors by default give out the name of the object that triggered them as signal. You can override that signal, if you like.
+(t)fri oct 17 25
+(u)Egregorious
+(p)24557
+(e)🆕🧱🔬|C-Feature, A-Materials, A-Science
+(*)Some activated artifacts can interfere with teleportation, and will be sent to the wrong location if moved with the cargo transporter. Diligent scientists are recommended to test for this property via telecrystal reaction.
+(u)Naksu
+(p)24915
+(e)🚄⚗|C-Performance, A-Chemistry
+(+)Slight performance tweak for chemistry reactions. Report issues if you encounter any!
+(t)thu oct 16 25
+(u)FlameArrow57
+(p)24940
+(e)💅🔨|C-QoL, A-Player-Actions
+(*)Pressing ctrl + click on a tile will pull something from that tile, prioritizing first found object, then heaviest weight item, then first found mob.
+(t)wed oct 15 25
+(u)Ghostplasmas & Ribbie
+(p)24881
+(e)🎨|C-Sprites
+(*)Added 26 more hairstyles.
+(u)JORJ949
+(p)24803
+(e)🆕📦|C-Feature, A-Game-Objects
+(*)Emagging a genetics booth will now make it throw people with extra power.
+(u)Kelguroth
+(p)24848
+(e)🆕📦|C-Feature, A-Game-Objects
+(*)Added ability to deconstruct secure containers so long as they are unlocked.
+(u)LeahTheTech
+(p)24159
+(e)🧫|C-Experimental
+(*)Playing on one of the less populated servers will now give you a small chance to earn an antag token at the end of each round.
+(u)JORJ949
+(p)24935
+(e)📦📨|A-Game-Objects, A-Logistics
+(*)Cargo's crate manufacturer is now capable of printing locked secure crates. Be careful not to fabricate one around yourself.
+(u)Glamurio (Ryou)
+(p)24719
+(e)💅📦|C-QoL, A-Game-Objects
+(+)Canisters can now be disassembled with a welding tool.
+(t)tue oct 14 25
+(u)Gomp
+(p)24933
+(e)🎨|C-Sprites
+(+)The Floor and Wall designer is now standardized to use "gray" not "grey" when searching for floors or walls.
+(u)FlameArrow57
+(p)23995
+(e)🆕🔬|C-Feature, A-Science
+(*)Added a new Lattice origin Agitator artifact. Using it on any activated artifact gives that artifact a guaranteed fault with higher activation chance.
+(t)mon oct 13 25
+(u)Driftered
+(p)24822
+(e)🎨|C-Sprites
+(*)Adds two new skull mask sprites: Vampire and Changeling
+(t)sun oct 12 25
+(u)Egregorious
+(p)24128
+(e)⚖🌱|C-Balance, A-Hydroponics
+(+)Plant yield has been reworked, it now contributes less to produce count per-point but is easier to increase.
+(+)Saltpetre infusions have a negative effect on yield.
+(+)Crop output has some natural variance, which is affected by the quality of the harvest.
+(u)Egregorious
+(p)24824
+(e)🆕🎨💊💪|C-Feature, C-Sprites, A-Medical, A-Traits
+(*)Cure your addiction with the power of therapy, visit the chapel or the psychiatrists office and talk to someone about your problems today.
+(+)The chaplain in their chapel and the psychiatrist in their office are more potent in providing therapy.
+(+)Atheists cannot benefit from therapy in the chapel, but they can provide it to others.
+(u)Egregorious
+(p)24490
+(e)🆕🌱|C-Feature, A-Hydroponics
+(+)Mutadone can infuse plants with a gene strain that prevents alleles from mutating when harvested.
+(t)thu oct 09 25
+(u)Drakios
+(p)24638
+(e)🆕🎩|C-Feature, A-Clothing
+(+)Blindfolds can have holes piked in them now - win every time while hitting a pinata
+(t)mon oct 06 25
+(u)TheGeneralJay
+(p)24664
+(e)🗺💅|A-Mapping, C-QoL
+(*)Oshan medbay has had a remodel! Details to follow in minor changes.
+(+)Oshan genetics is now visible from the main hall. The pharmacy, treatment rooms, and therapy office has been moved to accommodate this.
+(u)Flappybat
+(e)⚖📦|C-Balance, A-Game-Objects
+(*)Owl bombs no longer affect nuclear operatives.
+(u)JORJ949
+(p)24854
+(e)⚖💅📦|C-Balance, C-QoL, A-Game-Objects
+(*)PDAs containing uplinks are now immune to detomatix bombings.
+(u)JORJ949
+(p)24811
+(e)🆕🗺|C-Feature, A-Mapping
+(*)The Security Department now has their own announcement computer locked to security access, instead of just the HoS (though the HoS still has their own cooler version).
+(t)sun oct 05 25
+(u)Lord_Earthfire
+(p)24825
+(e)⚖🧱📦|C-Balance, A-Materials, A-Game-Objects
+(*)Plating mechcomp in materials makes them take much more time to loosen/fasten. Carefull of crystal material, since components plated in these shatter upon being loosened, but are much more durable to tampering.
+(u)Lord_Earthfire
+(p)24819
+(e)⚖⚗|C-Balance, A-Chemistry
+(+)Aranesp will not cause stuns anymore. Instead, it will slow the user with an equal probability.
+(u)Egregorious
+(p)24823
+(e)🆕💅💊|C-Feature, C-QoL, A-Medical
+(+)You may get updates on your addiction's status when it's affected by outside factors.
 (t)fri oct 03 25
 (u)Emily
 (*)Classic Only: Shuttle auto-call reduced from 90 minutes to 60 minutes on classic servers for all game modes. Max round times are unaffected.

@@ -864,7 +864,7 @@
 	icon_closed = "secure_green"
 	icon_opened = "secure_green-open"
 	spawn_contents = list(/obj/item/storage/box/clothing/botanist,
-	/obj/item/plantanalyzer,
+	/obj/item/clothing/glasses/phyto,
 	/obj/item/device/reagentscanner,
 	/obj/item/reagent_containers/glass/wateringcan,
 	/obj/item/paper/book/from_file/hydroponicsguide,
@@ -1093,3 +1093,11 @@
 	/obj/item/clothing/head/wig = 2,
 	/obj/item/scissors,
 	/obj/item/razor_blade)
+
+// NT official branded lockers
+/obj/storage/secure/closet/command/nanotrasen
+	name = "NanoTrasen Locker"
+	req_access = list(access_centcom)
+	reinforced = TRUE
+	icon_state = "nanotrasen"
+	icon_closed = "nanotrasen"
