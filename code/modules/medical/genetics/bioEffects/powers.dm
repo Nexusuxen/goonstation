@@ -90,7 +90,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		var/turf/T = get_turf(target)
 
 		var/obj/decal/icefloor/B
-		for (var/turf/TF in range(src.linked_power.power - 1,T))
+		for (var/turf/TF in range(genePowerMult(1, 2), T))
 			B = new /obj/decal/icefloor(TF)
 			SPAWN(80 SECONDS)
 				B.dispose()
@@ -102,7 +102,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 			if(L.getStatusDuration("burning"))
 				L.delStatus("burning")
 			L.bodytemperature = 100
-			if (src.linked_power.power > 1)
+			if (geneEmpowered())
 				new /obj/icecube(get_turf(L), L)
 
 		return CAST_ATTEMPT_SUCCESS
@@ -165,7 +165,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 			if(istype(item, /obj/item/body_bag) && item.w_class >= W_CLASS_BULKY)
 				items -= item
 
-		if (linked_power.power > 1)
+		if (geneEmpowered())
 			items += get_filtered_atoms_in_touch_range(src.owner, /obj/the_server_ingame_whoa)
 			//So people can still get the meat ending
 
@@ -318,9 +318,9 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 
 	proc/do_jump(misfire)
 
-		var/jump_tiles = 10 * src.linked_power.power
-		var/pixel_move = 8 * src.linked_power.power
-		var/sleep_time = 1 / src.linked_power.power
+		var/jump_tiles = genePowerMult(10, 2)
+		var/pixel_move = genePowerMult(8, 2)
+		var/sleep_time = 1 / genePowerMult(1, 2)
 
 		usr.visible_message(SPAN_ALERT("<b>[src.owner]</b> takes a huge leap!"))
 		playsound(src.owner.loc, 'sound/impact_sounds/Generic_Shove_1.ogg', 50, 1)
@@ -746,7 +746,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 
 		playsound(src.owner.loc, 'sound/effects/mag_fireballlaunch.ogg', 50, 0)
 
-		if (linked_power.power > 1)
+		if (geneEmpowered())
 			src.owner.visible_message(SPAN_ALERT("<b>[src.owner.name]</b> erupts into a huge column of flames! Holy shit!"))
 			fireflash_melting(get_turf(src.owner), 3, 7000, 2000, chemfire = CHEM_FIRE_RED)
 		else if (owner.is_heat_resistant())
@@ -876,16 +876,16 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 
 		owner.visible_message(SPAN_ALERT("<b>[owner.name]</b> hunches down and grits [his_or_her(owner)] teeth!"))
 		SF.farting = 1
-		var/stun_time = 3 * linked_power.power
-		var/fart_range = 6 * linked_power.power
+		var/stun_time = genePowerMult(3, 2)
+		var/fart_range = genePowerMult(6, 2)
 		var/gib_user = 0
-		var/throw_speed = 15 * linked_power.power
-		var/throw_repeat = 3 * linked_power.power
-		var/sound_volume = 50 * linked_power.power
-		var/sound_repeat = 1 * linked_power.power
+		var/throw_speed = genePowerMult(15, 2)
+		var/throw_repeat = genePowerMult(3, 2)
+		var/sound_volume = genePowerMult(50, 2)
+		var/sound_repeat = genePowerMult(1, 2)
 		var/fart_string = " unleashes a [pick("tremendous","gigantic","colossal")] fart!"
 
-		if(linked_power.power > 1 && !linked_power.safety)
+		if(geneEmpowered() && !linked_power.safety)
 			gib_user = 1
 			fart_string = "'s body is torn apart like a wet paper bag by [his_or_her(owner)] unbelievably powerful farting!"
 			owner.unlock_medal("Shit Fest", 1)
@@ -925,10 +925,10 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 				fart_turf.fluid_react_single("[toxic > 1 ?"very_":""]toxic_fart", toxic*2, airborne = 1)
 
 			if (owner.getStatusDuration("burning"))
-				fireflash(get_turf(owner), 3 * linked_power.power, chemfire = CHEM_FIRE_RED)
+				fireflash(get_turf(owner), genePowerMult(3, 2), chemfire = CHEM_FIRE_RED)
 
 			SF.farting = 0
-			if (linked_power.power > 1)
+			if (geneEmpowered())
 				for (var/turf/T in range(owner,6))
 					animate_shake(T,5,rand(3,8),rand(3,8))
 
@@ -1034,7 +1034,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 
 		var/datum/bioEffect/power/eyebeams/EB = linked_power
 		var/projectile_path = ispath(EB.projectile_path) ? EB.projectile_path : text2path(EB.projectile_path)
-		if(linked_power.power > 1)
+		if(geneEmpowered())
 			projectile_path = /datum/projectile/laser
 		else if(EB.stun_mode) //used by superhero for nonlethal stun
 			projectile_path = /datum/projectile/laser/eyebeams/stun
@@ -1116,7 +1116,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 	cast()
 		if (..())
 			return 1
-		var/multiplier = linked_power.power
+		var/multiplier = genePowerMult(1, 2)
 		if (owner.reagents)
 			boutput(owner, SPAN_NOTICE("You get pumped up!"))
 			owner.emote("scream")
@@ -1199,7 +1199,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		if(BOUNDS_DIST(target, owner) > 0 && !owner.bioHolder.HasEffect("telekinesis"))
 			boutput(owner, SPAN_ALERT("You are too far from [target] to do that!"))
 			return 1
-		if(linked_power?.power > 1 && (src.targetable_types == /obj/item))
+		if(geneEmpowered() && (src.targetable_types == /obj/item))
 			src.targetable_types = /obj
 		if(!istype(target, src.targetable_types))
 			boutput(owner, SPAN_ALERT("You cannot transmute [target]!"))
@@ -1281,7 +1281,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		var/mob/living/carbon/C = target
 		owner.visible_message(SPAN_ALERT("<b>[owner] touches [C], enveloping [him_or_her(C)] in a soft glow!</b>"))
 		boutput(C, SPAN_NOTICE("You feel your pain fading away."))
-		var/amount_to_heal = 25 * linked_power.power
+		var/amount_to_heal = genePowerMult(25, 2)
 		C.HealDamage("All", amount_to_heal, amount_to_heal)
 		C.take_toxin_damage(0 - amount_to_heal)
 		C.take_oxygen_deprivation(0 - amount_to_heal)
@@ -1308,7 +1308,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		owner.visible_message(SPAN_ALERT("<b>[owner] touches [C], enveloping [him_or_her(C)] in a bright glow!</b>"))
 		boutput(C, SPAN_NOTICE("Your pain fades away rapidly."))
 		boutput(owner, SPAN_ALERT("You use too much life energy and hurt yourself!"))
-		var/amount_to_heal = 25 * linked_power.power
+		var/amount_to_heal = genePowerMult(25, 2)
 		C.HealDamage("All", amount_to_heal, amount_to_heal)
 		owner.TakeDamage("All", amount_to_heal, amount_to_heal)
 		C.take_toxin_damage(0 - amount_to_heal)
@@ -1461,8 +1461,8 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		var/turf/T = get_turf(target)
 		owner.visible_message(SPAN_ALERT("<b>[owner]</b> raises [his_or_her(owner)] hands into the air!"))
 		playsound(owner.loc, 'sound/voice/heavenly.ogg', 50, 0)
-		var/strength = 1 + 6 * linked_power.power
-		var/time = 300 * linked_power.power
+		var/strength = 1 + genePowerMult(6, 2)
+		var/time = 300 * genePowerMult(1, 2)
 		new /obj/photokinesis_light(T,P.red,P.green,P.blue,strength,time)
 
 /obj/photokinesis_light
@@ -1528,8 +1528,8 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		var/datum/bioEffect/power/erebokinesis/P = linked_power
 		var/field_size = P.size
 		var/field_time = P.time
-		field_size *= P.power
-		field_time *= P.power
+		field_size *= genePowerMult(1, 2)
+		field_time *= genePowerMult(1, 2)
 
 		var/turf/T = get_turf(target)
 		owner.visible_message(SPAN_ALERT("<b>[owner]</b> raises [his_or_her(owner)] hands into the air!"))
@@ -1568,8 +1568,8 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		var/turf/T = get_turf(target)
 		var/list/affected_turfs = getline(owner, T)
 		var/datum/bioEffect/power/fire_breath/FB = linked_power
-		var/range = FB.range * FB.power
-		var/temp = FB.temperature * FB.power ** 2
+		var/range = genePowerMult(FB.range, 2)
+		var/temp = FB.temperature * genePowerMult(1, 2) ** 2
 		owner.visible_message(SPAN_ALERT("<b>[owner] breathes fire!</b>"))
 		playsound(owner.loc, 'sound/effects/mag_fireballlaunch.ogg', 50, 0)
 		var/turf/currentturf
@@ -1627,7 +1627,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		var/count = 0
 		for (var/mob/living/L in range(7,owner))
 			if (L.hearing_check(1))
-				if(count++ > (4 + src.linked_power.power * 3)) break
+				if(count++ > (4 + genePowerMult(3, 2))) break
 				if(locate(/obj/item/bible) in get_turf(L))
 					owner.visible_message(SPAN_ALERT("<b>A mysterious force smites [owner.name] for inciting blasphemy!</b>"))
 					owner.gib()
@@ -1712,7 +1712,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		var/current_prob = 100
 		var/modifier = 0.4
 
-		modifier *= linked_power.power
+		modifier *= genePowerMult(1, 2)
 
 		. = ..()
 		owner.visible_message(SPAN_ALERT("<b>[owner.name]</b> makes a gesture at [T.name]!"))
@@ -1734,7 +1734,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		var/current_prob = 100
 		var/modifier = 0.4
 
-		modifier *= linked_power.power
+		modifier *= genePowerMult(1, 2)
 
 		owner.visible_message(SPAN_ALERT("<b>[owner.name]</b> makes a gesture at [T.name]!"))
 
@@ -1958,7 +1958,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		var/list/affected_turfs = list()
 		var/datum/bioEffect/power/bigpuke/BP = linked_power
 		var/range = BP.range
-		range *= BP.power
+		range *= genePowerMult(1, 2)
 		owner.visible_message(SPAN_ALERT("<b>[owner] horfs up a huge stream of puke!</b>"))
 		logTheThing(LOG_COMBAT, owner, "power-pukes [log_reagents(owner)] at [log_loc(owner)].")
 		playsound(owner.loc, 'sound/misc/meat_plop.ogg', 50, 0)
@@ -2143,7 +2143,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 					var/tmp_force = thrown_limb.throwforce
 					thrown_limb.throwforce = limb_force* (throw_power+1)	//double damage if empowered
 					var/datum/callback/callback = (SL?.stun_mode) ? CALLBACK(src, PROC_REF(hit_callback)) : null
-					thrown_limb.throw_at(target, range, throw_power * (linked_power.power), end_throw_callback=callback)
+					thrown_limb.throw_at(target, range, throw_power * (genePowerMult(1, 2)), end_throw_callback=callback)
 					//without snychronizer, you take damage and bleed on usage of the power
 					if (!linked_power.safety)
 						new thrown_limb.streak_decal(owner.loc)
@@ -2162,7 +2162,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 						if (istype(pwr))
 							pwr.count = 0
 
-					owner.visible_message(SPAN_ALERT("<b>[thrown_limb][linked_power.power > 1 ? " violently " : " "]bursts off of its socket and flies towards [target]!</b>"))
+					owner.visible_message(SPAN_ALERT("<b>[thrown_limb][geneEmpowered() ? " violently " : " "]bursts off of its socket and flies towards [target]!</b>"))
 					logTheThing(LOG_COMBAT, owner, "shoot_limb [!linked_power.safety ? "Accidently" : ""] at [ismob(target)].")
 					SPAWN(1 SECOND)
 						if (thrown_limb)

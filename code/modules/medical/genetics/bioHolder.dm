@@ -364,20 +364,19 @@ var/list/datum/bioEffect/mutini_effects = list()
 				if(HasEffect(BE.id))
 					newCopy = GetEffect(BE.id)
 				else
-					newCopy = AddEffect(BE.id, power = BE.power)
+					newCopy = AddEffect(BE.id, power = BE.isEmpowered())
 
 				if(!newCopy) //uh oh
 					continue
 
-				var/oldpower = newCopy.power
-				newCopy.power = BE.power
+				newCopy.gene_data |= (EFFECT_EMPOWERED & BE.isEmpowered())
 				newCopy.safety = BE.safety
 				newCopy.curable_by_mutadone = BE.curable_by_mutadone
 				newCopy.timeLeft = BE.timeLeft
 				newCopy.stability_loss = BE.stability_loss
 				newCopy.data = BE.data
-				if (oldpower != newCopy.power)
-					newCopy.onPowerChange(oldpower, newCopy.power)
+				if (BE.isEmpowered() != newCopy.isEmpowered())
+					newCopy.onPowerChange()
 
 	proc/StaggeredCopyOther(var/datum/bioHolder/toCopy, progress = 1)
 		if (progress > 10)
@@ -415,7 +414,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 						RemoveEffect(curr.id)
 						break
 
-			if(power) newEffect.power = power
+			if(power) newEffect.gene_data |= (power * EFFECT_EMPOWERED)
 			if(timeleft) newEffect.timeLeft = timeleft
 			if(magical || innate)
 				newEffect.curable_by_mutadone = FALSE
@@ -574,7 +573,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 		if(!B)
 			.= 0
 		else
-			.= B.power
+			.= B.powerMult(1, 2)
 
 	proc/HasEffectInPool(var/id)
 		return !isnull(effectPool[id])
@@ -592,7 +591,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 		var/list/temp = args & effects
 		if(temp.len)
 			var/datum/bioEffect/BE = effects[temp[1]]
-			if(BE) return BE.power
+			if(BE) return BE.powerMult(1, 2)
 		return 0
 
 	proc/HasAllOfTheseEffects()

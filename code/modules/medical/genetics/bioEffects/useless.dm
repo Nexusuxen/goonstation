@@ -14,12 +14,12 @@
 	OnAdd()
 		..()
 		src.color = hsv2rgblist(randfloat(0, 360), randfloat(0, 100), 100)
-		src.color += list(50 + 75 * power)
+		src.color += list(50 + powerMult(75, 2))
 		owner.add_sm_light("glowy", src.color)
 
 	onPowerChange(oldval, newval)
 		. = ..()
-		src.color[4] = 75 + 50 * power
+		src.color[4] = 75 + powerMult(50, 2)
 		owner.add_sm_light("glowy", src.color)
 
 	OnRemove()
@@ -291,11 +291,11 @@
 		src.applyFilter()
 
 	proc/applyFilter()
-		owner.add_filter("dwarfism", 1, displacement_map_filter(size=src.size * power, render_source = src.distort.render_target))
+		owner.add_filter("dwarfism", 1, displacement_map_filter(size=powerMult(src.size, 2), render_source = src.distort.render_target))
 		owner.vis_contents += src.distort
 		src.filter = owner.get_filter("dwarfism")
 		animate(src.filter, size=0, time=0)
-		animate(size=src.size * power, time=0.7 SECONDS, easing=SINE_EASING)
+		animate(size=powerMult(src.size, 2), time=0.7 SECONDS, easing=SINE_EASING)
 
 	proc/removeFilter()
 		owner.remove_filter("dwarfism")
@@ -570,11 +570,11 @@
 
 	OnAdd()
 		..()
-		APPLY_ATOM_PROPERTY(owner, PROP_MOB_HEARD_PITCH, src, 0.5 / power)
+		APPLY_ATOM_PROPERTY(owner, PROP_MOB_HEARD_PITCH, src, 0.5 / powerMult(1, 2))
 
 	onPowerChange(oldval, newval)
 		. = ..()
-		APPLY_ATOM_PROPERTY(owner, PROP_MOB_HEARD_PITCH, src, 0.5 / power)
+		APPLY_ATOM_PROPERTY(owner, PROP_MOB_HEARD_PITCH, src, 0.5 / powerMult(1, 2))
 
 	OnRemove()
 		REMOVE_ATOM_PROPERTY(owner, PROP_MOB_HEARD_PITCH, src)
@@ -592,11 +592,11 @@
 
 	OnAdd()
 		..()
-		APPLY_ATOM_PROPERTY(owner, PROP_MOB_HEARD_PITCH, src, 2 * power)
+		APPLY_ATOM_PROPERTY(owner, PROP_MOB_HEARD_PITCH, src, powerMult(2, 2))
 
 	onPowerChange(oldval, newval)
 		. = ..()
-		APPLY_ATOM_PROPERTY(owner, PROP_MOB_HEARD_PITCH, src, 2 * power)
+		APPLY_ATOM_PROPERTY(owner, PROP_MOB_HEARD_PITCH, src, powerMult(2, 2))
 
 	OnRemove()
 		REMOVE_ATOM_PROPERTY(owner, PROP_MOB_HEARD_PITCH, src)

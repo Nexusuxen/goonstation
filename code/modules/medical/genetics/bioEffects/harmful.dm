@@ -150,7 +150,7 @@
 		if (..() || isdead(src.owner) || !probmult(talk_prob))
 			return
 
-		if(src.power > 1)
+		if(src.isEmpowered())
 			src.owner.say(pick(talk_strings), message_params = list("maptext_css_values" = list("font-weight" = "bold")))
 		else
 			src.owner.say(pick(talk_strings))

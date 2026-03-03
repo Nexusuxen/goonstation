@@ -64,10 +64,10 @@
 
 	OnAdd()
 		. = ..()
-		src.onPowerChange(0, src.power)
+		src.onPowerChange(0, powerMult(1))
 
 	OnRemove()
-		src.onPowerChange(src.power, 0)
+		src.onPowerChange(powerMult(1), 0)
 		. = ..()
 
 	onPowerChange(oldval, newval)

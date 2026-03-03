@@ -324,7 +324,7 @@ ABSTRACT_TYPE(/datum/job/special/halloween)
 				eb.stun_mode = 1
 				eb.altered = 1
 			else
-				be.power = 1
+				be.gene_data |= EFFECT_EMPOWERED
 				be.altered = 1
 			be = M.bioHolder.AddEffect(defensive, do_stability=0)
 		else

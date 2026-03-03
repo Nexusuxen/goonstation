@@ -22,7 +22,7 @@
 			"id" = BE.id,
 			"stabilized" = !BE.stability_loss,
 			"reinforced" = !BE.curable_by_mutadone,
-			"boosted" = (BE.power == 2), //it's a multiplier...
+			"boosted" = (BE.gene_data & EFFECT_EMPOWERED),
 			"synced" = BE.safety,
 			"cooldown" = BE.cooldown,
 			"is_power" = istype(BE, /datum/bioEffect/power)))
@@ -61,8 +61,9 @@
 			var/datum/bioEffect/power/power = BE
 			power.ability.last_cast = 0
 		if ("toggleBoosted")
-			var/old_power = BE.power
-			BE.power = BE.power == 1 ? 2 : 1
+			var/old_power = BE.isEmpowered() + 1
+			BE.gene_data ^= EFFECT_EMPOWERED
+			BE.power = BE.isEmpowered() ? 2 : 1
 			BE.onPowerChange(old_power, BE.power)
 			. = TRUE
 		if ("toggleReinforced")

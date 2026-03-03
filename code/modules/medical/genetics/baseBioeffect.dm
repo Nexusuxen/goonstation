@@ -43,6 +43,9 @@ ABSTRACT_TYPE(/datum/bioEffect)
 
 	var/timeLeft = -1//Time left for temporary effects.
 
+	/// Bitfield, currently only holds chromosome data
+	var/gene_data = 0
+
 	var/cooldown = 0 //For effects that come with verbs
 	var/can_reclaim = 1 // Can this gene be turned into mats with the reclaimer?
 	var/can_scramble = 1 // Can this gene be scrambled with the emitter?
@@ -160,8 +163,28 @@ ABSTRACT_TYPE(/datum/bioEffect)
 
 	onVarChanged(variable, oldval, newval)
 		. = ..()
-		if(variable == "power")
-			src.onPowerChange(oldval, newval)
+		if(variable == "gene_data")
+			var/old_power = oldval & EFFECT_EMPOWERED
+			if(newval ^ old_power)
+		// this way of doing it REALLY stinks and is a holdover from the old system
+				var/new_power = newval & EFFECT_EMPOWERED
+				src.onPowerChange(old_power + 1, new_power + 1)
+
+	proc/isEmpowered()
+		return src.gene_data & EFFECT_EMPOWERED
+
+	/// Returns toMult if not empowered, or toMult * multiplier (default 2) if empowered
+	proc/powerMult(var/toMult, var/multiplier = 2)
+		. = toMult
+		if(src.isEmpowered())
+			. = toMult * multiplier
+
+
+/datum/bioEffect/proc/apply_chromosome(var/type_to_apply)
+	if(!ispath(type_to_apply, /datum/dna_chromosome))
+		CRASH("Tried to splice an invalid chromosome type \"[type_to_apply]\" onto [src]!")
+	var/datum/dna_chromosome/chromosome = new type_to_apply
+	return chromosome.apply(src)
 
 /datum/dnaBlocks
 	var/datum/bioEffect/owner = null
@@ -369,6 +392,11 @@ ABSTRACT_TYPE(/datum/bioEffect)
 	proc/cast_misfire(atom/target)
 		return 0
 
+	proc/geneEmpowered()
+		return src.linked_power.isEmpowered()
+
+	proc/genePowerMult(var/toMult, var/multiplier = 2)
+		src.linked_power.powerMult(toMult, multiplier)
 
 /datum/targetable/geneticsAbility/wrapper
 	var/wrapped_ability = null
