@@ -332,7 +332,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 
 		return newUid
 
-	proc/CopyOther(var/datum/bioHolder/toCopy, var/copyAppearance = 1, var/copyPool = 1, var/copyEffectBlocks = 0, var/copyActiveEffects = 1)
+	proc/CopyOther(var/datum/bioHolder/toCopy, var/copyAppearance = 1, var/copyPool = 1, var/copyEffectBlocks = 0, var/copyActiveEffects = 1, var/preserveActivatedFromPool = TRUE)
 		//Copies the settings of another given holder. Used for syringes, the dna spread virus and such things.
 		if(copyAppearance)
 			mobAppearance.CopyOther(toCopy.mobAppearance)
@@ -376,12 +376,18 @@ var/list/datum/bioEffect/mutini_effects = list()
 				newCopy.timeLeft = BE.timeLeft
 				newCopy.stability_loss = BE.stability_loss
 				newCopy.data = BE.data
+				newCopy.name = BE.name
 				if (oldpower != newCopy.power)
 					newCopy.onPowerChange(oldpower, newCopy.power)
 
-	proc/StaggeredCopyOther(var/datum/bioHolder/toCopy, progress = 1)
+				// Currently, nothing in the game needs this to be FALSE to my knowledge. However,
+				//  having the arg here already makes carving out exceptions easier
+				if (preserveActivatedFromPool)
+					newCopy.activated_from_pool = BE.activated_from_pool
+
+	proc/StaggeredCopyOther(var/datum/bioHolder/toCopy, progress = 1, var/preserveActivatedFromPool = TRUE)
 		if (progress > 10)
-			src.CopyOther(toCopy)
+			src.CopyOther(toCopy, preserveActivatedFromPool = preserveActivatedFromPool)
 			return
 
 		if (mobAppearance)
