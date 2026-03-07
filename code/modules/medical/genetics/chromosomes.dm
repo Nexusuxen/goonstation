@@ -22,6 +22,7 @@
 		BE.name = "Stabilized " + BE.name
 		BE.altered = 1
 		BE.gene_data |= EFFECT_CANNOT_SPLICE
+		BE.holder.calculateStability()
 
 /datum/dna_chromosome/anti_mutadone
 	name = "Reinforcer"
