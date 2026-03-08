@@ -25,7 +25,7 @@
 		src.ability_holder.addAbility(/datum/targetable/arcfiend/jamming_field)
 		src.ability_holder.addAbility(/datum/targetable/arcfiend/jolt)
 
-		src.owner.current.bioHolder.AddEffect("resist_electric", power = 2, magical = TRUE)
+		src.owner.current.bioHolder.AddEffect("resist_electric", power = TRUE, magical = TRUE)
 		src.owner.current.ClearSpecificOverlays("resist_electric")
 
 	remove_equipment()

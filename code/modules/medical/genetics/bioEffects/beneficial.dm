@@ -568,7 +568,7 @@
 				src.current_module = LISTEN_INPUT_RADIO_GLOBAL_DEFAULT_ONLY
 			if (2)
 				src.current_module = LISTEN_INPUT_RADIO_GLOBAL_UNPROTECTED_ONLY
-			else
+			else // set _bonus_power_mult to 2 or something to get this. only used by adminmice right now
 				src.current_module = LISTEN_INPUT_RADIO_GLOBAL
 		if (src.owner)
 			src.owner.listen_tree.AddListenInput(src.current_module)

@@ -2158,7 +2158,7 @@ TYPEINFO(/datum/mutantrace/kudzu)
 				H.add_stam_mod_max("kudzu", -100)
 				APPLY_ATOM_PROPERTY(H, PROP_MOB_STAMINA_REGEN_BONUS, "kudzu", -5)
 				APPLY_ATOM_PROPERTY(H, PROP_MOB_NIGHTVISION_WEAK, "kudzu")
-				H.bioHolder.AddEffect("xray", power = 2, do_stability = FALSE, scannable = FALSE, innate = TRUE)
+				H.bioHolder.AddEffect("xray", power = TRUE, do_stability = FALSE, scannable = FALSE, innate = TRUE)
 				H.ensure_speech_tree().AddSpeechOutput(SPEECH_OUTPUT_KUDZUCHAT)
 				H.ensure_listen_tree().AddListenInput(LISTEN_INPUT_KUDZUCHAT)
 

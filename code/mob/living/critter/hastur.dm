@@ -36,7 +36,7 @@ TYPEINFO(/mob/living/critter/hastur)
 		changeIcon()
 		src.nodamage = 1
 		HasturPresent = 1
-		bioHolder.AddEffect("radio_brain", 2)
+		bioHolder.AddEffect("radio_brain", TRUE)
 		abilityHolder.addAbility(/datum/targetable/hastur/devour)
 		abilityHolder.addAbility(/datum/targetable/hastur/insanityaura)
 		abilityHolder.addAbility(/datum/targetable/hastur/masswhisper)

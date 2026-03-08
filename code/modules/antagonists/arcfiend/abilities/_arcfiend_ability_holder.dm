@@ -39,7 +39,7 @@
 		..()
 		//failsafe to ensure arcfiends always have SMES human
 		if (!src.owner.bioHolder.HasEffect("resist_electric"))
-			src.owner.bioHolder.AddEffect("resist_electric", power = 2, magical = TRUE)
+			src.owner.bioHolder.AddEffect("resist_electric", power = TRUE, magical = TRUE)
 			src.owner.ClearSpecificOverlays("resist_electric")
 
 ABSTRACT_TYPE(/datum/targetable/arcfiend)

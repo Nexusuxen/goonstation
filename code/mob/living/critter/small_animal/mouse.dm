@@ -468,7 +468,9 @@ TYPEINFO(/mob/living/critter/small_animal/mouse/weak/mentor/admin)
 		ghost_spawned = FALSE
 		new /obj/item/implant/access/infinite/admin_mouse(src)
 		SPAWN(1 SECOND)
-			src.bioHolder?.AddEffect("radio_brain", power = 3, do_stability = FALSE, magical = TRUE)
+			var/datum/bioEffect/BE = src.bioHolder?.AddEffect("radio_brain", power = TRUE, do_stability = FALSE, magical = TRUE)
+			if(BE)
+				BE._bonus_power_multiplier = 1.5 // This brings the effective multiplier to 3, which is what we want
 
 	setup_hands()
 		..()

@@ -714,7 +714,7 @@
 				if (mut.hardoverride) // if overwriting, remove pre-existing mutation if one exists
 					user.bioHolder.RemoveEffect(mut.id)
 
-				var/datum/bioEffect/added_effect = user.bioHolder.AddEffect(mut.id, mut.power, mut.time, mut.stabilized, mut.magical)
+				var/datum/bioEffect/added_effect = user.bioHolder.AddEffect(mut.id, mut.power - 1, mut.time, mut.stabilized, mut.magical)
 
 				if (!mut.magical && mut.reinforced)
 					added_effect.addFlag(EFFECT_REINFORCED)
