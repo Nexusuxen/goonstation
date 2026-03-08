@@ -319,13 +319,17 @@ ABSTRACT_TYPE(/datum/job/special/halloween)
 			var/aggressive = pick("eyebeams","cryokinesis")
 			var/defensive = pick("fire_resist","cold_resist","rad_resist","breathless") // no thermal resist, gotta have some sort of comic book weakness
 			var/datum/bioEffect/power/be = M.bioHolder.AddEffect(aggressive, do_stability=0)
+			be.addFlag(EFFECT_METASTABLE)
 			if(aggressive == "eyebeams")
 				var/datum/bioEffect/power/eyebeams/eb = be
-				eb.stun_mode = 1
+				eb.stun_mode = 1 // maybe we should make a chromosome for this sometime?
 				eb.addFlag(EFFECT_CANNOT_SPLICE)
+				eb.name = "Modified " + eb.name
 			else
 				be.applyChromosome(/datum/dna_chromosome/power_enhancer)
 			be = M.bioHolder.AddEffect(defensive, do_stability=0)
+			if(be) // for some reason it doesn't always manage to apply. i guess.
+				be.applyChromosome(/datum/dna_chromosome/stabilizer)
 		else
 			var/datum/bioEffect/power/shoot_limb/sl = M.bioHolder.AddEffect("shoot_limb", do_stability=0)
 			sl.applyChromosome(/datum/dna_chromosome/safety)
@@ -333,8 +337,11 @@ ABSTRACT_TYPE(/datum/job/special/halloween)
 			sl.stun_mode = 1
 			var/datum/bioEffect/regenerator/r = M.bioHolder.AddEffect("regenerator", do_stability=0)
 			r.regrow_prob = 10
+			r.applyChromosome(/datum/dna_chromosome/stabilizer)
 		var/datum/bioEffect/power/be = M.bioHolder.AddEffect("adrenaline", do_stability=0)
 		be.applyChromosome(/datum/dna_chromosome/safety)
+		be.addFlag(EFFECT_METASTABLE) // to not hurt our stability. adding stabilized flag would mean a geneticist
+		// could sell/inject this and it'd be both synchronized and stabilized
 
 	get_default_miranda()
 		return "Evildoer! You have been apprehended by a hero of space justice!"

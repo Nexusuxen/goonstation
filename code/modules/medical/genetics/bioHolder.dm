@@ -132,6 +132,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 		E.owner = null
 		E.holder = null
 		E.removeFlag(EFFECT_FROM_POOL)
+		E.removeFlag(EFFECT_METASTABLE)
 		if (!src.inactive)
 			E.OnRemove()
 
@@ -164,6 +165,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 		E.owner = owner
 		E.holder = src
 		E.addFlag(EFFECT_FROM_POOL)
+		E.addFlag(EFFECT_METASTABLE)
 		if (!src.inactive)
 			E.OnAdd()
 
@@ -427,7 +429,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 						RemoveEffect(curr.id)
 						break
 
-			if(power) newEffect.EFFECT_FLAGS |= (power * EFFECT_EMPOWERED)
+			if(power) newEffect.addFlag(EFFECT_EMPOWERED)
 			if(timeleft) newEffect.timeLeft = timeleft
 			if(magical || innate)
 				newEffect.addFlag(EFFECT_REINFORCED)
@@ -458,9 +460,11 @@ var/list/datum/bioEffect/mutini_effects = list()
 				if(newEffect.degrade_to && !prob(lerp(clamp(src.genetic_stability+10, 0, 100), 100, 0.5)))
 					newEffect.timeLeft = rand(20, 60)
 					newEffect.degrade_after = TRUE
-
 				if(newEffect.getStabilityLoss())
 					src.calculateStability()
+			else // we assume that, if do_stability = FALSE, we'll always want to do stability loss if the gene is transferred to someone else
+				 // otherwise they should be applying the stabilizer chromosome/flag
+				newEffect.addFlag(EFFECT_METASTABLE)
 
 			if(owner)
 				OutputGainOrLoseMsg(newEffect, TRUE)
@@ -532,7 +536,8 @@ var/list/datum/bioEffect/mutini_effects = list()
 		if (!src.inactive)
 			effect.OnRemove()
 		var/was_natural = effect.isFromPool()
-		effect.removeFlag(EFFECT_FROM_POOL) //Fix for bug causing infinitely exploitable stability gain / loss
+		effect.removeFlag(EFFECT_METASTABLE)
+		effect.removeFlag(EFFECT_FROM_POOL)
 		if (owner)
 			OutputGainOrLoseMsg(effect, FALSE)
 

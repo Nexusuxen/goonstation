@@ -1166,10 +1166,9 @@ ADMIN_INTERACT_PROCS(/obj/whitehole, proc/admin_activate)
 					. = bag
 			if("geneinjector")
 				var/datum/bioEffect/effect = global.mutini_effects[pick(global.mutini_effects)]
-				for(var/i in pick(100; 0,   80; 1,   25; 2,   10; 3,   1; 4))
+				if(rand(25)) //review: The previous weighted pick() didn't seem to work, replaced with simpler system. is that okay?
 					var/chromosome_type = pick(concrete_typesof(/datum/dna_chromosome))
 					var/datum/dna_chromosome/chromosome = new chromosome_type()
-					// yes we skipping the apply_check here, the other dimension can break laws of genetics
 					chromosome.apply(effect)
 				var/obj/item/genetics_injector/dna_injector/inj = new(src.loc)
 				if(prob(50))

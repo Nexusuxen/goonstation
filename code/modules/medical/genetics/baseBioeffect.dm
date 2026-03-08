@@ -215,6 +215,9 @@ ABSTRACT_TYPE(/datum/bioEffect)
 /datum/bioEffect/proc/isFromPool()
 	return src.EFFECT_FLAGS & EFFECT_FROM_POOL
 
+/datum/bioEffect/proc/isMetastable()
+	return src.EFFECT_FLAGS & EFFECT_METASTABLE
+
 /datum/bioEffect/proc/alreadySpliced()
 	return src.EFFECT_FLAGS & EFFECT_CANNOT_SPLICE
 
@@ -227,17 +230,20 @@ ABSTRACT_TYPE(/datum/bioEffect)
 
 /// Returns stability loss. Available to override if your gene needs extra logic (e.g Vestigial Ballistics)
 /datum/bioEffect/proc/getStabilityLoss()
-	if(src.isStabilized() || src.isFromPool())
+	if(src.isStabilized() || src.isMetastable())
 		return 0
 	else
 		return src.stability_loss
 
+// A word of caution: Recklessly adding flags to a gene could let geneticists have effectively multiple splices simultaneously
+// If you want an energized and empowered and synchronized and etc. gene, be sure gene nerds can't abuse it! Unless that's the goal, anyways ;)
+// (using the is_innate or is_magic vars, for instance, will prevent a gene from showing up in the gene console)
 /// Adds target flag to bioEffect. See if applyChromosome() would work for your use case first.
 /datum/bioEffect/proc/addFlag(var/effect_flag)
 	src.EFFECT_FLAGS |= effect_flag
 	switch(effect_flag)
 		if(EFFECT_STABILIZED)
-			if(src.holder)
+			if(src.holder && src.stability_loss)
 				src.holder.calculateStability()
 		if(EFFECT_EMPOWERED)
 			src.onPowerChange()
