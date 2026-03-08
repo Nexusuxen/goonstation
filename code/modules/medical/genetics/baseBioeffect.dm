@@ -44,7 +44,7 @@ ABSTRACT_TYPE(/datum/bioEffect)
 	var/timeLeft = -1//Time left for temporary effects.
 
 	/// Bitfield, currently only holds chromosome data
-	var/gene_data = 0
+	var/EFFECT_FLAGS = 0
 
 	var/cooldown = 0 //For effects that come with verbs
 	var/can_reclaim = 1 // Can this gene be turned into mats with the reclaimer?
@@ -55,15 +55,15 @@ ABSTRACT_TYPE(/datum/bioEffect)
 	var/req_mut_research = null // If set, need to research the mutation before you can do anything w/ this one
 	var/reclaim_mats = 10 // Materials returned when this gene is reclaimed
 	var/reclaim_fail = 5 // Chance % for a reclamation of this gene to fail
-	var/curable_by_mutadone = TRUE //! if 0/FALSE, we cant mutadone this - reinforced, magic genes and anti-toxins use this
+	var/naturally_reinforced = FALSE
+	var/naturally_empowered = FALSE
+	var/starting_flags = null // list of effect flags to be added in New()
 	var/is_magical = FALSE //! only for trait genes/similar, we really dont want to lose this
 	var/stability_loss = 0
-	var/tmp/activated_from_pool = 0
 	var/altered = 0
 	var/add_delay = 0
 	var/wildcard = 0
-	var/power = 1
-	var/safety = 0
+	var/_bonus_power_multiplier = 1
 	var/degrade_to = null // what this mutation turns into if stability is too low
 	///if this mutation should degrade after timing out
 	var/degrade_after = FALSE
@@ -88,6 +88,8 @@ ABSTRACT_TYPE(/datum/bioEffect)
 			if (istype(global_instance, /datum/bioEffect/power))
 				global_instance_power = global_instance
 		dnaBlocks = new/datum/dnaBlocks(src)
+		for(var/effect_flag in src.starting_flags)
+			src.addFlag(effect_flag)
 		. = ..()
 
 	disposing()
@@ -163,23 +165,90 @@ ABSTRACT_TYPE(/datum/bioEffect)
 
 	onVarChanged(variable, oldval, newval)
 		. = ..()
-		if(variable == "gene_data")
+		if(variable == "EFFECT_FLAGS")
 			var/old_power = oldval & EFFECT_EMPOWERED
-			if(newval ^ old_power)
-		// this way of doing it REALLY stinks and is a holdover from the old system
-				var/new_power = newval & EFFECT_EMPOWERED
-				src.onPowerChange(old_power + 1, new_power + 1)
+			if(newval & ~old_power)
+				src.onPowerChange()
 
-	proc/isEmpowered()
-		return src.gene_data & EFFECT_EMPOWERED
+// Yes, a universal 'hasFlag()' proc would work fine,
+//  but isEmpowered() and isStabilized() are more legible/compact
 
-	/// Returns toMult if not empowered, or toMult * multiplier (default 2) if empowered
-	proc/powerMult(var/toMult, var/multiplier = 2)
-		. = toMult
-		if(src.isEmpowered())
-			. = toMult * multiplier
+/datum/bioEffect/proc/isEmpowered()
+	return src.EFFECT_FLAGS & EFFECT_EMPOWERED
 
+/// Returns toMult if not empowered, or toMult * multiplier (default 2) if empowered
+/datum/bioEffect/proc/powerMult(var/toMult, var/multiplier = 2)
+	toMult *= src._bonus_power_multiplier // for admins and other shenanigans to superjuice genes
+	if(src.isEmpowered())
+		. = toMult * multiplier
+	else
+		return toMult
 
+/datum/bioEffect/proc/isEnergized()
+	return src.EFFECT_FLAGS & EFFECT_ENERGIZED
+
+// Override to have your own custom cooldown change from Energy Booster
+/// Returns the cooldown of the gene. By default, Energy Booster halves cooldowns
+/datum/bioEffect/proc/getCooldown()
+	if(src.isEnergized())
+		return src.cooldown / 2
+	else
+		return src.cooldown
+
+/datum/bioEffect/proc/isSynchronized()
+	return src.EFFECT_FLAGS & EFFECT_SYNCHRONIZED
+
+/datum/bioEffect/proc/isReinforced()
+	return src.EFFECT_FLAGS & EFFECT_REINFORCED
+
+/datum/bioEffect/proc/isCamouflaged()
+	return src.EFFECT_FLAGS & EFFECT_CAMOUFLAGED
+
+/datum/bioEffect/proc/isWeakened()
+	return src.EFFECT_FLAGS & EFFECT_WEAKENED
+
+/// Returns how many materials we get from reclaiming. Unless overridden, will give double when Weakened
+/datum/bioEffect/proc/getReclaimMats()
+	if(src.isWeakened())
+		return src.reclaim_mats * 2
+	else
+		return src.reclaim_mats
+
+/datum/bioEffect/proc/isStabilized()
+	return src.EFFECT_FLAGS & EFFECT_STABILIZED
+
+/// Returns stability loss. Available to override if your gene needs extra logic (e.g Vestigial Ballistics)
+/datum/bioEffect/proc/getStabilityLoss()
+	if(src.isStabilized() || src.isFromPool())
+		return 0
+	else
+		return src.stability_loss
+
+/datum/bioEffect/proc/isFromPool()
+	return src.EFFECT_FLAGS & EFFECT_FROM_POOL
+
+/// Adds target flag to bioEffect. Not the same as chromosome splicing
+/datum/bioEffect/proc/addFlag(var/effect_flag)
+	src.EFFECT_FLAGS |= effect_flag
+	switch(effect_flag)
+		if(EFFECT_STABILIZED)
+			if(src.holder)
+				src.holder.calculateStability()
+		if(EFFECT_EMPOWERED)
+			src.onPowerChange()
+
+/// Removes target flag from bioEffect
+/datum/bioEffect/proc/removeFlag(var/effect_flag)
+	src.EFFECT_FLAGS &= ~effect_flag
+	switch(effect_flag)
+		if(EFFECT_STABILIZED)
+			if(src.holder)
+				src.holder.calculateStability()
+		if(EFFECT_EMPOWERED)
+			src.onPowerChange()
+
+/// Applies a specified chromosome type to a given gene
+/// Used when you're splicing a chromosome the same way a gene console would
 /datum/bioEffect/proc/apply_chromosome(var/type_to_apply)
 	if(!ispath(type_to_apply, /datum/dna_chromosome))
 		CRASH("Tried to splice an invalid chromosome type \"[type_to_apply]\" onto [src]!")
@@ -349,7 +418,7 @@ ABSTRACT_TYPE(/datum/bioEffect)
 
 	handleCast(atom/target, params)
 		if (src.linked_power) //paranoia check to keep them synched
-			src.cooldown = src.linked_power.cooldown
+			src.cooldown = src.linked_power.getCooldown()
 		..()
 
 	/// To account for misfires without cast_genetics(), check for the 'misfire' key in params.
@@ -396,7 +465,7 @@ ABSTRACT_TYPE(/datum/bioEffect)
 		return src.linked_power.isEmpowered()
 
 	proc/genePowerMult(var/toMult, var/multiplier = 2)
-		src.linked_power.powerMult(toMult, multiplier)
+		return src.linked_power.powerMult(toMult, multiplier)
 
 /datum/targetable/geneticsAbility/wrapper
 	var/wrapped_ability = null

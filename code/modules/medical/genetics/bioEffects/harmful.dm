@@ -128,7 +128,7 @@
 	can_make_injector = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	sleep_prob = 10 //reduced from 35
 	icon_state  = "bad"
 
@@ -203,7 +203,7 @@
 	occur_in_genepools = 0
 	probability = 0
 	scanner_visibility = FALSE
-	curable_by_mutadone = FALSE
+	starting_flags = list(EFFECT_REINFORCED)
 	can_reclaim = FALSE
 	can_scramble = FALSE
 	can_research = FALSE
@@ -656,7 +656,7 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 
 /datum/bioEffect/emoter/juggler
 	name = "Jugglemancer's Curse"
@@ -674,7 +674,7 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 
 	OnAdd()
 		..()
@@ -930,7 +930,7 @@
 	can_research = 0
 	can_make_injector = 0
 	can_copy = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	blockCount = 2
 	blockGaps = 4
 	lockProb = 66

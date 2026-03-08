@@ -63,7 +63,7 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	id = "demon_horns"
 	hornstyle = "horns_devil"
 
@@ -340,7 +340,7 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	reagent_to_add = "bee"
 	reagent_threshold = 12
 	add_per_tick = 6 //ensures we always have bee sickness
@@ -359,7 +359,7 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	reagent_to_add = "penteticacid"
 	reagent_threshold = 12
 	add_per_tick = 4
@@ -382,7 +382,7 @@
 	lockedChars = list("G","C","A","T","U")
 	stability_loss = 15
 	lockedTries = 10
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	can_scramble = 0
 	can_reclaim = 0
 	reagent_to_add = "honey"
@@ -534,7 +534,7 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	id = "hell_fire"
 
 	New()

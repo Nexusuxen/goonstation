@@ -6,7 +6,7 @@ ABSTRACT_TYPE(/datum/bioEffect/hidden)
 	occur_in_genepools = 0
 	probability = 0
 	scanner_visibility = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	can_reclaim = 0
 	can_scramble = 0
 	can_research = 0
@@ -201,7 +201,7 @@ ABSTRACT_TYPE(/datum/bioEffect/hidden)
 	effectType = EFFECT_TYPE_DISABILITY
 	isBad = 1
 	can_copy = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	occur_in_genepools = 0
 	var/personalized_stink = null
 
@@ -231,7 +231,7 @@ ABSTRACT_TYPE(/datum/bioEffect/hidden/magnetic)
 	effectType = EFFECT_TYPE_DISABILITY
 	isBad = 1
 	can_copy = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	occur_in_genepools = 0
 	var/active = 1
 

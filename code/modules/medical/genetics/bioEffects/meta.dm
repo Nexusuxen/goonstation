@@ -14,7 +14,7 @@
 	lockedDiff = 4
 	lockedChars = list("G","C","A","T")
 	lockedTries = 10
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 
 	OnAdd()
 		var/mob/living/L = owner
@@ -41,7 +41,7 @@
 	lockedDiff = 4
 	lockedChars = list("G","C","A","T")
 	lockedTries = 10
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 
 	OnAdd()
 		var/mob/living/L = owner
@@ -67,7 +67,7 @@
 	lockedDiff = 4
 	lockedChars = list("G","C","A","T")
 	lockedTries = 10
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 
 	OnAdd()
 		var/mob/living/L = owner
@@ -113,6 +113,6 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	stability_loss = -999999
 

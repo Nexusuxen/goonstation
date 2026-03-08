@@ -20,11 +20,11 @@
 		bioEffects += list(list(
 			"name" = BE,
 			"id" = BE.id,
-			"stabilized" = !BE.stability_loss,
-			"reinforced" = !BE.curable_by_mutadone,
-			"boosted" = (BE.gene_data & EFFECT_EMPOWERED),
-			"synced" = BE.safety,
-			"cooldown" = BE.cooldown,
+			"stabilized" = BE.isStabilized(),
+			"reinforced" = BE.isReinforced(),
+			"boosted" = BE.isEmpowered(),
+			"synced" = BE.isSynchronized(),
+			"cooldown" = BE.isEnergized(),
 			"is_power" = istype(BE, /datum/bioEffect/power)))
 	. = list(
 		"target_name" = target_mob,
@@ -65,24 +65,28 @@
 			var/datum/bioEffect/power/power = BE
 			power.ability.last_cast = 0
 		if ("toggleBoosted")
-			var/old_power = BE.isEmpowered() + 1
-			BE.gene_data ^= EFFECT_EMPOWERED
-			BE.power = BE.isEmpowered() ? 2 : 1
-			BE.onPowerChange(old_power, BE.power)
+			if(!BE.isEmpowered())
+				BE.addFlag(EFFECT_EMPOWERED)
+			else
+				BE.removeFlag(EFFECT_EMPOWERED)
 			. = TRUE
 		if ("toggleReinforced")
-			BE.curable_by_mutadone = !BE.curable_by_mutadone
+			if(!BE.isReinforced())
+				BE.addFlag(EFFECT_REINFORCED)
+			else
+				BE.removeFlag(EFFECT_REINFORCED)
 			. = TRUE
 		if ("toggleStabilized")
-			if (BE.stability_loss == 0)
-				BE.stability_loss = BE.global_instance.stability_loss
-				BE.holder.calculateStability()
+			if (!BE.isStabilized())
+				BE.addFlag(EFFECT_STABILIZED)
 			else
-				BE.stability_loss = 0
-				BE.holder.calculateStability()
+				BE.removeFlag(EFFECT_STABILIZED)
 			. = TRUE
 		if ("toggleSynced")
-			BE.safety = !BE.safety
+			if(BE.isSynchronized())
+				BE.removeFlag(EFFECT_SYNCHRONIZED)
+			else
+				BE.addFlag(EFFECT_SYNCHRONIZED)
 			. = TRUE
 		if ("manageBioEffect")
 			ui.user.client.debug_variables(BE)

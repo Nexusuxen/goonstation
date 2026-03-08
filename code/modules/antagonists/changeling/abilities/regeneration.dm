@@ -75,7 +75,7 @@
 						if(C.bioHolder?.effects && length(C.bioHolder.effects))
 							for(var/bioEffectId in C.bioHolder.effects)
 								var/datum/bioEffect/gene = C.bioHolder.GetEffect(bioEffectId)
-								if (gene.curable_by_mutadone && gene.effectType == EFFECT_TYPE_DISABILITY)
+								if (!gene.isReinforced() && gene.effectType == EFFECT_TYPE_DISABILITY)
 									C.bioHolder.RemoveEffect(gene.id)
 
 					C.set_clothing_icon_dirty()

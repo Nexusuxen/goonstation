@@ -14,7 +14,7 @@
 	lockedDiff = 4
 	lockedChars = list("G","C")
 	lockedTries = 8
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	icon_state  = "lizard"
 
 	OnAdd()
@@ -180,7 +180,7 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	reclaim_fail = 100
 	icon_state  = "monkey"
 
@@ -196,7 +196,7 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	reclaim_fail = 100
 	stability_loss = 50 //nya~~ *gurgle*
 	mutantrace_option = "Cat"
@@ -252,5 +252,5 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	reclaim_fail = 100

@@ -274,7 +274,7 @@
 	if (!src || !M || !ismob(M) || !action)
 		return
 
-	logTheThing(LOG_STATION, usr, "uses [src.name] on [constructTarget(M,"station")][M.bioHolder ? " (Genetic stability: [M.bioHolder.genetic_stability])" : ""] at [log_loc(src)]. Action: [action][BE && istype(BE, /datum/bioEffect/) ? ". Gene: [BE] (Stability impact: [BE.stability_loss])" : ""]")
+	logTheThing(LOG_STATION, usr, "uses [src.name] on [constructTarget(M,"station")][M.bioHolder ? " (Genetic stability: [M.bioHolder.genetic_stability])" : ""] at [log_loc(src)]. Action: [action][BE && istype(BE, /datum/bioEffect/) ? ". Gene: [BE] (Stability impact: [BE.getStabilityLoss()])" : ""]")
 	return
 
 /obj/machinery/computer/genetics/proc/log_maybe_cheater(var/who, var/action = "")
@@ -420,6 +420,7 @@
 			I.name = "dna injector - [E.name]"
 			var/datum/bioEffect/NEW = new E.type(I)
 			copy_datum_vars(E, NEW, blacklist=list("owner", "holder", "dnaBlocks"))
+			NEW.removeFlag(EFFECT_FROM_POOL)
 			I.BE = NEW
 			on_ui_interacted(ui.user)
 			playsound(src, 'sound/machines/click.ogg', 50, TRUE)
@@ -673,6 +674,7 @@
 				if (!already_has)
 					var/datum/bioEffect/NEW = new E.type(GB)
 					copy_datum_vars(E, NEW, blacklist=list("owner", "holder", "dnaBlocks"))
+					NEW.removeFlag(EFFECT_FROM_POOL)
 					GB.offered_genes += new /datum/geneboothproduct(NEW,booth_effect_desc,booth_effect_cost,registered_id)
 					if (length(GB.offered_genes) == 1)
 						GB.select_product(GB.offered_genes[1])
@@ -743,15 +745,15 @@
 				return
 			var/reclamation_cap = genResearch.max_material * 1.5
 			on_ui_interacted(ui.user)
-			if (prob(E.reclaim_fail))
+			if (prob(E.reclaim_fail) && !E.isWeakened())
 				scanner_alert(ui.user, "Reclamation failed.", error = TRUE)
 			else
-				var/waste = min(E.reclaim_mats, (E.reclaim_mats + genResearch.researchMaterial) - reclamation_cap)
-				genResearch.researchMaterial = max(genResearch.researchMaterial, min(genResearch.researchMaterial + E.reclaim_mats, reclamation_cap))
+				var/waste = min(E.getReclaimMats(), (E.getReclaimMats() + genResearch.researchMaterial) - reclamation_cap)
+				genResearch.researchMaterial = max(genResearch.researchMaterial, min(genResearch.researchMaterial + E.getReclaimMats(), reclamation_cap))
 				if (waste > 0)
-					scanner_alert(ui.user, "Reclamation successful. [E.reclaim_mats] materials gained. Material count now at [genResearch.researchMaterial]. [waste] units of material wasted due to material capacity limit.")
+					scanner_alert(ui.user, "Reclamation successful. [E.getReclaimMats()] materials gained. Material count now at [genResearch.researchMaterial]. [waste] units of material wasted due to material capacity limit.")
 				else
-					scanner_alert(ui.user, "Reclamation successful. [E.reclaim_mats] materials gained. Material count now at [genResearch.researchMaterial].")
+					scanner_alert(ui.user, "Reclamation successful. [E.getReclaimMats()] materials gained. Material count now at [genResearch.researchMaterial].")
 				subject.bioHolder.RemoveEffect(E.id)
 				E.owner = null
 				E.holder = null
@@ -769,15 +771,15 @@
 				return
 			var/reclamation_cap = genResearch.max_material * 1.5
 			on_ui_interacted(ui.user)
-			if (prob(E.reclaim_fail))
+			if (prob(E.reclaim_fail) && !E.isWeakened())
 				scanner_alert(ui.user, "Reclamation failed.", error = TRUE)
 			else
-				var/waste = min(E.reclaim_mats, (E.reclaim_mats + genResearch.researchMaterial) - reclamation_cap)
-				genResearch.researchMaterial = max(genResearch.researchMaterial, min(genResearch.researchMaterial + E.reclaim_mats, reclamation_cap))
+				var/waste = min(E.getReclaimMats(), (E.getReclaimMats() + genResearch.researchMaterial) - reclamation_cap)
+				genResearch.researchMaterial = max(genResearch.researchMaterial, min(genResearch.researchMaterial + E.getReclaimMats(), reclamation_cap))
 				if (waste > 0)
-					scanner_alert(ui.user, "Reclamation successful. [E.reclaim_mats] materials gained. Material count now at [genResearch.researchMaterial]. [waste] units of material wasted due to material capacity limit.")
+					scanner_alert(ui.user, "Reclamation successful. [E.getReclaimMats()] materials gained. Material count now at [genResearch.researchMaterial]. [waste] units of material wasted due to material capacity limit.")
 				else
-					scanner_alert(ui.user, "Reclamation successful. [E.reclaim_mats] materials gained. Material count now at [genResearch.researchMaterial].")
+					scanner_alert(ui.user, "Reclamation successful. [E.getReclaimMats()] materials gained. Material count now at [genResearch.researchMaterial].")
 				saved_mutations -= E
 				qdel(E)
 			playsound(src, 'sound/machines/pc_process.ogg', 50, TRUE)
@@ -798,6 +800,7 @@
 			src.log_me(subject, "mutation removed", E)
 			src.saved_mutations += E
 			subject.bioHolder.RemoveEffect(E.id)
+			E.removeFlag(EFFECT_FROM_POOL)
 			E.owner = null
 			E.holder = null
 			on_ui_interacted(ui.user)

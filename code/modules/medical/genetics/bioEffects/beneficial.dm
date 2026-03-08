@@ -130,7 +130,7 @@
 			owner:contract_disease(/datum/ailment/malady/flatline,null,null,1)
 			boutput(owner, SPAN_ALERT("Something is wrong with your cyberheart, it stops beating!"))
 		if(ismob(owner))
-			if(src.gene_data & EFFECT_EMPOWERED)
+			if(src.isEmpowered())
 				APPLY_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY, src, 40)
 				APPLY_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY_MAX, src, 40)
 
@@ -142,7 +142,7 @@
 	OnRemove()
 		. = ..()
 		if(ismob(owner))
-			if(src.gene_data & EFFECT_EMPOWERED)
+			if(src.isEmpowered())
 				APPLY_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY, src, 40)
 				APPLY_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY_MAX, src, 40)
 
@@ -203,7 +203,7 @@
 	blockCount = 4
 	blockGaps = 5
 	reclaim_mats = 40
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	stability_loss = 30
 	msgGain = "You feel refreshed and clean."
 	msgLose = "You feel a bit grody."
@@ -246,7 +246,7 @@
 			H.oxyloss = 0
 			H.losebreath = 0
 		if(ismob(owner))
-			if(src.gene_data ^ EFFECT_EMPOWERED)
+			if(!src.isEmpowered())
 				APPLY_ATOM_PROPERTY(owner, PROP_MOB_REBREATHING, src.type)
 			else
 				APPLY_ATOM_PROPERTY(owner, PROP_MOB_BREATHLESS, src.type)
@@ -276,12 +276,8 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED, EFFECT_EMPOWERED)
 	stability_loss = 0
-
-	New()
-		. = ..()
-		gene_data |= EFFECT_EMPOWERED
 
 /datum/bioEffect/psychic_resist
 	name = "Meta-Neural Enhancement"
@@ -356,7 +352,7 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	stability_loss = 0 //necessary to prevent issues with existing mutants who sign the contract. We want the sleep to be their downfall, not their genes.
 	msgGain = "You begin to feel your flesh mending back together. Grody."
 	msgLose = "Your flesh stops mending itself together."
@@ -376,7 +372,7 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	stability_loss = 0
 	msgGain = "You feel oddly feral."
 	msgLose = "You feel more comfortable in your own skin."
@@ -406,7 +402,7 @@
 	lockedDiff = 2
 	lockedChars = list("G","C","A","T")
 	lockedTries = 10
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	var/remove_per_tick = 3.3
 	stability_loss = 10
 	degrade_to = "toxification"
@@ -490,7 +486,7 @@
 		animate_fade_grayscale(owner, 5)
 
 		if(ismob(owner))
-			if(src.gene_data & EFFECT_EMPOWERED)
+			if(src.isEmpowered())
 				owner.apply_color_matrix(COLOR_MATRIX_GRAYSCALE, COLOR_MATRIX_GRAYSCALE_LABEL)
 
 	onPowerChange()
@@ -502,7 +498,7 @@
 		..()
 		animate_fade_from_grayscale(owner, 5)
 		if(ismob(owner))
-			if(src.gene_data & EFFECT_EMPOWERED)
+			if(src.isEmpowered())
 				owner.remove_color_matrix(COLOR_MATRIX_GRAYSCALE_LABEL)
 
 ///////////////////
@@ -525,7 +521,7 @@
 		if (ishuman(owner))
 			var/mob/living/carbon/human/H = owner
 			APPLY_MOVEMENT_MODIFIER(H, /datum/movement_modifier/hulkstrong, src.type)
-			if(src.gene_data & EFFECT_EMPOWERED)
+			if(src.isEmpowered())
 				APPLY_MOVEMENT_MODIFIER(H, /datum/movement_modifier/strong, src.type)
 
 	onPowerChange()
@@ -539,7 +535,7 @@
 			var/mob/living/carbon/human/H = owner
 			REMOVE_MOVEMENT_MODIFIER(H, /datum/movement_modifier/hulkstrong, src.type)
 
-			if(src.gene_data & EFFECT_EMPOWERED)
+			if(src.isEmpowered())
 				REMOVE_MOVEMENT_MODIFIER(H, /datum/movement_modifier/strong, src.type)
 
 /datum/bioEffect/radio_brain
@@ -664,7 +660,7 @@
 				HAH.s_tone = hulk_skin
 				HAH.UpdateMob()
 
-		if (H.health <= 25 && (src.gene_data ^ EFFECT_EMPOWERED))
+		if (H.health <= 25 && (!src.isEmpowered()))
 			timeLeft = 1
 			boutput(owner, SPAN_ALERT("You suddenly feel very weak."))
 			H.changeStatus("knockdown", 3 SECONDS)
@@ -682,7 +678,7 @@
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 
 /datum/bioEffect/xray
 	name = "X-Ray Vision"
@@ -708,7 +704,7 @@
 	OnAdd()
 		. = ..()
 		if(ismob(owner))
-			if(src.gene_data ^ EFFECT_EMPOWERED)
+			if(!src.isEmpowered())
 				APPLY_ATOM_PROPERTY(owner, PROP_MOB_XRAYVISION_WEAK, src)
 			else
 				APPLY_ATOM_PROPERTY(owner, PROP_MOB_XRAYVISION, src)
@@ -721,7 +717,7 @@
 	OnRemove()
 		. = ..()
 		if(ismob(owner))
-			if(src.gene_data ^ EFFECT_EMPOWERED)
+			if(!src.isEmpowered())
 				REMOVE_ATOM_PROPERTY(owner, PROP_MOB_XRAYVISION_WEAK, src)
 			else
 				REMOVE_ATOM_PROPERTY(owner, PROP_MOB_XRAYVISION, src)
@@ -749,7 +745,7 @@
 	OnAdd()
 		. = ..()
 		if(ismob(owner))
-			if(src.gene_data ^ EFFECT_EMPOWERED)
+			if(!src.isEmpowered())
 				APPLY_ATOM_PROPERTY(owner, PROP_MOB_NIGHTVISION_WEAK, src)
 			else
 				APPLY_ATOM_PROPERTY(owner, PROP_MOB_NIGHTVISION, src)
@@ -762,7 +758,7 @@
 	OnRemove()
 		. = ..()
 		if(ismob(owner))
-			if(src.gene_data ^ EFFECT_EMPOWERED)
+			if(!src.isEmpowered())
 				REMOVE_ATOM_PROPERTY(owner, PROP_MOB_NIGHTVISION_WEAK, src)
 			else
 				REMOVE_ATOM_PROPERTY(owner, PROP_MOB_NIGHTVISION, src)
@@ -1079,7 +1075,7 @@
 	can_make_injector = 0
 	can_copy = 0
 	acceptable_in_mutini = 0
-	curable_by_mutadone = FALSE
+	starting_flags = list(EFFECT_REINFORCED)
 	effectType = EFFECT_TYPE_POWER
 
 	OnAdd()

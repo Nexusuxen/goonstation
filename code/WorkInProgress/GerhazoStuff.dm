@@ -717,12 +717,15 @@
 				var/datum/bioEffect/added_effect = user.bioHolder.AddEffect(mut.id, mut.power, mut.time, mut.stabilized, mut.magical)
 
 				if (!mut.magical && mut.reinforced)
-					added_effect.curable_by_mutadone = mut.reinforced
+					added_effect.addFlag(EFFECT_REINFORCED)
 
 
 				if (istype(added_effect, /datum/bioEffect/power/)) // apply chromosomes if provided and the mutation is a power
 					var/datum/bioEffect/power/added_power = added_effect
-					added_power.safety = mut.synchronized
+					if(mut.synchronized)
+						added_power.addFlag(EFFECT_SYNCHRONIZED)
+					else
+						added_power.removeFlag(EFFECT_SYNCHRONIZED)
 					if (mut.energyboosted)
 						if (added_effect.cooldown != 0)
 							added_effect.cooldown /= 2

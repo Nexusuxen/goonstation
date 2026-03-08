@@ -11,7 +11,7 @@
 	occur_in_genepools = 0
 	acceptable_in_mutini = 0
 	probability = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	var/image/curse_icon
 
 	OnAdd()
@@ -55,7 +55,7 @@
 	occur_in_genepools = 0
 	acceptable_in_mutini = 0
 	probability = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	var/image/curse_icon
 
 	OnAdd()
@@ -97,7 +97,7 @@
 	occur_in_genepools = 0
 	acceptable_in_mutini = 0
 	probability = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	var/image/curse_icon
 
 	OnAdd()
@@ -141,7 +141,7 @@
 	occur_in_genepools = 0
 	acceptable_in_mutini = 0
 	probability = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	var/image/curse_icon
 
 	OnAdd()
@@ -183,4 +183,4 @@
 	scanner_visibility = 0
 	acceptable_in_mutini = 0
 	probability = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)

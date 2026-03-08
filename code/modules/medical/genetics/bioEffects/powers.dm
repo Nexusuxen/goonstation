@@ -90,13 +90,13 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		var/turf/T = get_turf(target)
 
 		var/obj/decal/icefloor/B
-		for (var/turf/TF in range(genePowerMult(1, 2), T))
+		for (var/turf/TF in range(genePowerMult(1, 2) - 1, T)) // we only want a range of 0 or 1, but letting admins varedit to make huge fields of ice is funny
 			B = new /obj/decal/icefloor(TF)
 			SPAWN(80 SECONDS)
 				B.dispose()
 
 		for (var/mob/living/L in T.contents)
-			if (L == src.owner && src.linked_power.safety)
+			if (L == src.owner && src.linked_power.isSynchronized())
 				continue
 			boutput(L, SPAN_NOTICE("You are struck by a burst of ice cold air!"))
 			if(L.getStatusDuration("burning"))
@@ -108,7 +108,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		return CAST_ATTEMPT_SUCCESS
 
 	proc/cast_mis(atom/target)
-		if (!src.linked_power.safety)
+		if (!src.linked_power.isSynchronized())
 			boutput(src.owner, SPAN_ALERT("Your cryokinesis misfires and freezes you!"))
 			if(src.owner.getStatusDuration("burning"))
 				src.owner.delStatus("burning")
@@ -273,7 +273,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 	occur_in_genepools = 0
 	probability = 0
 	scanner_visibility = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	can_reclaim = 0
 	can_scramble = 0
 	can_research = 0
@@ -799,7 +799,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		return misfire ? misfire() : regular()
 
 	proc/regular()
-		if (!linked_power.safety)
+		if (!linked_power.isSynchronized())
 			// If unsynchronized, you don't get to keep anything you have on you.
 			// The original version of this power instead gibbed you instantly, which wasn't very fun,
 			// and ended up as a newbie trap ("This sounds fun! *dead* oh.")
@@ -813,7 +813,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		return CAST_ATTEMPT_SUCCESS
 
 	proc/misfire()
-		if (!linked_power.safety && ishuman(src.owner))
+		if (!linked_power.isSynchronized() && ishuman(src.owner))
 			// If unsynchronized, you drop a random organ. Hope it's not one of the important ones!
 			var/list/possible_drops = list("heart", "left_lung","right_lung","left_kidney","right_kidney",
 				"liver","spleen","pancreas","stomach","intestines","appendix","butt")
@@ -885,7 +885,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 		var/sound_repeat = genePowerMult(1, 2)
 		var/fart_string = " unleashes a [pick("tremendous","gigantic","colossal")] fart!"
 
-		if(geneEmpowered() && !linked_power.safety)
+		if(geneEmpowered() && !linked_power.isSynchronized())
 			gib_user = 1
 			fart_string = "'s body is torn apart like a wet paper bag by [his_or_her(owner)] unbelievably powerful farting!"
 			owner.unlock_medal("Shit Fest", 1)
@@ -992,7 +992,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 
 	stability_loss = 0
 	cooldown = 200
@@ -1122,7 +1122,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 			owner.emote("scream")
 			owner.reagents.add_reagent("epinephrine",20 * multiplier)
 			owner.reagents.add_reagent("salicylic_acid",20 * multiplier)
-			if(linked_power.safety)
+			if(linked_power.isSynchronized())
 				owner.reagents.add_reagent("methamphetamine",max(0,20 - owner.reagents.get_reagent_amount("methamphetamine")))
 				owner.reagents.add_reagent("energydrink",max(0,5 - owner.reagents.get_reagent_amount("energydrink")))
 			else
@@ -1138,7 +1138,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 			owner.emote("scream")
 			owner.reagents.add_reagent("epinephrine",20 * multiplier)
 			owner.reagents.add_reagent("salicylic_acid",20 * multiplier)
-			if(linked_power.safety)
+			if(linked_power.isSynchronized())
 				owner.reagents.add_reagent("methamphetamine",max(0,20 - owner.reagents.get_reagent_amount("methamphetamine")))
 				owner.reagents.add_reagent("energydrink",max(0,5 - owner.reagents.get_reagent_amount("energydrink")))
 			else
@@ -1221,7 +1221,6 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 	msgGain = "You suddenly smell vinegar."
 	msgLose = "You feel less well preserved."
 	transmute_material = "pickle"
-	power = 2
 	occur_in_genepools = 0
 	probability = 0
 	scanner_visibility = 0
@@ -1230,7 +1229,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED, EFFECT_EMPOWERED)
 	ability_path = /datum/targetable/geneticsAbility/midas/pickle
 
 /datum/targetable/geneticsAbility/midas/pickle
@@ -2072,21 +2071,23 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 	var/datum/targetable/geneticsAbility/shoot_limb/AB = null
 	var/stun_mode = 0 // used by discount superhero
 
+//TODO: on synchronizer splice, trigger recalculation
+
+	getStabilityLoss()
+		if(src.isSynchronized())
+			return 0
+		else
+			. = ..()
+
 	OnLife(var/mult)
 		..()
-		if(src.safety && src.stability_loss)
-			src.stability_loss = 0
-			src.holder.calculateStability()
-
 		if (count < ticks_to_explode)
 			count += mult
 			return
 		else
 			count = 0
 
-		if (!src.safety && prob(70))
-
-
+		if (!src.isSynchronized() && prob(70))
 
 			if (ability)
 				//Do I really even need this? I'm just putting it there in case the random turf is null. Which should never happen.
@@ -2145,7 +2146,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 					var/datum/callback/callback = (SL?.stun_mode) ? CALLBACK(src, PROC_REF(hit_callback)) : null
 					thrown_limb.throw_at(target, range, throw_power * (genePowerMult(1, 2)), end_throw_callback=callback)
 					//without snychronizer, you take damage and bleed on usage of the power
-					if (!linked_power.safety)
+					if (!linked_power.isSynchronized())
 						new thrown_limb.streak_decal(owner.loc)
 						var/damage = rand(5,15)
 						var/do_bleed = TRUE
@@ -2163,7 +2164,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 							pwr.count = 0
 
 					owner.visible_message(SPAN_ALERT("<b>[thrown_limb][geneEmpowered() ? " violently " : " "]bursts off of its socket and flies towards [target]!</b>"))
-					logTheThing(LOG_COMBAT, owner, "shoot_limb [!linked_power.safety ? "Accidently" : ""] at [ismob(target)].")
+					logTheThing(LOG_COMBAT, owner, "shoot_limb [!linked_power.isSynchronized() ? "Accidently" : ""] at [ismob(target)].")
 					SPAWN(1 SECOND)
 						if (thrown_limb)
 							thrown_limb.throwforce = tmp_force
@@ -2335,7 +2336,7 @@ ABSTRACT_TYPE(/datum/bioEffect/power/critter)
 	can_copy = 0
 	can_reclaim = 0
 	can_scramble = 0
-	curable_by_mutadone = 0
+	starting_flags = list(EFFECT_REINFORCED)
 	ability_path = /datum/targetable/geneticsAbility/fade
 
 /datum/targetable/geneticsAbility/fade

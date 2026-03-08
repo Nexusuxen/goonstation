@@ -454,7 +454,7 @@ ABSTRACT_TYPE(/datum/cloner_defect/organ_damage)
 		else
 			src.owner.bioHolder.AddEffect(data["bioeffect_id"])
 			var/datum/bioEffect/effect = src.owner.bioHolder.GetEffect(data["bioeffect_id"]) // this suuuucks
-			effect.curable_by_mutadone = FALSE
+			effect.addFlag(EFFECT_REINFORCED)
 
 
 /// Sets seen name to 'unknown' (until repaired with synthflesh)

@@ -86,7 +86,7 @@
 	occur_in_genepools = FALSE
 	can_make_injector = FALSE
 	can_copy = FALSE
-	curable_by_mutadone = FALSE
+	starting_flags = list(EFFECT_REINFORCED)
 	scanner_visibility = FALSE
 	can_research = FALSE
 	can_reclaim = FALSE
@@ -357,7 +357,7 @@
 	can_copy = FALSE
 	can_reclaim = FALSE
 	can_scramble = FALSE
-	curable_by_mutadone = FALSE
+	starting_flags = list(EFFECT_REINFORCED)
 
 	New()
 		src.msgGain = zalgoify(src.msgGain, rand(0,8), rand(0, 2), rand(0, 8))
@@ -380,7 +380,7 @@
 	can_copy = FALSE
 	can_reclaim = FALSE
 	can_scramble = FALSE
-	curable_by_mutadone = FALSE
+	starting_flags = list(EFFECT_REINFORCED)
 
 	New()
 		src.msgGain = voidSpeak(src.msgGain)
@@ -403,7 +403,7 @@
 	can_copy = FALSE
 	can_reclaim = FALSE
 	can_scramble = FALSE
-	curable_by_mutadone = FALSE
+	starting_flags = list(EFFECT_REINFORCED)
 
 
 /proc/yee_text(var/string)
@@ -503,7 +503,7 @@
 	can_copy = FALSE
 	can_reclaim = FALSE
 	can_scramble = FALSE
-	curable_by_mutadone = FALSE
+	starting_flags = list(EFFECT_REINFORCED)
 	acceptable_in_mutini = FALSE
 
 
@@ -571,7 +571,7 @@
 	can_copy = FALSE
 	can_reclaim = FALSE
 	can_scramble = FALSE
-	curable_by_mutadone = FALSE
+	starting_flags = list(EFFECT_REINFORCED)
 	acceptable_in_mutini = FALSE
 
 
@@ -591,7 +591,7 @@
 	can_copy = FALSE
 	can_reclaim = FALSE
 	can_scramble = FALSE
-	curable_by_mutadone = FALSE
+	starting_flags = list(EFFECT_REINFORCED)
 	acceptable_in_mutini = TRUE
 
 

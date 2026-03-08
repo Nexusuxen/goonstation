@@ -742,13 +742,13 @@ datum
 				if (M.bioHolder)
 					var/datum/bioEffect/BE
 					BE = M.bioHolder.GetEffect("bad_eyesight")
-					if (probmult(50) && BE?.curable_by_mutadone)
+					if (probmult(50) && !BE.isReinforced())
 						M.bioHolder.RemoveEffect("bad_eyesight")
 					BE = M.bioHolder.GetEffect("blind")
-					if (probmult(30) && BE?.curable_by_mutadone)
+					if (probmult(30) && !BE.isReinforced())
 						M.bioHolder.RemoveEffect("blind")
 					BE = M.bioHolder.GetEffect("deaf")
-					if (probmult(30) && (M.get_ear_damage() && M.get_ear_damage() <= M.get_ear_damage_natural_healing_threshold()) && BE?.curable_by_mutadone)
+					if (probmult(30) && (M.get_ear_damage() && M.get_ear_damage() <= M.get_ear_damage_natural_healing_threshold()) && !BE.isReinforced())
 						M.bioHolder.RemoveEffect("deaf")
 
 				if (M.get_eye_blurry())
@@ -1106,7 +1106,7 @@ datum
 				if(!M) M = holder.my_atom
 				if(M.bioHolder && M.bioHolder.effects && length(M.bioHolder.effects)) //One per cycle. We're having superpowered hellbastards and this is their kryptonite.
 					var/datum/bioEffect/B = M.bioHolder.effects[pick(M.bioHolder.effects)]
-					if (B?.curable_by_mutadone)
+					if (!B.isReinforced())
 						M.bioHolder.RemoveEffect(B.id)
 				..()
 				return

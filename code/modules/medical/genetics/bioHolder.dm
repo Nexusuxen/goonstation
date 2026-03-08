@@ -93,6 +93,8 @@ var/list/datum/bioEffect/mutini_effects = list()
 	proc/OutputGainOrLoseMsg(var/datum/bioEffect/E, var/gain = TRUE)
 		if (!E)
 			return
+		if (E.isCamouflaged())
+			return
 
 		if (gain == TRUE)
 			if (length(E.msgGain) > 0)
@@ -116,7 +118,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 
 		for (var/datum/bioEffect/curr as anything in src.effects)
 			var/datum/bioEffect/E = src.effects[curr]
-			if (E.activated_from_pool == 1)
+			if (E.isFromPool())
 				DeactivatePoolEffect(E)
 
 		return
@@ -129,7 +131,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 		src.effectPool[E.id] = E
 		E.owner = null
 		E.holder = null
-		E.activated_from_pool = 0
+		E.removeFlag(EFFECT_FROM_POOL)
 		if (!src.inactive)
 			E.OnRemove()
 
@@ -161,7 +163,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 		effectPool.Remove(E.id)
 		E.owner = owner
 		E.holder = src
-		E.activated_from_pool = 1
+		E.addFlag(EFFECT_FROM_POOL)
 		if (!src.inactive)
 			E.OnAdd()
 
@@ -379,13 +381,13 @@ var/list/datum/bioEffect/mutini_effects = list()
 				if(!newCopy) //uh oh
 					continue
 
-				newCopy.gene_data |= (EFFECT_EMPOWERED & BE.isEmpowered())
-				newCopy.safety = BE.safety
-				newCopy.curable_by_mutadone = BE.curable_by_mutadone
+				var/new_is_empowered = newCopy.isEmpowered()
+				newCopy.EFFECT_FLAGS = BE.EFFECT_FLAGS
+				newCOpy.name = BE.name
 				newCopy.timeLeft = BE.timeLeft
 				newCopy.stability_loss = BE.stability_loss
 				newCopy.data = BE.data
-				if (BE.isEmpowered() != newCopy.isEmpowered())
+				if (BE.isEmpowered() != new_is_empowered)
 					newCopy.onPowerChange()
 
 	proc/StaggeredCopyOther(var/datum/bioHolder/toCopy, progress = 1)
@@ -424,11 +426,11 @@ var/list/datum/bioEffect/mutini_effects = list()
 						RemoveEffect(curr.id)
 						break
 
-			if(power) newEffect.gene_data |= (power * EFFECT_EMPOWERED)
+			if(power) newEffect.EFFECT_FLAGS |= (power * EFFECT_EMPOWERED)
 			if(timeleft) newEffect.timeLeft = timeleft
 			if(magical || innate)
-				newEffect.curable_by_mutadone = FALSE
-				newEffect.stability_loss = 0
+				newEffect.addFlag(EFFECT_REINFORCED)
+				newEffect.addFlag(EFFECT_STABILIZED)
 				newEffect.can_scramble = FALSE
 				newEffect.scanner_visibility = FALSE
 				newEffect.can_reclaim = FALSE
@@ -443,7 +445,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 			if(safety && istype(newEffect, /datum/bioEffect/power))
 				// Only powers have safety ("synced" i.e. safe for user)
 				var/datum/bioEffect/power/TEMP = newEffect
-				TEMP.safety = safety
+				TEMP.addFlag(EFFECT_SYNCHRONIZED)
 
 			effects[newEffect.id] = newEffect
 			newEffect.owner = owner
@@ -456,7 +458,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 					newEffect.timeLeft = rand(20, 60)
 					newEffect.degrade_after = TRUE
 
-				if(newEffect.stability_loss)
+				if(newEffect.getStabilityLoss())
 					src.calculateStability()
 
 			if(owner)
@@ -504,7 +506,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 				BE.timeLeft = rand(20, 60)
 				BE.degrade_after = TRUE
 
-			if(BE.stability_loss)
+			if(BE.getStabilityLoss())
 				src.calculateStability()
 
 		OutputGainOrLoseMsg(BE, TRUE)
@@ -528,8 +530,8 @@ var/list/datum/bioEffect/mutini_effects = list()
 	proc/RemoveEffectInstance(var/datum/bioEffect/effect)
 		if (!src.inactive)
 			effect.OnRemove()
-		var/was_natural = effect.activated_from_pool
-		effect.activated_from_pool = 0 //Fix for bug causing infinitely exploitable stability gain / loss
+		var/was_natural = effect.isFromPool()
+		effect.removeFlag(EFFECT_FROM_POOL) //Fix for bug causing infinitely exploitable stability gain / loss
 		if (owner)
 			OutputGainOrLoseMsg(effect, FALSE)
 
@@ -538,7 +540,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 		logTheThing(LOG_COMBAT, owner, "loses the [effect] mutation at [log_loc(owner)].")
 
 		. = effects.Remove(effect.id)
-		if (!was_natural && effect.stability_loss)
+		if (!was_natural && effect.getStabilityLoss())
 			src.calculateStability()
 
 	///ignoreMagic means "do not remove magical bioeffects"
@@ -700,12 +702,11 @@ proc/GetBioeffectResearchLevelFromGlobalListByID(var/id)
 		src.genetic_stability = src.forced_stability
 		return
 
-	var/poolStability = 0
+	var/collective_stability = 0
 	for (var/datum/bioEffect/current as anything in src.effects)
 		var/datum/bioEffect/mutation = src.effects[current] // review: copy/pasted this code. this feels weird, is this duplicate variable declaration necessary?
-		if (!mutation.activated_from_pool)
-			poolStability -= mutation.stability_loss
-	src.genetic_stability = max(0, (src.base_genetic_stability + poolStability))
+		collective_stability -= mutation.getStabilityLoss()
+	src.genetic_stability = max(0, (src.base_genetic_stability + collective_stability))
 
 ///Bioholder type for when you need a bioholder that isn't strongly linked to an owner, uses a weakref to allow GC
 /datum/bioHolder/unlinked

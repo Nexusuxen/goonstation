@@ -6,7 +6,7 @@
 	proc/check_apply(datum/bioEffect/BE)
 		if(!istype(BE))
 			return "Invalid gene."
-		if(BE.altered || (BE.gene_data & EFFECT_CANNOT_SPLICE))
+		if(BE.altered || (BE.EFFECT_FLAGS & EFFECT_CANNOT_SPLICE))
 			return "This gene has already been altered."
 		if(!BE.stability_loss)
 			return "This chromosome can only be applied to genes that cause stability loss."
@@ -17,11 +17,10 @@
 		if (.)
 			return
 
-		BE.stability_loss = 0
-		BE.gene_data |= EFFECT_STABILIZED
+		BE.EFFECT_FLAGS |= EFFECT_STABILIZED
 		BE.name = "Stabilized " + BE.name
-		BE.altered = 1
-		BE.gene_data |= EFFECT_CANNOT_SPLICE
+		BE.addFlag(EFFECT_CANNOT_SPLICE)
+		BE.EFFECT_FLAGS |= EFFECT_CANNOT_SPLICE
 		BE.holder.calculateStability()
 
 /datum/dna_chromosome/anti_mutadone
@@ -31,9 +30,9 @@
 	check_apply(datum/bioEffect/BE)
 		if(!istype(BE))
 			return "Invalid gene."
-		if(BE.altered || (BE.gene_data & EFFECT_CANNOT_SPLICE))
+		if(BE.altered || (BE.EFFECT_FLAGS & EFFECT_CANNOT_SPLICE))
 			return "This gene has already been altered."
-		if(!BE.curable_by_mutadone)
+		if(BE.isReinforced())
 			return "This gene is already immune to mutadone."
 		return null
 
@@ -42,11 +41,10 @@
 		if (.)
 			return
 
-		BE.curable_by_mutadone = 0
-		BE.gene_data |= EFFECT_REINFORCED
+		BE.EFFECT_FLAGS |= EFFECT_REINFORCED
 		BE.name = "Reinforced " + BE.name
-		BE.altered = 1
-		BE.gene_data |= EFFECT_CANNOT_SPLICE
+		BE.addFlag(EFFECT_CANNOT_SPLICE)
+		BE.EFFECT_FLAGS |= EFFECT_CANNOT_SPLICE
 
 /datum/dna_chromosome/reclaimer
 	name = "Weakener"
@@ -55,7 +53,7 @@
 	check_apply(datum/bioEffect/BE)
 		if(!istype(BE))
 			return "Invalid gene."
-		if(BE.altered || (BE.gene_data & EFFECT_CANNOT_SPLICE))
+		if(BE.altered || (BE.EFFECT_FLAGS & EFFECT_CANNOT_SPLICE))
 			return "This gene has already been altered."
 		return null
 
@@ -64,12 +62,10 @@
 		if (.)
 			return
 
-		BE.reclaim_fail = 0
-		BE.reclaim_mats *= 2
-		BE.gene_data |= EFFECT_WEAKENED
+		BE.EFFECT_FLAGS |= EFFECT_WEAKENED
 		BE.name = "Weakened " + BE.name
-		BE.altered = 1
-		BE.gene_data |= EFFECT_CANNOT_SPLICE
+		BE.addFlag(EFFECT_CANNOT_SPLICE)
+		BE.EFFECT_FLAGS |= EFFECT_CANNOT_SPLICE
 
 /datum/dna_chromosome/stealth
 	name = "Camouflager"
@@ -78,7 +74,7 @@
 	check_apply(datum/bioEffect/BE)
 		if(!istype(BE))
 			return "Invalid gene."
-		if(BE.altered || (BE.gene_data & EFFECT_CANNOT_SPLICE))
+		if(BE.altered || (BE.EFFECT_FLAGS & EFFECT_CANNOT_SPLICE))
 			return "This gene has already been altered."
 		return null
 
@@ -89,10 +85,10 @@
 
 		BE.msgGain = ""
 		BE.msgLose = ""
-		BE.gene_data |= EFFECT_CAMOUFLAGED
+		BE.EFFECT_FLAGS |= EFFECT_CAMOUFLAGED
 		BE.name = "Camouflaged " + BE.name
-		BE.altered = 1
-		BE.gene_data |= EFFECT_CANNOT_SPLICE
+		BE.addFlag(EFFECT_CANNOT_SPLICE)
+		BE.EFFECT_FLAGS |= EFFECT_CANNOT_SPLICE
 
 // Powers
 
@@ -103,7 +99,7 @@
 	check_apply(datum/bioEffect/BE)
 		if(!istype(BE))
 			return "Invalid Gene."
-		if(BE.altered || (BE.gene_data & EFFECT_CANNOT_SPLICE))
+		if(BE.altered || (BE.EFFECT_FLAGS & EFFECT_CANNOT_SPLICE))
 			return "This gene has already been altered."
 		return null
 
@@ -111,13 +107,11 @@
 		. = src.check_apply(BE)
 		if (.)
 			return
-		var/oldpower = BE.power
-		BE.power = 2
-		BE.gene_data |= EFFECT_EMPOWERED
+		BE.EFFECT_FLAGS |= EFFECT_EMPOWERED
 		BE.name = "Empowered " + BE.name
-		BE.altered = 1
-		BE.gene_data |= EFFECT_CANNOT_SPLICE
-		BE.onPowerChange(oldpower, BE.power)
+		BE.addFlag(EFFECT_CANNOT_SPLICE)
+		BE.EFFECT_FLAGS |= EFFECT_CANNOT_SPLICE
+		BE.onPowerChange()
 
 /datum/dna_chromosome/cooldown_reducer
 	name = "Energy Booster"
@@ -126,7 +120,7 @@
 	check_apply(datum/bioEffect/power/BE)
 		if(!istype(BE))
 			return "This chromosome can only be applied to power-granting genes."
-		if(BE.altered || (BE.gene_data & EFFECT_CANNOT_SPLICE))
+		if(BE.altered || (BE.EFFECT_FLAGS & EFFECT_CANNOT_SPLICE))
 			return "This gene has already been altered."
 		if(!BE.cooldown)
 			return "This chromosome cannot be applied to this power gene."
@@ -137,12 +131,10 @@
 		if (.)
 			return
 
-		if(BE.cooldown != 0)
-			BE.cooldown /= 2
-		BE.gene_data |= EFFECT_ENERGIZED
+		BE.EFFECT_FLAGS |= EFFECT_ENERGIZED
 		BE.name = "Energized " + BE.name
-		BE.altered = 1
-		BE.gene_data |= EFFECT_CANNOT_SPLICE
+		BE.addFlag(EFFECT_CANNOT_SPLICE)
+		BE.EFFECT_FLAGS |= EFFECT_CANNOT_SPLICE
 
 /datum/dna_chromosome/safety
 	name = "Synchronizer"
@@ -151,9 +143,9 @@
 	check_apply(datum/bioEffect/power/BE)
 		if(!istype(BE))
 			return "This chromosome can only be applied to power-granting genes."
-		if(BE.altered || (BE.gene_data & EFFECT_CANNOT_SPLICE))
+		if(BE.altered || (BE.EFFECT_FLAGS & EFFECT_CANNOT_SPLICE))
 			return "This gene has already been altered."
-		if(BE.safety)
+		if(BE.isSynchronized())
 			return "This chromosome cannot be applied to this power gene."
 		return null
 
@@ -162,8 +154,7 @@
 		if (.)
 			return
 
-		BE.safety = 1
-		BE.gene_data |= EFFECT_SYNCHRONIZED
+		BE.EFFECT_FLAGS |= EFFECT_SYNCHRONIZED
 		BE.name = "Synchronized " + BE.name
-		BE.altered = 1
-		BE.gene_data |= EFFECT_CANNOT_SPLICE
+		BE.addFlag(EFFECT_CANNOT_SPLICE)
+		BE.EFFECT_FLAGS |= EFFECT_CANNOT_SPLICE

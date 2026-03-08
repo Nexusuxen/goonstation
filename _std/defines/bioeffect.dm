@@ -8,11 +8,10 @@
 #define EFFECT_RESEARCH_DONE 2
 #define EFFECT_RESEARCH_ACTIVATED 3
 
-/*
-* (1 + (src.gene_data & EFFECT_EMPOWERED)) is used to maintain parity before and after chromosomes
- have been refactored. Since it used to be * 2 for empowered genes, this retains the *2 multiplier
-*/
-
+// Effect flags
+// Currently the chromosome functionalities work well enough for our needs, but feel free to add additional flags for more nuanced logic
+// (e.g 'EFFECT_IGNORE_STABILITY' if a gene changes its behavior when stabilized but we want a version that doesn't do this)
+// At some point we'll also probably want things like EFFECT_INNATE (replacing is_innate) in here too
 #define EFFECT_CANNOT_SPLICE (1 << 0)
 #define EFFECT_STABILIZED (1 << 1)
 #define EFFECT_EMPOWERED (1 << 2)
@@ -21,5 +20,6 @@
 #define EFFECT_REINFORCED (1 << 5)
 #define EFFECT_WEAKENED (1 << 6)
 #define EFFECT_CAMOUFLAGED (1 << 7)
+#define EFFECT_FROM_POOL (1 << 8)
 
 
