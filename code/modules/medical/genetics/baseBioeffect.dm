@@ -167,10 +167,8 @@ ABSTRACT_TYPE(/datum/bioEffect)
 
 	onVarChanged(variable, oldval, newval)
 		. = ..()
-		if(variable == "EFFECT_FLAGS")
-			var/old_power = oldval & EFFECT_EMPOWERED
-			if(newval & ~old_power)
-				src.onPowerChange()
+		if(variable == _bonus_power_multiplier)
+			src.onPowerChange()
 
 /// Returns toMult if not empowered, or toMult * multiplier (default 2) if empowered
 /datum/bioEffect/proc/powerMult(var/toMult, var/multiplier = 2)

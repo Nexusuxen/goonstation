@@ -470,7 +470,8 @@ TYPEINFO(/mob/living/critter/small_animal/mouse/weak/mentor/admin)
 		SPAWN(1 SECOND)
 			var/datum/bioEffect/BE = src.bioHolder?.AddEffect("radio_brain", power = TRUE, do_stability = FALSE, magical = TRUE)
 			if(BE)
-				BE._bonus_power_multiplier = 1.5 // This brings the effective multiplier to 3, which is what we want
+				BE._bonus_power_multiplier = 10 // this unlocks the global radio. doesnt need to be 10 but it works so whatever
+				BE.onPowerChange()
 
 	setup_hands()
 		..()
