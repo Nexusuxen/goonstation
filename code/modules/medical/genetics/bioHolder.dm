@@ -587,7 +587,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 		return 0
 
 	proc/HasEffect(var/id)
-		//Returns effect power if this holder has an effect with the given ID else 0.
+		// If this holder has an effect with the given ID, return 1 - but if it's empowered, return 2
 		var/datum/bioEffect/B = effects[id]
 
 		if(!B)

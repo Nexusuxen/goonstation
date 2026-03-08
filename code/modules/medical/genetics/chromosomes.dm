@@ -84,7 +84,7 @@ ABSTRACT_TYPE(/datum/dna_chromosome)
 		if(.) return
 		BE.name = "Empowered " + BE.name
 		BE.addFlag(EFFECT_EMPOWERED)
-		BE.onPowerChange()
+		BE.onPowerChange(0, EFFECT_EMPOWERED)
 
 /datum/dna_chromosome/cooldown_reducer
 	name = "Energy Booster"

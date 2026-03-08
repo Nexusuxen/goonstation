@@ -118,7 +118,7 @@ ABSTRACT_TYPE(/datum/bioEffect)
 
 	/// Called when the effect is removed.
 	/// Returns FALSE if the holder is being deleted, TRUE otherwise.
-	proc/OnRemove()
+	proc/OnRemove(oldval)
 		SHOULD_CALL_PARENT(TRUE)
 		. = TRUE
 		removed = 1
@@ -167,7 +167,7 @@ ABSTRACT_TYPE(/datum/bioEffect)
 
 	onVarChanged(variable, oldval, newval)
 		. = ..()
-		if(variable == _bonus_power_multiplier)
+		if(variable == "_bonus_power_multiplier")
 			src.onPowerChange()
 
 /// Returns toMult if not empowered, or toMult * multiplier (default 2) if empowered
@@ -188,6 +188,7 @@ ABSTRACT_TYPE(/datum/bioEffect)
 
 // Yes, a universal 'hasFlag()' proc would work fine,
 //  but isEmpowered() and isStabilized() and etc. are more legible/compact
+// Note: These also return the flag value itself - e.g isStabilized() returns 2
 
 /datum/bioEffect/proc/isStabilized()
 	return src.EFFECT_FLAGS & EFFECT_STABILIZED
@@ -238,23 +239,25 @@ ABSTRACT_TYPE(/datum/bioEffect)
 // (using the is_innate or is_magic vars, for instance, will prevent a gene from showing up in the gene console)
 /// Adds target flag to bioEffect. See if applyChromosome() would work for your use case first.
 /datum/bioEffect/proc/addFlag(var/effect_flag)
+	var/oldFlag = src.EFFECT_FLAGS & effect_flag
 	src.EFFECT_FLAGS |= effect_flag
 	switch(effect_flag)
 		if(EFFECT_STABILIZED)
 			if(src.holder && src.stability_loss)
 				src.holder.calculateStability()
 		if(EFFECT_EMPOWERED)
-			src.onPowerChange()
+			src.onPowerChange(oldFlag, src.isEmpowered())
 
 /// Removes target flag from bioEffect
 /datum/bioEffect/proc/removeFlag(var/effect_flag)
+	var/oldFlag = src.EFFECT_FLAGS & effect_flag
 	src.EFFECT_FLAGS &= ~effect_flag
 	switch(effect_flag)
 		if(EFFECT_STABILIZED)
 			if(src.holder)
 				src.holder.calculateStability()
 		if(EFFECT_EMPOWERED)
-			src.onPowerChange()
+			src.onPowerChange(oldFlag, src.isEmpowered())
 
 /// Creates the specified chromosome and applies it to the bioEffect
 /// Useful when you just want a bioEffect with a given chromosome splice

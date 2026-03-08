@@ -131,8 +131,8 @@
 			boutput(owner, SPAN_ALERT("Something is wrong with your cyberheart, it stops beating!"))
 		if(ismob(owner))
 			if(src.isEmpowered())
-				APPLY_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY, src, 40)
-				APPLY_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY_MAX, src, 40)
+				APPLY_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY, src.type, 40)
+				APPLY_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY_MAX, src.type, 40)
 
 	onPowerChange()
 		. = ..()
@@ -142,9 +142,8 @@
 	OnRemove()
 		. = ..()
 		if(ismob(owner))
-			if(src.isEmpowered())
-				APPLY_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY, src, 40)
-				APPLY_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY_MAX, src, 40)
+			REMOVE_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY, src.type)
+			REMOVE_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY_MAX, src.type)
 
 	heal
 		id = "resist_electric_heal"
@@ -489,17 +488,16 @@
 			if(src.isEmpowered())
 				owner.apply_color_matrix(COLOR_MATRIX_GRAYSCALE, COLOR_MATRIX_GRAYSCALE_LABEL)
 
-	onPowerChange()
+	onPowerChange(oldval)
 		. = ..()
-		OnRemove()
+		OnRemove(oldval)
 		OnAdd()
 
-	OnRemove()
+	OnRemove(oldval)
 		..()
 		animate_fade_from_grayscale(owner, 5)
-		if(ismob(owner))
-			if(src.isEmpowered())
-				owner.remove_color_matrix(COLOR_MATRIX_GRAYSCALE_LABEL)
+		if(ismob(owner) && oldval)
+			owner.remove_color_matrix(COLOR_MATRIX_GRAYSCALE_LABEL)
 
 ///////////////////
 // General buffs //
@@ -524,18 +522,17 @@
 			if(src.isEmpowered())
 				APPLY_MOVEMENT_MODIFIER(H, /datum/movement_modifier/strong, src.type)
 
-	onPowerChange()
+	onPowerChange(oldval)
 		. = ..()
-		OnRemove()
+		OnRemove(oldval)
 		OnAdd()
 
-	OnRemove()
+	OnRemove(oldval)
 		..()
 		if (ishuman(owner))
 			var/mob/living/carbon/human/H = owner
 			REMOVE_MOVEMENT_MODIFIER(H, /datum/movement_modifier/hulkstrong, src.type)
-
-			if(src.isEmpowered())
+			if(oldval)
 				REMOVE_MOVEMENT_MODIFIER(H, /datum/movement_modifier/strong, src.type)
 
 /datum/bioEffect/radio_brain
@@ -717,10 +714,8 @@
 	OnRemove()
 		. = ..()
 		if(ismob(owner))
-			if(!src.isEmpowered())
-				REMOVE_ATOM_PROPERTY(owner, PROP_MOB_XRAYVISION_WEAK, src)
-			else
-				REMOVE_ATOM_PROPERTY(owner, PROP_MOB_XRAYVISION, src)
+			REMOVE_ATOM_PROPERTY(owner, PROP_MOB_XRAYVISION_WEAK, src)
+			REMOVE_ATOM_PROPERTY(owner, PROP_MOB_XRAYVISION, src)
 
 /datum/bioEffect/nightvision
 	name = "Night Vision"
@@ -758,10 +753,8 @@
 	OnRemove()
 		. = ..()
 		if(ismob(owner))
-			if(!src.isEmpowered())
-				REMOVE_ATOM_PROPERTY(owner, PROP_MOB_NIGHTVISION_WEAK, src)
-			else
-				REMOVE_ATOM_PROPERTY(owner, PROP_MOB_NIGHTVISION, src)
+			REMOVE_ATOM_PROPERTY(owner, PROP_MOB_NIGHTVISION_WEAK, src)
+			REMOVE_ATOM_PROPERTY(owner, PROP_MOB_NIGHTVISION, src)
 
 /datum/bioEffect/toxic_farts
 	name = "High Decay Digestion"
