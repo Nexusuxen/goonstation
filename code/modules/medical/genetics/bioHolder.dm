@@ -383,12 +383,13 @@ var/list/datum/bioEffect/mutini_effects = list()
 
 				var/new_is_empowered = newCopy.isEmpowered()
 				newCopy.EFFECT_FLAGS = BE.EFFECT_FLAGS
-				newCOpy.name = BE.name
+				newCopy.name = BE.name
 				newCopy.timeLeft = BE.timeLeft
 				newCopy.stability_loss = BE.stability_loss
 				newCopy.data = BE.data
 				if (BE.isEmpowered() != new_is_empowered)
 					newCopy.onPowerChange()
+			calculateStability()
 
 	proc/StaggeredCopyOther(var/datum/bioHolder/toCopy, progress = 1)
 		if (progress > 10)

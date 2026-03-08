@@ -43,7 +43,8 @@ ABSTRACT_TYPE(/datum/bioEffect)
 
 	var/timeLeft = -1//Time left for temporary effects.
 
-	/// Bitfield, currently only holds chromosome data
+	/// Effect bitflags. Partially implemented, intended to eventually include things like is_innate and is_magic
+	/// You shouldn't be directly referencing this unless you know what you're doing - use addFlag/removeFlag or the various check procs instead
 	var/EFFECT_FLAGS = 0
 
 	var/cooldown = 0 //For effects that come with verbs
@@ -63,6 +64,7 @@ ABSTRACT_TYPE(/datum/bioEffect)
 	var/altered = 0
 	var/add_delay = 0
 	var/wildcard = 0
+	/// Bonus multiplier for anything calling powerMult. Intended to be var edited for shenanigans.
 	var/_bonus_power_multiplier = 1
 	var/degrade_to = null // what this mutation turns into if stability is too low
 	///if this mutation should degrade after timing out
@@ -170,12 +172,6 @@ ABSTRACT_TYPE(/datum/bioEffect)
 			if(newval & ~old_power)
 				src.onPowerChange()
 
-// Yes, a universal 'hasFlag()' proc would work fine,
-//  but isEmpowered() and isStabilized() are more legible/compact
-
-/datum/bioEffect/proc/isEmpowered()
-	return src.EFFECT_FLAGS & EFFECT_EMPOWERED
-
 /// Returns toMult if not empowered, or toMult * multiplier (default 2) if empowered
 /datum/bioEffect/proc/powerMult(var/toMult, var/multiplier = 2)
 	toMult *= src._bonus_power_multiplier // for admins and other shenanigans to superjuice genes
@@ -184,9 +180,6 @@ ABSTRACT_TYPE(/datum/bioEffect)
 	else
 		return toMult
 
-/datum/bioEffect/proc/isEnergized()
-	return src.EFFECT_FLAGS & EFFECT_ENERGIZED
-
 // Override to have your own custom cooldown change from Energy Booster
 /// Returns the cooldown of the gene. By default, Energy Booster halves cooldowns
 /datum/bioEffect/proc/getCooldown()
@@ -194,6 +187,18 @@ ABSTRACT_TYPE(/datum/bioEffect)
 		return src.cooldown / 2
 	else
 		return src.cooldown
+
+// Yes, a universal 'hasFlag()' proc would work fine,
+//  but isEmpowered() and isStabilized() and etc. are more legible/compact
+
+/datum/bioEffect/proc/isStabilized()
+	return src.EFFECT_FLAGS & EFFECT_STABILIZED
+
+/datum/bioEffect/proc/isEmpowered()
+	return src.EFFECT_FLAGS & EFFECT_EMPOWERED
+
+/datum/bioEffect/proc/isEnergized()
+	return src.EFFECT_FLAGS & EFFECT_ENERGIZED
 
 /datum/bioEffect/proc/isSynchronized()
 	return src.EFFECT_FLAGS & EFFECT_SYNCHRONIZED
@@ -207,15 +212,18 @@ ABSTRACT_TYPE(/datum/bioEffect)
 /datum/bioEffect/proc/isWeakened()
 	return src.EFFECT_FLAGS & EFFECT_WEAKENED
 
+/datum/bioEffect/proc/isFromPool()
+	return src.EFFECT_FLAGS & EFFECT_FROM_POOL
+
+/datum/bioEffect/proc/alreadySpliced()
+	return src.EFFECT_FLAGS & EFFECT_CANNOT_SPLICE
+
 /// Returns how many materials we get from reclaiming. Unless overridden, will give double when Weakened
 /datum/bioEffect/proc/getReclaimMats()
 	if(src.isWeakened())
 		return src.reclaim_mats * 2
 	else
 		return src.reclaim_mats
-
-/datum/bioEffect/proc/isStabilized()
-	return src.EFFECT_FLAGS & EFFECT_STABILIZED
 
 /// Returns stability loss. Available to override if your gene needs extra logic (e.g Vestigial Ballistics)
 /datum/bioEffect/proc/getStabilityLoss()
@@ -224,10 +232,7 @@ ABSTRACT_TYPE(/datum/bioEffect)
 	else
 		return src.stability_loss
 
-/datum/bioEffect/proc/isFromPool()
-	return src.EFFECT_FLAGS & EFFECT_FROM_POOL
-
-/// Adds target flag to bioEffect. Not the same as chromosome splicing
+/// Adds target flag to bioEffect. See if applyChromosome() would work for your use case first.
 /datum/bioEffect/proc/addFlag(var/effect_flag)
 	src.EFFECT_FLAGS |= effect_flag
 	switch(effect_flag)
@@ -247,9 +252,9 @@ ABSTRACT_TYPE(/datum/bioEffect)
 		if(EFFECT_EMPOWERED)
 			src.onPowerChange()
 
-/// Applies a specified chromosome type to a given gene
-/// Used when you're splicing a chromosome the same way a gene console would
-/datum/bioEffect/proc/apply_chromosome(var/type_to_apply)
+/// Creates the specified chromosome and applies it to the bioEffect
+/// Useful when you just want a bioEffect with a given chromosome splice
+/datum/bioEffect/proc/applyChromosome(var/type_to_apply)
 	if(!ispath(type_to_apply, /datum/dna_chromosome))
 		CRASH("Tried to splice an invalid chromosome type \"[type_to_apply]\" onto [src]!")
 	var/datum/dna_chromosome/chromosome = new type_to_apply

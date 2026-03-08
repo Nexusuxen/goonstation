@@ -21,5 +21,3 @@
 #define EFFECT_WEAKENED (1 << 6)
 #define EFFECT_CAMOUFLAGED (1 << 7)
 #define EFFECT_FROM_POOL (1 << 8)
-
-

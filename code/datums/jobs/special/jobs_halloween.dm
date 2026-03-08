@@ -324,20 +324,17 @@ ABSTRACT_TYPE(/datum/job/special/halloween)
 				eb.stun_mode = 1
 				eb.addFlag(EFFECT_CANNOT_SPLICE)
 			else
-				be.addFlag(EFFECT_EMPOWERED)
-				be.addFlag(EFFECT_CANNOT_SPLICE)
+				be.applyChromosome(/datum/dna_chromosome/power_enhancer)
 			be = M.bioHolder.AddEffect(defensive, do_stability=0)
 		else
 			var/datum/bioEffect/power/shoot_limb/sl = M.bioHolder.AddEffect("shoot_limb", do_stability=0)
-			sl.addFlag(EFFECT_SYNCHRONIZED)
-			sl.addFlag(EFFECT_CANNOT_SPLICE)
+			sl.applyChromosome(/datum/dna_chromosome/safety)
 			sl.cooldown = 300
 			sl.stun_mode = 1
 			var/datum/bioEffect/regenerator/r = M.bioHolder.AddEffect("regenerator", do_stability=0)
 			r.regrow_prob = 10
 		var/datum/bioEffect/power/be = M.bioHolder.AddEffect("adrenaline", do_stability=0)
-		be.addFlag(EFFECT_SYNCHRONIZED)
-		be.addFlag(EFFECT_CANNOT_SPLICE)
+		be.applyChromosome(/datum/dna_chromosome/safety)
 
 	get_default_miranda()
 		return "Evildoer! You have been apprehended by a hero of space justice!"

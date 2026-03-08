@@ -2071,13 +2071,21 @@ ABSTRACT_TYPE(/datum/bioEffect/power)
 	var/datum/targetable/geneticsAbility/shoot_limb/AB = null
 	var/stun_mode = 0 // used by discount superhero
 
-//TODO: on synchronizer splice, trigger recalculation
-
 	getStabilityLoss()
 		if(src.isSynchronized())
 			return 0
 		else
 			. = ..()
+
+	addFlag(var/flag_to_apply)
+		. = ..()
+		if((flag_to_apply == EFFECT_SYNCHRONIZED) && src.holder)
+			holder.calculateStability()
+
+	removeFlag(var/flag_to_apply)
+		. = ..()
+		if((flag_to_apply == EFFECT_SYNCHRONIZED) && src.holder)
+			holder.calculateStability()
 
 	OnLife(var/mult)
 		..()

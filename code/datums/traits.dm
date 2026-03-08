@@ -598,7 +598,7 @@
 		B.ActivatePoolEffect(E, 1, 0)
 		SPAWN (1 SECOND) // This DOES NOT WORK at round start unless delayed but somehow the trait part is logged??
 			if (E)
-				E.apply_chromosome(/datum/dna_chromosome/anti_mutadone)
+				E.applyChromosome(/datum/dna_chromosome/anti_mutadone)
 			logTheThing(LOG_COMBAT, owner, "gets the bioeffect [E] from the trait [name].")
 
 /datum/trait/stablegenes

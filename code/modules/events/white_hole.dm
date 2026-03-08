@@ -1167,7 +1167,7 @@ ADMIN_INTERACT_PROCS(/obj/whitehole, proc/admin_activate)
 			if("geneinjector")
 				var/datum/bioEffect/effect = global.mutini_effects[pick(global.mutini_effects)]
 				for(var/i in pick(100; 0,   80; 1,   25; 2,   10; 3,   1; 4))
-					var/chromosome_type = pick(typesof(/datum/dna_chromosome))
+					var/chromosome_type = pick(concrete_typesof(/datum/dna_chromosome))
 					var/datum/dna_chromosome/chromosome = new chromosome_type()
 					// yes we skipping the apply_check here, the other dimension can break laws of genetics
 					chromosome.apply(effect)
