@@ -421,6 +421,7 @@
 			var/datum/bioEffect/NEW = new E.type(I)
 			copy_datum_vars(E, NEW, blacklist=list("owner", "holder", "dnaBlocks"))
 			NEW.removeFlag(EFFECT_FROM_POOL)
+			NEW.removeFlag(EFFECT_METASTABLE)
 			I.BE = NEW
 			on_ui_interacted(ui.user)
 			playsound(src, 'sound/machines/click.ogg', 50, TRUE)
@@ -675,6 +676,7 @@
 					var/datum/bioEffect/NEW = new E.type(GB)
 					copy_datum_vars(E, NEW, blacklist=list("owner", "holder", "dnaBlocks"))
 					NEW.removeFlag(EFFECT_FROM_POOL)
+					NEW.removeFlag(EFFECT_METASTABLE)
 					GB.offered_genes += new /datum/geneboothproduct(NEW,booth_effect_desc,booth_effect_cost,registered_id)
 					if (length(GB.offered_genes) == 1)
 						GB.select_product(GB.offered_genes[1])
@@ -801,6 +803,7 @@
 			src.saved_mutations += E
 			subject.bioHolder.RemoveEffect(E.id)
 			E.removeFlag(EFFECT_FROM_POOL)
+			E.removeFlag(EFFECT_METASTABLE)
 			E.owner = null
 			E.holder = null
 			on_ui_interacted(ui.user)
