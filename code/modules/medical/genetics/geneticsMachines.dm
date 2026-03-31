@@ -59,8 +59,9 @@
 			/datum/dna_chromosome/cooldown_reducer,
 			/datum/dna_chromosome/safety
 		)
+		var/how_many_chromosomes = 20
 		for (var/chrom_path in chromosome_types)
-			for (var/i, i<20, i++)
+			for (var/i, i<how_many_chromosomes, i++)
 				var/datum/dna_chromosome/C = new chrom_path(src)
 				src.saved_chromosomes += C
 		genResearch.lock_breakers = 999
