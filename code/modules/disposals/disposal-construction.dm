@@ -146,7 +146,7 @@
 					return
 
 				if("Add mailtag")
-					var/new_tag = sanitize(input(user, "Add a new mailtag", "Edit Mailtags", null))
+					var/new_tag = sanitize(input(user, "Add a new mailtag (Case sensitive!)", "Edit Mailtags", null))
 					if(isnull(new_tag) || (new_tag == ""))
 						return
 					if(new_tag in src.mail_tag)
