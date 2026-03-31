@@ -142,8 +142,8 @@
 	OnRemove()
 		. = ..()
 		if(ismob(owner))
-			REMOVE_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY, src.type)
-			REMOVE_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY_MAX, src.type)
+			APPLY_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY, src.type, 40)
+			APPLY_ATOM_PROPERTY(owner, PROP_MOB_DISORIENT_RESIST_BODY_MAX, src.type, 40)
 
 	heal
 		id = "resist_electric_heal"
