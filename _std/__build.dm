@@ -54,6 +54,7 @@ o+`        `-` ``..-:yooos-..----------..`
 //#define I_WANNA_DO_CRIME ROLE_TRAITOR // Spawn as the matching antagonist role as defined in _std\defines\roles.dm
 //#define NO_ADMIN_SPEECH_MODULES // Loads the admin speech and listen module trees without any modules.
 //#define NO_PREGAME_HTML // Don't spawn the HTML pregame browser lobby screen
+//#define I_HATE_WAITING_FOR_GENES // Marks nearly all genes as researched, gives chromosomes/materials/autodecryptors, increases gene storage cap, and removes time/cost limitations on the gene console
 
 //#define STOP_DISTRACTING_ME //All of the below
 
@@ -75,7 +76,6 @@ o+`        `-` ``..-:yooos-..----------..`
 //#define GHOSTDRONES_ON_STRIKE // prevents ghostdrone factory objs from doing stuff
 //#define STOP_BREAKING_THE_FUCKING_LIGHTS_I_WANT_TO_SEE_SHIT // Stops lights from breaking or burning out when spawning or turning on/off
 //#define NO_ANTAG_POPUPS_I_DONT_CARE // Stops antag popups from coming up at the start of every game
-//#define I_HATE_WAITING_FOR_GENES // Marks nearly all genes as researched, gives chromosomes/materials/autodecryptors, increases gene storage cap, and removes time/cost limitations on the gene console
 
 //#define Z_LOG_ENABLE 1  // Enable additional world.log logging
 
