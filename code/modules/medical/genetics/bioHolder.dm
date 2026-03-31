@@ -385,6 +385,7 @@ var/list/datum/bioEffect/mutini_effects = list()
 
 				var/new_is_empowered = newCopy.isEmpowered()
 				newCopy.EFFECT_FLAGS = BE.EFFECT_FLAGS
+				newCopy.removeFlag(EFFECT_METASTABLE) // maintains feature parity from before refactor. imo should be removed.
 				newCopy.name = BE.name
 				newCopy.timeLeft = BE.timeLeft
 				newCopy.stability_loss = BE.stability_loss
