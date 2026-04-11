@@ -54,6 +54,8 @@ var/global/list/cycling_airlocks = list()
 	var/has_panel = TRUE
 	var/hackMessage = ""
 	var/net_access_code = null
+	/// Keeps track of the next time mechcomp signals can trigger play_deny()
+	var/next_allowed_mech_deny_play = 0
 
 	var/no_access = 0
 
@@ -87,6 +89,9 @@ var/global/list/cycling_airlocks = list()
 		if (!isnull(A))
 			src.name = A.name
 	src.net_access_code = rand(1, NET_ACCESS_OPTIONS)
+	SEND_SIGNAL(src,COMSIG_MECHCOMP_ADD_INPUT,"toggle bolts", PROC_REF(mech_toggle_lock))
+	SEND_SIGNAL(src,COMSIG_MECHCOMP_ADD_INPUT,"bolt", PROC_REF(mech_lock))
+	SEND_SIGNAL(src,COMSIG_MECHCOMP_ADD_INPUT,"unbolt", PROC_REF(mech_unlock))
 	START_TRACKING
 
 
@@ -104,6 +109,71 @@ var/global/list/cycling_airlocks = list()
 		return 0
 	.= ..()
 
+/obj/machinery/door/airlock/try_mech_signal(var/datum/mechanicsMessage/input)
+	if (!src.arePowerSystemsOn() || (src.status & NOPOWER))
+		. = -1
+	else
+		. = ..()
+	if (. != 0)
+		return
+	if (!src.requiresID())
+		return 1
+	var/access_code = text2num(input.signal)
+	if (src.net_access_code == access_code)
+		return 1
+	else
+		if (world.time > next_allowed_mech_deny_play)
+			src.play_deny()
+			next_allowed_mech_deny_play = world.time + 50
+			// solely to make it not-trivial to make a machine that spams the loud-as-fuck deny sound
+		else if (src.density) //only play if it's closed
+			play_animation("deny")
+
+
+/obj/machinery/door/airlock/proc/mech_lock(var/datum/mechanicsMessage/input)
+	if(src.try_mech_signal(input) == 1)
+		if(!src.locked)
+			src.set_locked()
+
+/obj/machinery/door/airlock/proc/mech_unlock(var/datum/mechanicsMessage/input)
+	if(src.try_mech_signal(input) == 1)
+		if(src.locked)
+			src.set_unlocked()
+
+/obj/machinery/door/airlock/proc/mech_toggle_lock(var/datum/mechanicsMessage/input)
+	if(src.try_mech_signal(input) == 1)
+		if(src.locked)
+			src.set_unlocked()
+		else
+			src.set_locked()
+
+/*/obj/machinery/door/airlock/toggleinput(var/datum/mechanicsMessage/input)
+	if(src.operating == -1)
+		return
+	if(src.cant_emag)
+		if (src.density) //only play if it's closed
+			play_animation("deny")
+		return
+	var/list/signal_list = params2complexlist(input.signal)
+	var/command = null
+	if(signal_list.Find("command"))
+		command = signal_list["command"]
+	var/access_code = null
+	if(signal_list.Find("access_code"))
+		access_code = text2num(signal_list["access_code"])
+	if(src.req_access && (src.net_access_code != access_code))
+		src.play_deny()
+		return
+	// if we're here, we can safely assume access_code is either correct or irrelevant
+	if(command)
+		src.execute_signal_command(command)
+		return
+	// we'll leave the below here to keep the old toggle functionality
+	if(density)
+		open()
+	else
+		close()
+*/
 // ================= airlock wire panel procs ==================
 
 /*
