@@ -147,33 +147,6 @@ var/global/list/cycling_airlocks = list()
 		else
 			src.set_locked()
 
-/*/obj/machinery/door/airlock/toggleinput(var/datum/mechanicsMessage/input)
-	if(src.operating == -1)
-		return
-	if(src.cant_emag)
-		if (src.density) //only play if it's closed
-			play_animation("deny")
-		return
-	var/list/signal_list = params2complexlist(input.signal)
-	var/command = null
-	if(signal_list.Find("command"))
-		command = signal_list["command"]
-	var/access_code = null
-	if(signal_list.Find("access_code"))
-		access_code = text2num(signal_list["access_code"])
-	if(src.req_access && (src.net_access_code != access_code))
-		src.play_deny()
-		return
-	// if we're here, we can safely assume access_code is either correct or irrelevant
-	if(command)
-		src.execute_signal_command(command)
-		return
-	// we'll leave the below here to keep the old toggle functionality
-	if(density)
-		open()
-	else
-		close()
-*/
 // ================= airlock wire panel procs ==================
 
 /*
