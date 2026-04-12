@@ -54,8 +54,6 @@ var/global/list/cycling_airlocks = list()
 	var/has_panel = TRUE
 	var/hackMessage = ""
 	var/net_access_code = null
-	/// Keeps track of the next time mechcomp signals can trigger play_deny()
-	var/next_allowed_mech_deny_play = 0
 
 	var/no_access = 0
 
@@ -111,37 +109,36 @@ var/global/list/cycling_airlocks = list()
 
 /obj/machinery/door/airlock/try_mech_signal(var/datum/mechanicsMessage/input)
 	if (!src.arePowerSystemsOn() || (src.status & NOPOWER))
-		. = -1
+		. = DOOR_MECHCOMP_FAILED
 	else
 		. = ..()
-	if (. != 0)
+	if (. != DOOR_MECHCOMP_DENIED)
 		return
 	if (!src.requiresID())
-		return 1
+		return DOOR_MECHCOMP_SUCCESS
 	var/access_code = text2num(input.signal)
 	if (src.net_access_code == access_code)
-		return 1
+		return DOOR_MECHCOMP_SUCCESS
 	else
-		if (world.time > next_allowed_mech_deny_play)
+		if(!ON_COOLDOWN(src, "mechcomp_play_deny", 50)) // 5 second cooldown seems reasonable
 			src.play_deny()
-			next_allowed_mech_deny_play = world.time + 50
 			// solely to make it not-trivial to make a machine that spams the loud-as-fuck deny sound
 		else if (src.density) //only play if it's closed
 			play_animation("deny")
 
 
 /obj/machinery/door/airlock/proc/mech_lock(var/datum/mechanicsMessage/input)
-	if(src.try_mech_signal(input) == 1)
+	if(src.try_mech_signal(input) == DOOR_MECHCOMP_SUCCESS)
 		if(!src.locked)
 			src.set_locked()
 
 /obj/machinery/door/airlock/proc/mech_unlock(var/datum/mechanicsMessage/input)
-	if(src.try_mech_signal(input) == 1)
+	if(src.try_mech_signal(input) == DOOR_MECHCOMP_SUCCESS)
 		if(src.locked)
 			src.set_unlocked()
 
 /obj/machinery/door/airlock/proc/mech_toggle_lock(var/datum/mechanicsMessage/input)
-	if(src.try_mech_signal(input) == 1)
+	if(src.try_mech_signal(input) == DOOR_MECHCOMP_SUCCESS)
 		if(src.locked)
 			src.set_unlocked()
 		else

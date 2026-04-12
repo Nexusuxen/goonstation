@@ -202,30 +202,30 @@ ADMIN_INTERACT_PROCS(/obj/machinery/door, proc/open, proc/close, proc/break_me_c
 /// Checks if we should listen to a mechcomp signal, and handles signal failure
 /// Returns -1 if door broke/inherently ignores mechcomp, 0 if access denied, 1 if successful
 /obj/machinery/door/proc/try_mech_signal(var/datum/mechanicsMessage/input)
-	. = 0
+	. = DOOR_MECHCOMP_DENIED
 	if(src.cant_emag)
 		if (src.density) //only play if it's closed
 			play_animation("deny")
-		return -1
+		return DOOR_MECHCOMP_FAILED
 	if(src.operating == -1)
-		return -1
+		return DOOR_MECHCOMP_FAILED
 	if(!src.req_access)
-		return 1
+		return DOOR_MECHCOMP_SUCCESS
 
 /obj/machinery/door/proc/mech_toggle(var/datum/mechanicsMessage/input)
-	if(src.try_mech_signal(input) == 1)
+	if(src.try_mech_signal(input) == DOOR_MECHCOMP_SUCCESS)
 		if(src.density)
 			open()
 		else
 			close()
 
 /obj/machinery/door/proc/mech_open(var/datum/mechanicsMessage/input)
-	if(src.try_mech_signal(input) == 1)
+	if(src.try_mech_signal(input) == DOOR_MECHCOMP_SUCCESS)
 		if(src.density)
 			open()
 
 /obj/machinery/door/proc/mech_close(var/datum/mechanicsMessage/input)
-	if(src.try_mech_signal(input) == 1)
+	if(src.try_mech_signal(input) == DOOR_MECHCOMP_SUCCESS)
 		if(!src.density)
 			close()
 
