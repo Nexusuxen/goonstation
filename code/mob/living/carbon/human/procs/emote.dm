@@ -1681,7 +1681,7 @@
 						max_fingers = max(max_fingers, ling_fingers)
 					var/t1 = min( max( round(text2num(param)), 1), max_fingers)
 					if (isnum(t1))
-						if ((t1 > 10) && (src.r_hand || src.l_hand))
+						if ((t1 > 10) && (!src.r_hand || !src.l_hand))
 							message = "<b>[src]</b> raises [t1] finger\s."
 							maptext_out = "<I>raises [t1] finger\s</I>"
 						else if (t1 <= 5 && (!src.r_hand || !src.l_hand))
