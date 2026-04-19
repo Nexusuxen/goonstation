@@ -19,6 +19,8 @@ var/static/list/obj/machinery/disposal_pipedispenser/availdisposalpipes = list(
 	icon = 'icons/obj/manufacturer.dmi'
 	icon_state = "pipe-fab"
 	density = 1
+	p_class = 3
+	always_slow_pull = TRUE
 	anchored = ANCHORED
 	deconstruct_flags = DECON_SCREWDRIVER | DECON_WRENCH | DECON_CROWBAR | DECON_WELDER | DECON_WIRECUTTERS
 
@@ -91,6 +93,19 @@ var/static/list/obj/machinery/disposal_pipedispenser/availdisposalpipes = list(
 	qdel(dummy_pipe) // above is a hack to get this to work. if anyone has any better way of doing this, go ahead.
 	. = icon2base64(dummy_icon)
 
+/obj/machinery/disposal_pipedispenser/attackby(obj/item/W, mob/user)
+	if(iswrenchingtool(W) && !istype(src, /obj/machinery/disposal_pipedispenser/mobile))
+		if(src.anchored == ANCHORED)
+			src.anchored = UNANCHORED
+			boutput(user, SPAN_NOTICE("You unanchor [src.name] from the floor."))
+			playsound(src.loc, 'sound/items/Ratchet.ogg', 30, 1, -2)
+		else
+			src.anchored = ANCHORED
+			boutput(user, SPAN_NOTICE("You anchor [src.name] to the floor."))
+			playsound(src.loc, 'sound/items/Ratchet.ogg', 30, 1, -2)
+	else
+		. = ..()
+
 TYPEINFO(/obj/machinery/disposal_pipedispenser/mobile)
 	mats = 16
 
@@ -100,6 +115,8 @@ TYPEINFO(/obj/machinery/disposal_pipedispenser/mobile)
 	anchored = UNANCHORED
 	icon_state = "fab-mobile"
 	mobile = TRUE
+	p_class = 2.5
+	always_slow_pull = FALSE
 
 	var/laying_pipe = FALSE
 	var/removing_pipe = FALSE
