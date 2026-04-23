@@ -1,4 +1,9 @@
 
+(t)thu apr 23 26
+(u)Nexusuxen
+(p)26447
+(e)💡|A-Station-Systems
+(+)You can now replace missing APC power terminals with just some cabling, a soldering iron, and a sheet of metal.
 (t)wed apr 22 26
 (u)Kubius
 (p)26424
