@@ -1,5 +1,9 @@
 
 (t)sat apr 25 26
+(u)LorrMaster
+(p)26310
+(e)🪲🎨🧛👮|C-Bug, C-Sprites, A-Gamemodes, A-Security
+(*)Fingerprinter has been fixed and can now scan and search similar to the forensics scanner.
 (u)Nexusuxen
 (p)26379
 (e)|
