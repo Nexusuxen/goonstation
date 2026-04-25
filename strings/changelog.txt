@@ -1,5 +1,10 @@
 
 (t)sat apr 25 26
+(u)NibChocolateeny
+(p)26130
+(e)🆕🌱|C-Feature, A-Hydroponics
+(+)Adds a new plant gene, "Gene Inhibitor," which prevents your plants from getting genes. Funny, that.
+(+)Adds "Gene Inhibitor" as a possible gene in Pear plants.
 (u)LorrMaster
 (p)26314
 (e)🎨🧱|C-Sprites, A-Materials
