@@ -1,4 +1,14 @@
 
+(t)sat apr 25 26
+(u)Lord_Earthfire
+(p)26195
+(e)🆕📡🐁|C-Feature, A-AI, A-Critters
+(+)Man-Eating plants now are able to walk and pathfind through kudzu.
+(u)Lord_Earthfire
+(p)26380
+(e)🪲⚖⚗|C-Bug, C-Balance, A-Chemistry
+(+)Flamethrowers apply chemicals onto people at the temperature the flamethrower is actually set at.
+(+)Flamethrowers and the W4V3 don't inject chemicals into tiles anymore.
 (t)thu apr 23 26
 (u)Nexusuxen
 (p)26447
