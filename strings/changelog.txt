@@ -1,5 +1,9 @@
 
 (t)sat apr 25 26
+(u)Lorrmaster
+(p)26361
+(e)💅👮|C-QoL, A-Security
+(+)Latex gloves now block fingerprints in the same way all other gloves do.
 (u)LorrMaster
 (p)26310
 (e)🪲🎨🧛👮|C-Bug, C-Sprites, A-Gamemodes, A-Security
