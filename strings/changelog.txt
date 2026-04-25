@@ -1,5 +1,9 @@
 
 (t)sat apr 25 26
+(u)Nexusuxen
+(p)26379
+(e)|
+(*)New options for MechComp door control. Also, sending an airlock its access code via MechComp signal will allow it to work on doors that require access.
 (u)NibChocolateeny
 (p)26130
 (e)🆕🌱|C-Feature, A-Hydroponics
