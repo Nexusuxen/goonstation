@@ -1,5 +1,10 @@
 
 (t)sat apr 25 26
+(u)LorrMaster
+(p)26314
+(e)🎨🧱|C-Sprites, A-Materials
+(*)Cardboard material now considered to be wooden. Wood can now be turned into rods.
+(*)New cardboard sprites.
 (u)LeahTheTech
 (+)Bohrum now looks like bohrum again.
 (u)Lord_Earthfire
