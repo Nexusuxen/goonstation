@@ -323,6 +323,47 @@ ABSTRACT_TYPE(/datum/material_property)
 			if(8 to INFINITY)
 				return "mostly plutonium"
 
+/// How many extra neutrons to make in a reactor after a fission event
+/datum/material_property/bonus_neutrons
+	name = "Neutron Productivity"
+	id = "bonus_neutrons"
+
+	min_value = 1
+	prefix_high_min = 0.1
+	prefix_low_max = 9
+	default_value = 0
+
+	getAdjective(var/datum/material/M)
+		switch(M.getProperty(id))
+			if(5 to INFINITY)
+				return "dangerously neutron-productive"
+			if(3 to 5)
+				return "produces many extra neutrons"
+			if(1 to 3)
+				return "produces extra neutrons"
+
+/// How much plutonium should be produced per 1 point of Radioactivity
+// Using cerenkite as a baseline: 2 points = 1 Plutonium @ 0.5 plutonium_fertility
+/datum/material_property/plutonium_fertility
+	name = "Plutonium Fertility"
+	id = "plutonium_fertility"
+
+	min_value = 0
+	prefix_high_min = 0.1
+	prefix_low_max = 9
+	default_value = 0
+
+	getAdjective(var/datum/material/M)
+		switch(M.getProperty(id))
+			if(3 to INFINITY)
+				return "extreme nuclear fertility"
+			if(1 to 3)
+				return "high nuclear fertility"
+			if(0.5 to 1) // somewhat arbitrary thresholds, 0.5 is true average
+				return "moderate nuclear fertility"
+			else
+				return "low nuclear fertility"
+
 /datum/material_property/molitz_bubbles
 	name = "Gas Pockets"
 	id = "molitz_bubbles"

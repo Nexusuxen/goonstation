@@ -173,8 +173,7 @@ ABSTRACT_TYPE(/obj/item/reactor_component)
 					qdel(N)
 					src.temperature += 50
 				else if(N.velocity <= 1 & prob(src.material.getProperty("radioactive")*10)) //stimulated emission
-					src.material.adjustProperty("radioactive", -0.01)
-					src.material.setProperty("spent_fuel", src.material.getProperty("spent_fuel") + 0.005)
+					src.rad_to_spent(0.01)
 					for(var/i in 1 to 5)
 						inNeutrons += new /datum/neutron(pick(alldirs), pick(1,2,3))
 					inNeutrons -= N
@@ -192,19 +191,35 @@ ABSTRACT_TYPE(/obj/item/reactor_component)
 						qdel(N)
 					src.temperature += 1
 
+		var/fission_triggered = FALSE
 		if(prob(src.material.getProperty("n_radioactive")*10*src.neutron_cross_section)) //fast spontaneous emission
 			for(var/i in 1 to 3)
 				inNeutrons += new /datum/neutron(pick(alldirs), 3) //neutron radiation gets you fast neutrons
 			src.material.adjustProperty("n_radioactive", -0.01)
 			src.material.setProperty("radioactive", src.material.getProperty("radioactive") + 0.005)
 			src.temperature += 20
+			fission_triggered = TRUE
 		if(prob(src.material.getProperty("radioactive")*10*src.neutron_cross_section)) //spontaneous emission
 			for(var/i in 1 to 3)
 				inNeutrons += new /datum/neutron(pick(alldirs), pick(1,2,3))
-			src.material.adjustProperty("radioactive", -0.01)
-			src.material.setProperty("spent_fuel", src.material.getProperty("spent_fuel") + 0.005)
+			src.rad_to_spent(0.01)
 			src.temperature += 10
+			fission_triggered = TRUE
+		var/bonus_neutrons = src.material.getProperty("bonus_neutrons", VALUE_CURRENT)
+		if(fission_triggered && bonus_neutrons)
+			for(var/i in 1 to bonus_neutrons)
+				inNeutrons += new /datum/neutron(pick(alldirs), pick(1,2,3))
 		return inNeutrons
+
+	/// Converts radioactive to spent_fuel
+	proc/rad_to_spent(amount_to_convert = 0.01)
+		// Anything with radioactive should ALWAYS have plutonium_fertility
+		src.material.adjustProperty("radioactive", -amount_to_convert)
+		var/conversion_factor = src.material.getProperty("plutonium_fertility", VALUE_CURRENT)
+		if(!conversion_factor)
+			conversion_factor = 0.5 // 1 plutonium per 2 Radioactive, aka 2.5 plutonium per cerenkite rod
+		amount_to_convert *= conversion_factor
+		src.material.setProperty("spent_fuel", src.material.getProperty("spent_fuel") + amount_to_convert)
 
 	proc/mob_holding_temp_react(mob/user, mult)
 		if(src.temperature < T0C + 80)

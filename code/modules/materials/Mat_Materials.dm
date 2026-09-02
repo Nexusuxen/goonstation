@@ -1233,6 +1233,9 @@ ABSTRACT_TYPE(/datum/material/crystal)
 		setProperty("radioactive", 2)
 		setProperty("flammable", 8)
 		setProperty("plasma_offgas", 10)
+		// Plasmastone makes for a great source of plutonium and neutrons!
+		setProperty("bonus_neutrons", 10) // Because low radioactivity and density means less reactions in reactor,
+		setProperty("plutonium_fertility", 3) // these two values are set very high to compensate
 
 		addTrigger(TRIGGERS_ON_TEMP, new /datum/materialProc/plasmastone())
 		addTrigger(TRIGGERS_ON_EXPLOSION, new /datum/materialProc/plasmastone())
@@ -1749,6 +1752,7 @@ ABSTRACT_TYPE(/datum/material/organic)
 		setProperty("n_radioactive", 1)
 		setProperty("density", 5)
 		setProperty("melting_point", 6000 KELVIN)
+		setProperty("plutonium_fertility", 6) // It'd take a while, but 1 koshmarite rod = 3 plutonium
 
 /datum/material/organic/viscerite
 	mat_id = "viscerite"
