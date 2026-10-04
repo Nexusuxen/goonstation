@@ -791,6 +791,10 @@ ABSTRACT_TYPE(/obj/item/reagent_containers/food/snacks/plant)
 	food_color = "#008000"
 	brew_result = list("water"=20)
 
+	New()
+		. = ..()
+		src.AddElement(/datum/element/sandwich_ingredient)
+
 /obj/item/reagent_containers/food/snacks/plant/cucumber
 	name = "cucumber"
 	desc = "A widely-cultivated gourd, often served on sandwiches or pickled.  Not actually known for saving any kingdoms."

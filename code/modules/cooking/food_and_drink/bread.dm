@@ -163,6 +163,11 @@
 	slice_amount = 2
 	slice_product = /obj/item/reagent_containers/food/snacks/ingredient/breadcrumbs
 
+	New()
+		. = ..()
+		src.AddElement(/datum/element/sandwich_base)
+		src.AddElement(/datum/element/sandwich_ingredient)
+
 	honeywheat
 		name = "slice of honey-wheat bread"
 		desc = "A slice of bread distinguished by the use of honey in its creation.  Also wheat."

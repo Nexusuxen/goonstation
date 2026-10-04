@@ -846,6 +846,37 @@
 				user.u_equip(c)
 			user.put_in_hand_or_drop(c)
 
+/datum/contextAction/sandwich
+	icon = 'icons/ui/context16x16.dmi'
+	name = "Sandwich action"
+	desc = "You shouldn't be reading this, bug."
+	icon_state = "wrench"
+
+	checkRequirements(var/atom/target, var/mob/user)
+		. = can_act(user) && in_interact_range(target, user)
+
+/datum/contextAction/sandwich/remove
+	name = "Remove Layer"
+	desc = "Remove an ingredient from the top of the assembly."
+	// We do this to indicate that these intents are shortcuts for the called action
+	icon_state = "intent-disarm"
+
+	execute(atom/target, mob/user)
+		var/obj/item/reagent_containers/food/snacks/new_sandwich/sandwich = target
+		sandwich.try_remove(user)
+
+/datum/contextAction/sandwich/pickup
+	name = "Pick Up"
+	desc = "Pick up the whole assembly."
+	// We do this to indicate that these intents are shortcuts for the called action
+	icon_state = "intent-grab"
+
+	execute(atom/target, mob/user)
+		var/obj/item/c = target
+		if(c.loc == user)
+			user.u_equip(c)
+		user.put_in_hand_or_drop(c)
+
 /datum/contextAction/lamp_manufacturer
 	name = "Lamp Manufacturer Setting"
 	desc = "This button seems kinda meta."

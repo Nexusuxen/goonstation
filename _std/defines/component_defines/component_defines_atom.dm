@@ -62,6 +62,12 @@
 	/// sent when something was build out of a frame (thing, user, newly_build)
 	#define COMSIG_BUILD_FROM_FRAME "build_from_frame"
 
+//todo find a better place for this. if you're reading this, yell at
+	/// Sent to an atom when it's given a sandwich datum, so it can make necessary changes
+	#define COMSIG_SANDWICH_DATUM_CREATED "sandwich_datum_created"
+	/// Sent to add a target item to add itself onto a specified item to add to or form a new sandwich
+	#define COMSIG_ADD_TO_SANDWICH "add_to_sandwich"
+
 // ---- minimap ----
 
 /// When an atom requires to create a single minimap marker for a specific minimap.
