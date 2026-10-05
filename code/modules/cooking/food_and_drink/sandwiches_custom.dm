@@ -6,20 +6,21 @@
 /*
 == STATUS BASED ON LATEST PUSH ==
 Sandwiches physically act as you'd expect. Gameplay features that seem to be working correctly:
-1. Assembling sandwich-compatible items to form sandwiches
-2. Removing items from sandwiches, starting from the topmost layer
-3. Eating sandwiches to regain health
-4. The amount of bites a sandwich takes to eat scales with bites_left of ingredients
-5. Removing partially-eaten ingredients will have them actually be partially eaten
-6. Reagents transfer from ingredients into each bite
-7. Reagents can be applied as condiments to each layer which also transfer into each bite
+1.  Assembling sandwich-compatible items to form sandwiches
+2.  Removing items from sandwiches, starting from the topmost layer
+3.  Eating sandwiches to regain health
+4.  The amount of bites a sandwich takes to eat scales with bites_left of ingredients
+5.  Removing partially-eaten ingredients will have them actually be partially eaten
+6.  Reagents transfer from ingredients into each bite
+7.  Reagents can be applied as condiments to each layer which also transfer into each bite
+8.  The amount of space a bite from a sandwich occupies in your stomach is dependent on its ingredients
+9.  The quality of a sandwich is the average of its ingredients (unless any have a quality below 0, wherein it becomes the sum of all negative qualities)
+10. Sandwiches inherit their effects from their ingredients
 
 -- UNIMPLEMENTED FEATURES --
-
-3. Transferring of effects, quality, and fill_amt to each bite of the sandwich
+none, all major features seemingly added :)
 
 == NEX TODOS ==
-- food effects
 - reagent smear overlay
 - Application of bite masks on removed ingredients and upon sandwich assembly
 - Make it so that sandwiches don't take 50 years to eat (scale bites_left somehow)
@@ -49,6 +50,8 @@ DONES
  The exact behavior of src.reagents has yet to be determined, but will likely be used for reagent consumption
 - food quality
 - fill_amt
+- food effects
+- Transferring of effects, quality, and fill_amt to each bite of the sandwich
 
 ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 - Every layer should *always* have an ingredient datum in it. The code works on this assumption.
@@ -334,7 +337,7 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 
 /* To simulate a sandwich, we cheat a bit. Instead of taking a bite out of any of our ingredients,
  we instead see what *would* have happened if we bit into each ingredient, and add that to our
- total effects - and distribute those effects across each bite.
+ total effects - and distribute those effects across each bite wherever possible
  Then we just make sure that, if an ingredient is removed, it has bites taken out of it and possibly
  outright destroyed depending on how little is left
 */
@@ -365,6 +368,9 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 		else
 			quality_sum += food_quality
 		fill_amt_sum += ingredient.get_fill_amt()
+		// there's not a good way to dynamically scale the duration of effects
+		// so i guess we could theoretically extend any effect!
+		src.food_effects |= ingredient.get_food_effects()
 
 	if(!bites_left_sum)
 		qdel(src) //todo find better way to ensure sandwich removed upon fully consumed
