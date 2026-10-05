@@ -65,6 +65,12 @@ TODO RENAME ALL THIS COMSIG SHIT TO NOT COMSIG BECAUSE COMSIG IS THE WRONG TERM.
 /datum/sandwich_ingredient/proc/get_heal_amt()
 	return
 
+/datum/sandwich_ingredient/proc/get_quality()
+	return
+
+/datum/sandwich_ingredient/proc/get_fill_amt()
+	return 1 // defaulting to 1 slot in the stomach i suppose!
+
 // Because ingredients can be removed at any time, we have to go through each ingredient
 // to see how much of it we're eating. It sucks but whatever. Thankfully several vars, such as heal_amt,
 // are intended to be 1:1 with bites_left, meaning it's very easy to preemptively calculate those instead
@@ -95,6 +101,12 @@ TODO RENAME ALL THIS COMSIG SHIT TO NOT COMSIG BECAUSE COMSIG IS THE WRONG TERM.
 
 /datum/sandwich_ingredient/snacks/get_heal_amt()
 	return snack_parent.heal_amt
+
+/datum/sandwich_ingredient/snacks/get_quality()
+	return snack_parent.quality
+
+/datum/sandwich_ingredient/snacks/get_fill_amt()
+	return snack_parent.fill_amt
 
 /datum/sandwich_ingredient/snacks/on_remove()
 	snack_parent.bites_left = floor(src.fractional_bites_left)

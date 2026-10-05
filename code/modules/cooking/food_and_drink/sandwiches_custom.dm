@@ -16,15 +16,10 @@ Sandwiches physically act as you'd expect. Gameplay features that seem to be wor
 
 -- UNIMPLEMENTED FEATURES --
 
-2. [PARTIALLY IMPLEMENTED] Transferring reagents to user upon consumption,
- including: Reagents in each ingredient, src.ingredients[n]["reagents"]
- The exact behavior of src.reagents has yet to be determined, but will likely be used for reagent consumption
 3. Transferring of effects, quality, and fill_amt to each bite of the sandwich
 
 == NEX TODOS ==
-- food quality
 - food effects
-- fill_amt
 - reagent smear overlay
 - Application of bite masks on removed ingredients and upon sandwich assembly
 - Make it so that sandwiches don't take 50 years to eat (scale bites_left somehow)
@@ -32,6 +27,7 @@ Sandwiches physically act as you'd expect. Gameplay features that seem to be wor
 - deletion handling. some deletes should just delete all ingredients and reagents too, others should
   cause items and reagents to spill out
 - sandwich-specific sprites for the overlays
+- examine text to display ingredients
 - general performance pass
 - eliminate all todos that don't have entries here in this list
 
@@ -48,6 +44,11 @@ DONES
 - basic reagent functionality. needs more work and testing.
 - Applying reagents to layers as condiments
 - reagents left on removed layers spill onto floor
+- Transferring reagents to user upon consumption,
+ including: Reagents in each ingredient, src.ingredients[n]["reagents"]
+ The exact behavior of src.reagents has yet to be determined, but will likely be used for reagent consumption
+- food quality
+- fill_amt
 
 ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 - Every layer should *always* have an ingredient datum in it. The code works on this assumption.
@@ -336,21 +337,34 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
  total effects - and distribute those effects across each bite.
  Then we just make sure that, if an ingredient is removed, it has bites taken out of it and possibly
  outright destroyed depending on how little is left
-
- TODO: REAGENT HANDLING. FUCK.
 */
 
+/*
+ Improvement ideas:
+- Only simulate once between the most recent edit and when we're being eaten
+- Save the bites_left_sum and other variables so removed ingredients can remove them upon removal,
+  eliminating the need to reiterate through the ingredients
+*/
 
 /// Updates several key variables for the sandwich and its ingredients
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/simulate()
 	var/bites_left_sum = 0
 	var/uneaten_bites_left_sum = 0
 	var/heal_amt_sum = 0
+	var/quality_sum = 0
+	var/how_yucky = 0
+	var/fill_amt_sum = 0
 
 	for(var/datum/sandwich_ingredient/ingredient in src.unique_ingredients)
 		uneaten_bites_left_sum += ingredient.get_uneaten_bites_left()
 		bites_left_sum += ingredient.get_bites_left()
 		heal_amt_sum += ingredient.get_heal_amt()
+		var/food_quality = ingredient.get_quality()
+		if(food_quality < 0) // rancid meat in your otherwise delicious sandwich is still gonna get you sick
+			how_yucky += food_quality
+		else
+			quality_sum += food_quality
+		fill_amt_sum += ingredient.get_fill_amt()
 
 	if(!bites_left_sum)
 		qdel(src) //todo find better way to ensure sandwich removed upon fully consumed
@@ -360,8 +374,11 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 	src.bites_left = bites_left_sum
 	src.percent_eaten_per_bite = 1 / src.uneaten_bites_left // from 0 to 1
 	src.heal_amt = heal_amt_sum / src.bites_left
-
-	src.fill_amt = 0 // todo fix
+	if(how_yucky)
+		src.quality = how_yucky
+	else
+		src.quality = quality_sum / length(src.unique_ingredients)
+	src.fill_amt = fill_amt_sum
 	//todo add buffs too
 
 /*
@@ -392,6 +409,8 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 	B = new
 	B.reagents.maximum_volume = 1000 // setting to an arbitrarily high number so we can fit everything
 	B.heal_amt = src.heal_amt
+	B.quality = src.quality
+	B.fill_amt = src.fill_amt / src.uneaten_bites_left
 	var/do_reagents = FALSE
 	if(!ethereal_eater && isliving(consumer))
 		do_reagents = TRUE
