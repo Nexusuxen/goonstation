@@ -21,13 +21,13 @@ Sandwiches physically act as you'd expect. Gameplay features that seem to be wor
 none, all major features seemingly added :)
 
 == NEX TODOS ==
-- reagent smear overlay
 - Application of bite masks on removed ingredients and upon sandwich assembly
 - Make it so that sandwiches don't take 50 years to eat (scale bites_left somehow)
 - what if someone eats it all in one bite with matter eater? FUCK
 - deletion handling. some deletes should just delete all ingredients and reagents too, others should
   cause items and reagents to spill out
 - sandwich-specific sprites for the overlays
+- fix burgers.dmi (weird namings and aberrant sprites)
 - examine text to display ingredients
 - general performance pass
 - eliminate all todos that don't have entries here in this list
@@ -52,6 +52,7 @@ DONES
 - fill_amt
 - food effects
 - Transferring of effects, quality, and fill_amt to each bite of the sandwich
+- reagent smear overlay
 
 ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 - Every layer should *always* have an ingredient datum in it. The code works on this assumption.
@@ -134,6 +135,7 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 	if(!add)
 		return
 	src.ensure_reagents()
+	src.render() //todo remove, added so newly added condiments would render immediately
 
 /// Adds a ingredient reagent to the sandwich, moving its respective atom (if applicable) to inside the sandwich
 /// Always places on top, returning TRUE if successful and FALSE otherwise
@@ -237,6 +239,7 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 
 // todo make this less ass. considerations:
 // - option to remove specific ingredient's layer. maybe generate an id for it using \ref or w/e
+// - option to not remove overlays when we're just adding one new image
 // todo custom sandwich overlays using the very pretty sprites erinexx made... like 3 years ago oops
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/render()
 	src.ClearAllOverlays()
@@ -244,16 +247,23 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 	// go through it one layer at a time and place the ingredients
 	var/x_index = 0
 	var/height_offset = 0
+	var/layer_index = 1
 	for(var/list/layer in src.ingredients)
 		for(var/datum/sandwich_ingredient/ingredient in layer["ingredients"])
-			//todo account for width and offset accordingly. somehow.
-			var/image/to_display = ingredient.get_appearance()
+			//todo account for width and then offset accordingly. somehow.
+			var/image/to_display = src.get_overlay_image(ingredient)
 			to_display.pixel_x = SANDWICH_BASE_WIDTH * x_index
 			to_display.pixel_y = height_offset
 			x_index += ingredient.width
-			src.AddOverlays(to_display, ingredient)
+			src.AddOverlays(to_display, "\ref[ingredient]")
+		if(layer["reagents"])
+			var/image/to_display = src.get_overlay_image(layer["reagents"])
+			//todo wider sandwich handling
+			to_display.pixel_y = height_offset
+			src.AddOverlays(to_display, "Layer [layer_index] Reagents")
 		height_offset += 2 //todo make this based on ingredient height
 		x_index = 0
+		layer_index++
 
 //todo performance improvements. a little silly to keep rebuilding this when it's usually gonna not change
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/update_context()
@@ -500,6 +510,17 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 	if(layer_reagents)
 		src.reagents = layer_reagents
 	else
-		src.reagents = new(SANDWICH_BASE_REAGENT_CAPACITY * src.width)
+		src.reagents = new
+		src.reagents.maximum_volume = SANDWICH_BASE_REAGENT_CAPACITY * src.width
 		src.reagents.my_atom = src
 #undef SANDWICH_BASE_REAGENT_CAPACITY
+
+/obj/item/reagent_containers/food/snacks/new_sandwich/proc/get_overlay_image(datum/target)
+	if(istype(target, /datum/sandwich_ingredient))
+		var/datum/sandwich_ingredient/ingredient = target
+		return ingredient.get_appearance()
+	// safe to assume target is a reagents datum
+	var/datum/reagents/target_reagents = target
+	var/image/to_return = image('icons/obj/items/burgers.dmi', null, "overlay_chem")
+	to_return.color = target_reagents.get_average_color().to_rgba()
+	return to_return
