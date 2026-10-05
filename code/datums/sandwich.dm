@@ -11,6 +11,8 @@ TODO RENAME ALL THIS COMSIG SHIT TO NOT COMSIG BECAUSE COMSIG IS THE WRONG TERM.
 	var/obj/item/parent = null
 	/// What sandwich are we inside of?
 	var/obj/item/reagent_containers/food/snacks/new_sandwich/sandwich_holder = null
+	/// The pointer to our parent's reagents datum, assuming a player should ingest them on consumption
+	var/datum/reagents/reagents = null
 	/// The image to display for our layer in the sandwich
 	var/image/sandwich_overlay = null
 	/// How many pixels thick is this ingredient? (Controls how far up the overlay is offset)
@@ -63,10 +65,16 @@ TODO RENAME ALL THIS COMSIG SHIT TO NOT COMSIG BECAUSE COMSIG IS THE WRONG TERM.
 /datum/sandwich_ingredient/proc/get_heal_amt()
 	return
 
-/datum/sandwich_ingredient/proc/bitten_into(percentage_eaten)
+// Because ingredients can be removed at any time, we have to go through each ingredient
+// to see how much of it we're eating. It sucks but whatever. Thankfully several vars, such as heal_amt,
+// are intended to be 1:1 with bites_left, meaning it's very easy to preemptively calculate those instead
+/datum/sandwich_ingredient/proc/bitten_into(percentage_eaten, mob/consumer, do_reagents, obj/item/reagent_containers/food/snacks/bite/B)
 	var/uneaten_bites_left = src.get_uneaten_bites_left()
 	if(!uneaten_bites_left)
 		return
+	if(do_reagents && src.reagents?.total_volume)
+		var/transfer_amount = src.reagents.maximum_volume * percentage_eaten
+		src.reagents.trans_to(B, min(src.reagents.total_volume, transfer_amount), do_fluid_react = FALSE)
 	src.fractional_bites_left -= uneaten_bites_left * percentage_eaten
 	if(src.fractional_bites_left <= 0.01)
 		src.sandwich_holder.remove_ingredient(null, src)
@@ -75,7 +83,8 @@ TODO RENAME ALL THIS COMSIG SHIT TO NOT COMSIG BECAUSE COMSIG IS THE WRONG TERM.
 	var/obj/item/reagent_containers/food/snacks/snack_parent = null
 
 /datum/sandwich_ingredient/snacks/New(obj/item/source)
-	snack_parent = source
+	src.snack_parent = source
+	src.reagents = source.reagents
 	. = ..(source)
 
 /datum/sandwich_ingredient/snacks/get_uneaten_bites_left()

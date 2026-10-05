@@ -509,7 +509,7 @@ ABSTRACT_TYPE(/obj/item/reagent_containers/food/snacks)
 				H.change_misstep_chance(25)
 				H.nauseate(5)
 
-	proc/on_bite(mob/eater, mob/feeder, ethereal_eater)
+	proc/on_bite(mob/eater, mob/feeder, ethereal_eater, obj/item/reagent_containers/food/snacks/bite/B)
 
 		if (isliving(eater))
 			if(ethereal_eater)//ghost critters can get a little ingest reaction and a tiny amount of reagent, but won't remove reagents
@@ -517,12 +517,14 @@ ABSTRACT_TYPE(/obj/item/reagent_containers/food/snacks)
 					src.reagents.reaction(eater, INGEST, 3)
 					src.reagents.copy_to(eater.reagents, 3/max(src.reagents.total_volume, 3))
 			else
-				var/obj/item/reagent_containers/food/snacks/bite/B = new /obj/item/reagent_containers/food/snacks/bite
-				B.fill_amt = src.fill_amt/src.uneaten_bites_left //so all the bites add up to the full item fillness
-				B.quality = src.quality //nasty food stays nasty
-				if(src.reagents)
-					B.reagents.maximum_volume = reagents.total_volume/((src.bites_left+1) || 1) //MBC : I copied this from the Eat proc. It doesn't really handle the reagent transfer evenly??
-					src.reagents.trans_to(B,B.reagents.maximum_volume,1,0)						//i'll leave it tho because i dont wanna mess anything up
+				// we may have already been given an existing bite that already has stuff in it!
+				if(!B)
+					B = new /obj/item/reagent_containers/food/snacks/bite
+					B.fill_amt = src.fill_amt/src.uneaten_bites_left //so all the bites add up to the full item fillness
+					B.quality = src.quality //nasty food stays nasty
+					if(src.reagents)
+						B.reagents.maximum_volume = reagents.total_volume/((src.bites_left+1) || 1) //MBC : I copied this from the Eat proc. It doesn't really handle the reagent transfer evenly??
+						src.reagents.trans_to(B,B.reagents.maximum_volume,1,0)						//i'll leave it tho because i dont wanna mess anything up
 				var/mob/living/L = eater
 				if (L.organHolder?.stomach)
 					L.organHolder.stomach.consume(B)

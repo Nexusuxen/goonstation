@@ -8,10 +8,12 @@ Sandwiches physically act as you'd expect. Gameplay features that seem to be wor
 3. Eating sandwiches to regain health
 4. The amount of bites a sandwich takes to eat scales with bites_left of ingredients
 5. Removing partially-eaten ingredients will have them actually be partially eaten
+6. Reagents transfer from ingredients into each bite (likely needs more testing)
+7. Reagents can be applied as condiments to each layer which also transfer into each bite (missing a couple mechanics)
 
 -- UNIMPLEMENTED FEATURES --
 1. Applying reagents to layers as condiments
-2. Transferring reagents to user upon consumption,
+2. [PARTIALLY IMPLEMENTED] Transferring reagents to user upon consumption,
  including: Reagents in each ingredient, src.ingredients[n]["reagents"]
  The exact behavior of src.reagents has yet to be determined, but will likely be used for reagent consumption
 3. Transferring of effects, quality, and fill_amt to each bite of the sandwich
@@ -20,9 +22,12 @@ Sandwiches physically act as you'd expect. Gameplay features that seem to be wor
 - food quality
 - food effects
 - fill_amt
-- reagents OOOUUUGHH
+- reagent smear overlay
+- reagents left on removed layers spill onto floor
+- more rigorous testing of reagent mechanics
 - Application of bite masks on removed ingredients and upon sandwich assembly
 - Make it so that sandwiches don't take 50 years to eat (scale bites_left somehow)
+- what if someone eats it all in one bite with matter eater? FUCK
 
 - sandwich-specific sprites for the overlays
 - general performance pass
@@ -33,6 +38,7 @@ DONES
 - "create or add to sandwich" proc
 - contingency for if an ingredient gets randomly deleted. just make the sandwich fuckin burst its ingredients out, screw it
 - or just proc for removing a specific ingredient safely
+- basic reagent functionality. needs more work and testing.
 
 */
 
@@ -52,20 +58,20 @@ DONES
 /*  EXAMPLES
 	Submarine sandwich:
 	ingredients = list(
-	list("reagent" = reagents, "ingredients" = list(sub base, sub base, sub base)),
-	list("reagent" = null, "ingredients" = list(lettuce1, lettuce2, lettuce3)),
-	list("reagent" = null, "ingredients" = list(bacon1, onion, bacon2)),
-	list("reagent" = reagents, "ingredients" = list(tomato1, tomato2, cheese1)),
-	list("reagent" = reagents, "ingredients" = list(cheese2, cheese3, tomato3)),
-	list("reagent" = null, "ingredients" = list(sub top, sub top, sub top))
+	list("reagents" = reagents, "ingredients" = list(sub base, sub base, sub base)),
+	list("reagents" = null, "ingredients" = list(lettuce1, lettuce2, lettuce3)),
+	list("reagents" = null, "ingredients" = list(bacon1, onion, bacon2)),
+	list("reagents" = reagents, "ingredients" = list(tomato1, tomato2, cheese1)),
+	list("reagents" = reagents, "ingredients" = list(cheese2, cheese3, tomato3)),
+	list("reagents" = null, "ingredients" = list(sub top, sub top, sub top))
 	)
 	Burger:
 	ingredients = list(
-	list("reagent" = reagents, "ingredients" = list(bottom bun)),
-	list("reagent" = reagents, "ingredients" = list(lettuce)),
-	list("reagent" = reagents, "ingredients" = list(patty)),
-	list("reagent" = reagents, "ingredients" = list(cheese)),
-	list("reagent" = reagents, "ingredients" = list(top bun))
+	list("reagents" = reagents, "ingredients" = list(bottom bun)),
+	list("reagents" = reagents, "ingredients" = list(lettuce)),
+	list("reagents" = reagents, "ingredients" = list(patty)),
+	list("reagents" = reagents, "ingredients" = list(cheese)),
+	list("reagents" = reagents, "ingredients" = list(top bun))
 	)
 */
 	/// Stores each unique ingredient datum, as src.ingredients can contain duplicates and is more unwieldy
@@ -81,6 +87,10 @@ DONES
 
 	var/list/datum/contextAction/sandwichContextActions
 
+	/// Instead of storing reagents, this is a pointer to the topmost exposed reagent layer in the sandwich
+	reagents = null
+
+
 /obj/item/reagent_containers/food/snacks/new_sandwich/New(mob/user, list/ingredient_list)
 	. = ..()
 	src.ingredients = new
@@ -94,12 +104,21 @@ DONES
 		CRASH()
 	for(var/ingredient in ingredient_list)
 		if(istype(ingredient, /datum/reagents))
-			src.add_reagent(user, ingredient)
+			var/datum/reagents/reagent_ingredient = ingredient
+			reagent_ingredient.trans_to(src, reagent_ingredient.total_volume)
 		else
 			src.add_ingredient(user, ingredient)
 	src.render()
 
-/obj/item/reagent_containers/food/snacks/new_sandwich/proc/add_reagent(mob/user, datum/reagents)
+#define SANDWICH_BASE_REAGENT_CAPACITY 10 // Seems like a reasonable amount
+/// Attempts to apply reagent to the topmost exposed reagent layer
+/obj/item/reagent_containers/food/snacks/new_sandwich/on_reagent_change(add)
+	. = ..()
+	if(!add)
+		return
+	var/list/topmost_layer = src.get_topmost_layer()
+	topmost_layer["reagents"] ||= src.reagents
+#undef SANDWICH_BASE_REAGENT_CAPACITY
 
 /// Adds a ingredient reagent to the sandwich, moving its respective atom (if applicable) to inside the sandwich
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/add_ingredient(mob/user, datum/sandwich_ingredient/ingredient)
@@ -137,13 +156,18 @@ DONES
 	src.generate_name()
 	src.update_context()
 
+#define SANDWICH_BASE_REAGENT_CAPACITY 10 // seems reasonable
 /// Adds a new layer to the sandwich with appropriate width and a placeholder null for the reagent slot
 /// Returns the new layer
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/add_layer()
+	if(src.reagents.total_volume) // previous layer is using the reagents datum, let's make a new one
+		src.reagents = new(SANDWICH_BASE_REAGENT_CAPACITY * src.width)
 	var/list/ingredient_list[src.width]
+	// we don't add the reagent datum because we might not need it
 	var/list/new_layer = list("reagents" = null, "ingredients" = ingredient_list)
 	src.ingredients += list(new_layer) // the only way to add the list without just combining them i could think of
 	return new_layer
+#undef SANDWICH_BASE_REAGENT_CAPACITY
 
 /// Returns the list reference for the current topmost layer of the sandwich
 RETURN_TYPE(/list)
@@ -357,13 +381,24 @@ RETURN_TYPE(/list)
 			ingredient.our_snack.food_effects[effect] = buff_time
 */
 
-/obj/item/reagent_containers/food/snacks/new_sandwich/take_a_bite()
-	. = ..()
+/obj/item/reagent_containers/food/snacks/new_sandwich/on_bite(mob/consumer, mob/feeder, ethereal_eater, obj/item/reagent_containers/food/snacks/bite/B)
+	B = new
+	B.reagents.maximum_volume = 1000 // setting to an arbitrarily high number so we can fit everything
+	B.heal_amt = src.heal_amt
+	var/do_reagents = FALSE
+	if(!ethereal_eater && isliving(consumer))
+		do_reagents = TRUE
 	// god this sucks but i cant think of any other sane way to do this
 	for(var/datum/sandwich_ingredient/ingredient in src.unique_ingredients)
-		ingredient.bitten_into(src.percent_eaten_per_bite)
-
-
+		ingredient.bitten_into(src.percent_eaten_per_bite, consumer, do_reagents, B)
+	if(do_reagents)
+		for(var/list/layer in src.ingredients)
+			if(!layer["reagents"])
+				continue
+			var/datum/reagents/layer_reagents = layer["reagents"]
+			var/transfer_amount = layer_reagents.maximum_volume / src.uneaten_bites_left
+			layer_reagents.trans_to(B, min(layer_reagents.total_volume, transfer_amount), do_fluid_react = FALSE)
+	. = ..(consumer, feeder, ethereal_eater, B)
 
 
 // FUCK
