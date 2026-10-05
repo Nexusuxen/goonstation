@@ -11,8 +11,8 @@ Sandwiches physically act as you'd expect. Gameplay features that seem to be wor
 3. Eating sandwiches to regain health
 4. The amount of bites a sandwich takes to eat scales with bites_left of ingredients
 5. Removing partially-eaten ingredients will have them actually be partially eaten
-6. Reagents transfer from ingredients into each bite (likely needs more testing)
-7. Reagents can be applied as condiments to each layer which also transfer into each bite (missing a couple mechanics)
+6. Reagents transfer from ingredients into each bite
+7. Reagents can be applied as condiments to each layer which also transfer into each bite
 
 -- UNIMPLEMENTED FEATURES --
 
@@ -26,8 +26,6 @@ Sandwiches physically act as you'd expect. Gameplay features that seem to be wor
 - food effects
 - fill_amt
 - reagent smear overlay
-- reagents left on removed layers spill onto floor
-- more rigorous testing of reagent mechanics
 - Application of bite masks on removed ingredients and upon sandwich assembly
 - Make it so that sandwiches don't take 50 years to eat (scale bites_left somehow)
 - what if someone eats it all in one bite with matter eater? FUCK
@@ -36,6 +34,10 @@ Sandwiches physically act as you'd expect. Gameplay features that seem to be wor
 - sandwich-specific sprites for the overlays
 - general performance pass
 - eliminate all todos that don't have entries here in this list
+
+shit 2 test more rigorously:
+- reagent mechanics
+
 STRAY TODOS COMPLETED:
 
 
@@ -45,6 +47,7 @@ DONES
 - or just proc for removing a specific ingredient safely
 - basic reagent functionality. needs more work and testing.
 - Applying reagents to layers as condiments
+- reagents left on removed layers spill onto floor
 
 ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 - Every layer should *always* have an ingredient datum in it. The code works on this assumption.
