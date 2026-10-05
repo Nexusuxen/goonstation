@@ -863,7 +863,7 @@
 
 	execute(atom/target, mob/user)
 		var/obj/item/reagent_containers/food/snacks/new_sandwich/sandwich = target
-		sandwich.try_remove(user)
+		sandwich.remove_from_top(user)
 
 /datum/contextAction/sandwich/pickup
 	name = "Pick Up"

@@ -1,5 +1,8 @@
 // For the time being, these will be referred to as 'new_sandwich', until all sandwiches are made to
 // exist in the form of these new sandwiches.
+// The nomenclature of 'sandwich' is up for debate here, considering a sandwich
+// could be nothing more than a slice of bread with a single piece of lettuce on top.
+
 /*
 == STATUS BASED ON LATEST PUSH ==
 Sandwiches physically act as you'd expect. Gameplay features that seem to be working correctly:
@@ -12,7 +15,7 @@ Sandwiches physically act as you'd expect. Gameplay features that seem to be wor
 7. Reagents can be applied as condiments to each layer which also transfer into each bite (missing a couple mechanics)
 
 -- UNIMPLEMENTED FEATURES --
-1. Applying reagents to layers as condiments
+
 2. [PARTIALLY IMPLEMENTED] Transferring reagents to user upon consumption,
  including: Reagents in each ingredient, src.ingredients[n]["reagents"]
  The exact behavior of src.reagents has yet to be determined, but will likely be used for reagent consumption
@@ -28,17 +31,24 @@ Sandwiches physically act as you'd expect. Gameplay features that seem to be wor
 - Application of bite masks on removed ingredients and upon sandwich assembly
 - Make it so that sandwiches don't take 50 years to eat (scale bites_left somehow)
 - what if someone eats it all in one bite with matter eater? FUCK
-
+- deletion handling. some deletes should just delete all ingredients and reagents too, others should
+  cause items and reagents to spill out
 - sandwich-specific sprites for the overlays
 - general performance pass
 - eliminate all todos that don't have entries here in this list
 STRAY TODOS COMPLETED:
+
 
 DONES
 - "create or add to sandwich" proc
 - contingency for if an ingredient gets randomly deleted. just make the sandwich fuckin burst its ingredients out, screw it
 - or just proc for removing a specific ingredient safely
 - basic reagent functionality. needs more work and testing.
+- Applying reagents to layers as condiments
+
+ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
+- Every layer should *always* have an ingredient datum in it. The code works on this assumption.
+  If there's *just* a reagent datum left the layer should still be deleted and the reagents disposed of somehow.
 
 */
 
@@ -110,17 +120,16 @@ DONES
 			src.add_ingredient(user, ingredient)
 	src.render()
 
-#define SANDWICH_BASE_REAGENT_CAPACITY 10 // Seems like a reasonable amount
-/// Attempts to apply reagent to the topmost exposed reagent layer
+
+/// We use src.reagents as a placeholder for the topmost layer's reagents, sticking it into said layer when actually modified
 /obj/item/reagent_containers/food/snacks/new_sandwich/on_reagent_change(add)
 	. = ..()
 	if(!add)
 		return
-	var/list/topmost_layer = src.get_topmost_layer()
-	topmost_layer["reagents"] ||= src.reagents
-#undef SANDWICH_BASE_REAGENT_CAPACITY
+	src.ensure_reagents()
 
 /// Adds a ingredient reagent to the sandwich, moving its respective atom (if applicable) to inside the sandwich
+/// Always places on top, returning TRUE if successful and FALSE otherwise
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/add_ingredient(mob/user, datum/sandwich_ingredient/ingredient)
 	var/list/current_layer = null
 	if(!length(src.ingredients)) // this is our first ingredient!
@@ -140,7 +149,7 @@ DONES
 	var/can_fit = src.can_this_fit_on_top(ingredient)
 	if(istext(can_fit))
 		boutput(user, SPAN_ALERT(can_fit))
-		return
+		return FALSE
 	var/list/open_indexes = can_fit
 	for(var/index in open_indexes)
 		current_layer["ingredients"][index] = ingredient
@@ -155,28 +164,25 @@ DONES
 	src.render()
 	src.generate_name()
 	src.update_context()
+	return TRUE
 
-#define SANDWICH_BASE_REAGENT_CAPACITY 10 // seems reasonable
 /// Adds a new layer to the sandwich with appropriate width and a placeholder null for the reagent slot
 /// Returns the new layer
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/add_layer()
 	if(src.reagents.total_volume) // previous layer is using the reagents datum, let's make a new one
-		src.reagents = new(SANDWICH_BASE_REAGENT_CAPACITY * src.width)
+		src.ensure_reagents()
 	var/list/ingredient_list[src.width]
 	// we don't add the reagent datum because we might not need it
 	var/list/new_layer = list("reagents" = null, "ingredients" = ingredient_list)
 	src.ingredients += list(new_layer) // the only way to add the list without just combining them i could think of
 	return new_layer
-#undef SANDWICH_BASE_REAGENT_CAPACITY
 
 /// Returns the list reference for the current topmost layer of the sandwich
-RETURN_TYPE(/list)
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/get_topmost_layer(var/ingredients_only)
+	RETURN_TYPE(/list)
 	if(ingredients_only)
 		return src.ingredients[length(src.ingredients)]["ingredients"]
 	return src.ingredients[length(src.ingredients)]
-
-// we will need more checks eventually
 
 /// If there's space for the ingredient (e.g no top bun, ingredient not too wide for current layer), returns a list of indexes it should go into
 /// Otherwise, returns a message saying why the ingredient can't fit, to be given to a user
@@ -205,9 +211,9 @@ RETURN_TYPE(/list)
 	else
 		return "You need more space on the topmost layer to add [ingredient.parent]!"
 
-RETURN_TYPE(/list)
-/// Returns a list of indexes that are open on the current topmost layer
+/// Returns a list of "ingredients" indexes that are open (null) on the current topmost layer
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/get_open_indexes()
+	RETURN_TYPE(/list)
 	var/list/return_list = list()
 	var/list/topmost_layer = src.get_topmost_layer(ingredients_only = TRUE)
 	for(var/index = 1, index <= length(topmost_layer), index++)
@@ -215,20 +221,16 @@ RETURN_TYPE(/list)
 			return_list += index
 	return return_list
 
-/*RETURN_TYPE(/datum/sandwich_ingredient)
-/// Returns the topmost ingredient, ignoring reagent layers
-/obj/item/reagent_containers/food/snacks/new_sandwich/proc/get_top_atom_ingredient()
-	var/datum/sandwich_ingredient/top_ingredient = src.ingredients[length(src.ingredients)]
-	if(!top_ingredient.is_reagent_layer)
-		return top_ingredient
-	return src.ingredients[length(src.ingredients) - 1]
-*/
+// placeholder, todo actual names
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/generate_name()
 	src.name = "test sandwich of [TIME]"
 
 // How many pixels wide is each ingredient?
 #define SANDWICH_BASE_WIDTH 8
 
+// todo make this less ass. considerations:
+// - option to remove specific ingredient's layer. maybe generate an id for it using \ref or w/e
+// todo custom sandwich overlays using the very pretty sprites erinexx made... like 3 years ago oops
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/render()
 	src.ClearAllOverlays()
 	// we need to generate the whole thing then center it
@@ -246,8 +248,10 @@ RETURN_TYPE(/list)
 		height_offset += 2 //todo make this based on ingredient height
 		x_index = 0
 
+//todo performance improvements. a little silly to keep rebuilding this when it's usually gonna not change
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/update_context()
-	src.sandwichContextActions = list()
+	src.sandwichContextActions ||= list()
+	src.sandwichContextActions.Cut() // just gotta clear it is all, no need to make a new one
 	var/remove = FALSE
 	if(length(src.ingredients) > 1)
 		src.sandwichContextActions += new /datum/contextAction/sandwich/remove
@@ -256,7 +260,7 @@ RETURN_TYPE(/list)
 		sandwichContextActions += new /datum/contextAction/sandwich/pickup
 
 /// Attempts to remove the topmost (most recently added) ingredient and, if applicable, place it in a user's hand
-/obj/item/reagent_containers/food/snacks/new_sandwich/proc/try_remove(mob/user)
+/obj/item/reagent_containers/food/snacks/new_sandwich/proc/remove_from_top(mob/user)
 	var/list/topmost_layer = src.get_topmost_layer(ingredients_only = TRUE)
 	var/datum/sandwich_ingredient/target = null
 	for(var/index = length(topmost_layer), index > 0, index--)
@@ -265,7 +269,7 @@ RETURN_TYPE(/list)
 		target = topmost_layer[index]
 		src.remove_ingredient(user, target)
 	if(!target)
-		CRASH()
+		CRASH("[src] somehow has an empty top layer which was never deleted!")
 	/*
 
 	src.unique_ingredients.Remove(target)
@@ -292,7 +296,7 @@ RETURN_TYPE(/list)
 		anything_left = TRUE
 		break
 	if(!anything_left)
-		src.ingredients.Remove(list(target.occupied_layer))
+		src.remove_layer(target.occupied_layer)
 	src.unique_ingredients.Remove(target)
 	if(user)
 		user.put_in_hand_or_drop(target.parent)
@@ -388,7 +392,7 @@ RETURN_TYPE(/list)
 	var/do_reagents = FALSE
 	if(!ethereal_eater && isliving(consumer))
 		do_reagents = TRUE
-	// god this sucks but i cant think of any other sane way to do this
+	// I'm not a fan of iterating through every ingredient, but it's the only realistic solution I've found
 	for(var/datum/sandwich_ingredient/ingredient in src.unique_ingredients)
 		ingredient.bitten_into(src.percent_eaten_per_bite, consumer, do_reagents, B)
 	if(do_reagents)
@@ -396,7 +400,11 @@ RETURN_TYPE(/list)
 			if(!layer["reagents"])
 				continue
 			var/datum/reagents/layer_reagents = layer["reagents"]
-			var/transfer_amount = layer_reagents.maximum_volume / src.uneaten_bites_left
+			var/transfer_amount = 0
+			if(bites_left != 1) // making sure we get it all on the last bite! (otherwise it might spill)
+				transfer_amount = layer_reagents.total_volume
+			else
+				transfer_amount = layer_reagents.maximum_volume / src.uneaten_bites_left
 			layer_reagents.trans_to(B, min(layer_reagents.total_volume, transfer_amount), do_fluid_react = FALSE)
 	. = ..(consumer, feeder, ethereal_eater, B)
 
@@ -416,7 +424,7 @@ RETURN_TYPE(/list)
 	// shortcuts for quick pickup/removal
 	switch(user.a_intent)
 		if(INTENT_DISARM)
-			src.try_remove(user)
+			src.remove_from_top(user)
 			return
 		if(INTENT_GRAB)
 			if(src.loc == user)
@@ -427,3 +435,43 @@ RETURN_TYPE(/list)
 		user.showContextActions(sandwichContextActions, src)
 	else
 		..()
+
+/// Removes the designated layer from the sandwich, dropping any ingredients and reagents onto the floor
+/obj/item/reagent_containers/food/snacks/new_sandwich/proc/remove_layer(list/layer_to_remove)
+	var/do_render = FALSE
+	if(!src.ingredients.Find(layer_to_remove, length(src.ingredients)))
+		do_render = TRUE // whole sandwich has gotta visually shift down
+	for(var/datum/sandwich_ingredient/ingredient in layer_to_remove["ingredients"])
+		src.remove_ingredient(null, ingredient)
+	if(layer_to_remove["reagents"])
+		var/datum/reagents/condiments = layer_to_remove["reagents"]
+		condiments.reaction(get_turf(src))
+		condiments.clear_reagents()
+	src.ingredients.Remove(list(layer_to_remove))
+	if(do_render)
+		src.render()
+
+#define SANDWICH_BASE_REAGENT_CAPACITY 10 // Seems like a reasonable amount
+/// Ensures that src.reagents exists and, if applicable, is set to the reagent datum on the topmost layer
+/// Also properly moves an existing non-empty src.reagents datum to the current layer if the layer reagents is null
+/obj/item/reagent_containers/food/snacks/new_sandwich/proc/ensure_reagents()
+	var/list/topmost_layer = src.get_topmost_layer()
+	var/datum/reagents/layer_reagents = topmost_layer["reagents"]
+	if(src.reagents)
+		if(src.reagents == topmost_layer["reagents"])
+			return
+		if(src.reagents.total_volume && !layer_reagents)
+			topmost_layer["reagents"] = src.reagents
+			return
+		else if(layer_reagents)
+			CRASH("[src] reagent pool not properly emptied or deleted!")
+		if(layer_reagents)
+			qdel(src.reagents)
+			src.reagents = layer_reagents
+			return
+	if(layer_reagents)
+		src.reagents = layer_reagents
+	else
+		src.reagents = new(SANDWICH_BASE_REAGENT_CAPACITY * src.width)
+		src.reagents.my_atom = src
+#undef SANDWICH_BASE_REAGENT_CAPACITY
