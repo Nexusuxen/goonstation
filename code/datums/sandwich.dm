@@ -118,4 +118,5 @@ TODO RENAME ALL THIS COMSIG SHIT TO NOT COMSIG BECAUSE COMSIG IS THE WRONG TERM.
 	snack_parent.bites_left = floor(src.fractional_bites_left)
 	if(snack_parent.bites_left == 0)
 		snack_parent.bites_left = 1 // we wanna round down but not set it to 0
+	snack_parent.apply_bite_mask()
 	. = ..() // since we'll risk deletion below 1 anyways

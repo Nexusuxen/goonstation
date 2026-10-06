@@ -21,16 +21,18 @@ Sandwiches physically act as you'd expect. Gameplay features that seem to be wor
 none, all major features seemingly added :)
 
 == NEX TODOS ==
-- Application of bite masks on removed ingredients and upon sandwich assembly
-- Make it so that sandwiches don't take 50 years to eat (scale bites_left somehow)
 - what if someone eats it all in one bite with matter eater? FUCK
 - deletion handling. some deletes should just delete all ingredients and reagents too, others should
   cause items and reagents to spill out
 - sandwich-specific sprites for the overlays
+- add sandwich ingredient element to appropriate food items
 - fix burgers.dmi (weird namings and aberrant sprites)
 - examine text to display ingredients
 - general performance pass
 - eliminate all todos that don't have entries here in this list
+- when a sandwich spawns, it should have the same x/y offsets as the base ingredient it came from
+- "you manage to salvage [x] from the sandwich!" message when an ingredient with <1 bites left is removed,
+  and "too much of [x] has been eaten, there's nothing to salvage!" if it fails with <1 bites left
 
 shit 2 test more rigorously:
 - reagent mechanics
@@ -53,10 +55,15 @@ DONES
 - food effects
 - Transferring of effects, quality, and fill_amt to each bite of the sandwich
 - reagent smear overlay
+- Application of bite masks on removed ingredients and upon sandwich assembly
+- Make it so that sandwiches don't take 50 years to eat (scale bites_left somehow)
 
 ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 - Every layer should *always* have an ingredient datum in it. The code works on this assumption.
   If there's *just* a reagent datum left the layer should still be deleted and the reagents disposed of somehow.
+
+DON'T FORGET TO MENTION THESE IN THE PR DESCRIPTION
+- changes to food_and_drink.dm (apply_bite_mask() proc, adding the bite/B to on_bite() args, tweaking on_bite())
 
 */
 
@@ -286,17 +293,8 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 		target = topmost_layer[index]
 		src.remove_ingredient(user, target)
 	if(!target)
-		CRASH("[src] somehow has an empty top layer which was never deleted!")
-	/*
-
-	src.unique_ingredients.Remove(target)
-	src.render() //todo remove just the ingredient's overlay
-	if(user)
-		user.put_in_hand_or_drop(target.parent)
-	else
-		target.parent.set_loc(src.loc)
-	target.on_remove()*/
-
+		src.remove_layer(topmost_layer)
+		CRASH("[src] somehow has an empty top layer which was never deleted! Removing [topmost_layer] now to try and fix this.")
 
 /// Removes a specific ingredient from somewhere in the sandwich
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/remove_ingredient(mob/user, datum/sandwich_ingredient/target)
@@ -359,7 +357,8 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
   eliminating the need to reiterate through the ingredients
 */
 
-/// Updates several key variables for the sandwich and its ingredients
+/// Goes through all ingredients to determine several consumption-related variables, such as fill_amt
+/// Any changes to how food works will likely need to modify this proc, as well as on_bite()
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/simulate()
 	var/bites_left_sum = 0
 	var/uneaten_bites_left_sum = 0
@@ -374,7 +373,7 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 		heal_amt_sum += ingredient.get_heal_amt()
 		var/food_quality = ingredient.get_quality()
 		if(food_quality < 0) // rancid meat in your otherwise delicious sandwich is still gonna get you sick
-			how_yucky += food_quality
+			how_yucky += food_quality // could instead set this to the lowest ingredient quality but this is simpler
 		else
 			quality_sum += food_quality
 		fill_amt_sum += ingredient.get_fill_amt()
@@ -386,43 +385,26 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 		qdel(src) //todo find better way to ensure sandwich removed upon fully consumed
 		return
 
-	src.uneaten_bites_left = uneaten_bites_left_sum
-	src.bites_left = bites_left_sum
-	src.percent_eaten_per_bite = 1 / src.uneaten_bites_left // from 0 to 1
+	// food code is inherently inconsistent, hence the inconsistencies here
+	// certain other factors, namely reagents, are handled on_bite()
+	src.uneaten_bites_left = scale_bites(uneaten_bites_left_sum)
+	src.bites_left = scale_bites(bites_left_sum)
+	src.percent_eaten_per_bite = 1 / src.uneaten_bites_left
 	src.heal_amt = heal_amt_sum / src.bites_left
 	if(how_yucky)
 		src.quality = how_yucky
 	else
 		src.quality = quality_sum / length(src.unique_ingredients)
 	src.fill_amt = fill_amt_sum
-	//todo add buffs too
 
-/*
-	// This math is for adjusting heal_amt so that when you finish eating, each ingredient would've healed you the same as if you ate it alone
-	// Same for buffs. This is a lot of checking/processing for a loop so try not to call this too often.
-	for(var/datum/sandwich_ingredient/ingredient in src.ingredients)
-		var/healing = ingredient.uneaten_bites_left * ingredient.original_heal_amt
-		healing *= ingredient.amount_left
-		ingredient.our_snack.bites_left = src.bites_left
-		ingredient.bites_left = src.bites_left
-		healing /= ingredient.bites_left
-		ingredient.our_snack.heal_amt = healing
-		ingredient.heal_amt = healing
-		var/buff_time = 0
-		var/buffs = ingredient.original_effects
-		for (var/effect in buffs)
-			if((buffs[effect]))
-				buff_time = buffs[effect]
-			else
-				buff_time = 1 MINUTE // currently the default buff time
-			buff_time *= ingredient.max_bites_left
-			buff_time *= ingredient.amount_left
-			buff_time /= ingredient.bites_left
-			ingredient.our_snack.food_effects[effect] = buff_time
-*/
+/// Arbitrary scaling to make sandwiches feel like they take a reasonable amount of time to eat
+/obj/item/reagent_containers/food/snacks/new_sandwich/proc/scale_bites(to_scale)
+	return 1 + ceil(to_scale / 2)
 
+/// We generate a /food/snacks/bite object to pass to ..() so it can behave as though we've bitten into every ingredient
+/// Any changes to how food works will likely need to modify this proc, as well as simulate()
 /obj/item/reagent_containers/food/snacks/new_sandwich/on_bite(mob/consumer, mob/feeder, ethereal_eater, obj/item/reagent_containers/food/snacks/bite/B)
-	B = new
+	B ||= new
 	B.reagents.maximum_volume = 1000 // setting to an arbitrarily high number so we can fit everything
 	B.heal_amt = src.heal_amt
 	B.quality = src.quality
@@ -445,11 +427,6 @@ ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 				transfer_amount = layer_reagents.maximum_volume / src.uneaten_bites_left
 			layer_reagents.trans_to(B, min(layer_reagents.total_volume, transfer_amount), do_fluid_react = FALSE)
 	. = ..(consumer, feeder, ethereal_eater, B)
-
-
-// FUCK
-/obj/item/reagent_containers/food/snacks/new_sandwich/on_reagent_transfer()
-
 
 /obj/item/reagent_containers/food/snacks/new_sandwich/attackby(obj/item/W, mob/user)
 	if(SEND_SIGNAL(W, COMSIG_ADD_TO_SANDWICH, user, src))

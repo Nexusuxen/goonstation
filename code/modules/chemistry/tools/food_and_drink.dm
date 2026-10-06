@@ -540,17 +540,20 @@ ABSTRACT_TYPE(/obj/item/reagent_containers/food/snacks)
 						L.add_food_bonus(effect, src)
 
 		if (use_bite_mask && src.uneaten_bites_left)
-			var/desired_mask = (bites_left / src.uneaten_bites_left) * 5
-			desired_mask = round(desired_mask)
-			desired_mask = max(1,desired_mask)
-			desired_mask = min(desired_mask, 5)
-
-			if (desired_mask != current_mask)
-				current_mask = desired_mask
-				src.add_filter("bite", 0, alpha_mask_filter(icon=icon('icons/obj/foodNdrink/food.dmi', "eating[desired_mask]")))
+			src.apply_bite_mask()
 
 		eat_twitch(eater)
 		eater.on_eat(src, feeder)
+
+	proc/apply_bite_mask()
+		var/desired_mask = (bites_left / src.uneaten_bites_left) * 5
+		desired_mask = round(desired_mask)
+		desired_mask = max(1,desired_mask)
+		desired_mask = min(desired_mask, 5)
+
+		if (desired_mask != current_mask)
+			current_mask = desired_mask
+			src.add_filter("bite", 0, alpha_mask_filter(icon=icon('icons/obj/foodNdrink/food.dmi', "eating[desired_mask]")))
 
 	proc/on_finish(mob/eater)
 		return
