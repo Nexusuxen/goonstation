@@ -21,9 +21,6 @@ Sandwiches physically act as you'd expect. Gameplay features that seem to be wor
 none, all major features seemingly added :)
 
 == NEX TODOS ==
-- what if someone eats it all in one bite with matter eater? FUCK
-- deletion handling. some deletes should just delete all ingredients and reagents too, others should
-  cause items and reagents to spill out
 - sandwich-specific sprites for the overlays
 - add sandwich ingredient element to appropriate food items
 - fix burgers.dmi (weird namings and aberrant sprites)
@@ -33,6 +30,8 @@ none, all major features seemingly added :)
 - when a sandwich spawns, it should have the same x/y offsets as the base ingredient it came from
 - "you manage to salvage [x] from the sandwich!" message when an ingredient with <1 bites left is removed,
   and "too much of [x] has been eaten, there's nothing to salvage!" if it fails with <1 bites left
+- look at how reagents are transferred from ingredients to consumer on_bite(). looks like it may be a little overtuned??
+  also make sure, if it's the final bite, that all reagents are transferred regardless of how much is left
 
 shit 2 test more rigorously:
 - reagent mechanics
@@ -57,17 +56,21 @@ DONES
 - reagent smear overlay
 - Application of bite masks on removed ingredients and upon sandwich assembly
 - Make it so that sandwiches don't take 50 years to eat (scale bites_left somehow)
+- what if someone eats it all in one bite with matter eater? FUCK
+  nothing done. turns out matter eater only takes 1 bite :D
+- deletion handling. some deletes should just delete all ingredients and reagents too, others should
+  cause items and reagents to spill out
 
 ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 - Every layer should *always* have an ingredient datum in it. The code works on this assumption.
   If there's *just* a reagent datum left the layer should still be deleted and the reagents disposed of somehow.
+- The "reagents" slot being empty is not strictly necessary, it just saves us from having to constantly make
+  new ones for each layer
 
 DON'T FORGET TO MENTION THESE IN THE PR DESCRIPTION
 - changes to food_and_drink.dm (apply_bite_mask() proc, adding the bite/B to on_bite() args, tweaking on_bite())
 
 */
-
-
 /// Somewhat abstract food item that includes most things sandwich and sandwich-adjacent
 /obj/item/reagent_containers/food/snacks/new_sandwich
 	name = "incomplete sandwich"
@@ -141,7 +144,8 @@ DON'T FORGET TO MENTION THESE IN THE PR DESCRIPTION
 	. = ..()
 	if(!add)
 		return
-	src.ensure_reagents()
+	var/list/topmost_layer = src.get_topmost_layer()
+	topmost_layer["reagents"] = src.reagents
 	src.render() //todo remove, added so newly added condiments would render immediately
 
 /// Adds a ingredient reagent to the sandwich, moving its respective atom (if applicable) to inside the sandwich
@@ -182,14 +186,15 @@ DON'T FORGET TO MENTION THESE IN THE PR DESCRIPTION
 	src.update_context()
 	return TRUE
 
-/// Adds a new layer to the sandwich with appropriate width and a placeholder null for the reagent slot
+/// Adds a new layer to the sandwich with an empty reagents datum and appropriately sized ingredients list
 /// Returns the new layer
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/add_layer()
-	if(src.reagents.total_volume) // previous layer is using the reagents datum, let's make a new one
-		src.ensure_reagents()
+	if(length(src.ingredients))
+		var/list/previous_layer = src.get_topmost_layer()
+		previous_layer["reagents"] = src.reagents // just in case this hasn't been done yet for some reason
+		src.new_reagents_datum()
 	var/list/ingredient_list[src.width]
-	// we don't add the reagent datum because we might not need it
-	var/list/new_layer = list("reagents" = null, "ingredients" = ingredient_list)
+	var/list/new_layer = list("reagents" = src.reagents, "ingredients" = ingredient_list)
 	src.ingredients += list(new_layer) // the only way to add the list without just combining them i could think of
 	return new_layer
 
@@ -263,7 +268,7 @@ DON'T FORGET TO MENTION THESE IN THE PR DESCRIPTION
 			to_display.pixel_y = height_offset
 			x_index += ingredient.width
 			src.AddOverlays(to_display, "\ref[ingredient]")
-		if(layer["reagents"])
+		if(src.has_condiments(layer))
 			var/image/to_display = src.get_overlay_image(layer["reagents"])
 			//todo wider sandwich handling
 			to_display.pixel_y = height_offset
@@ -297,7 +302,7 @@ DON'T FORGET TO MENTION THESE IN THE PR DESCRIPTION
 		CRASH("[src] somehow has an empty top layer which was never deleted! Removing [topmost_layer] now to try and fix this.")
 
 /// Removes a specific ingredient from somewhere in the sandwich
-/obj/item/reagent_containers/food/snacks/new_sandwich/proc/remove_ingredient(mob/user, datum/sandwich_ingredient/target)
+/obj/item/reagent_containers/food/snacks/new_sandwich/proc/remove_ingredient(mob/user, datum/sandwich_ingredient/target, forceful = FALSE)
 	var/list/layer_ingredients = target.occupied_layer["ingredients"]
 	for(var/index = 1, index <= length(layer_ingredients), index++)
 		if(layer_ingredients[index] != target)
@@ -311,12 +316,9 @@ DON'T FORGET TO MENTION THESE IN THE PR DESCRIPTION
 		anything_left = TRUE
 		break
 	if(!anything_left)
-		src.remove_layer(target.occupied_layer)
+		src.remove_layer(target.occupied_layer, forceful)
 	src.unique_ingredients.Remove(target)
-	if(user)
-		user.put_in_hand_or_drop(target.parent)
-	else
-		target.parent.set_loc(src.loc)
+	var/obj/item/target_parent = target.parent
 	target.on_remove()
 
 	SPAWN(0 SECONDS) // we wait a sec to let any updates finish first
@@ -324,13 +326,21 @@ DON'T FORGET TO MENTION THESE IN THE PR DESCRIPTION
 			src.simulate() // todo make more performant
 			src.render() // ditto
 
+	if(target_parent.qdeled)
+		return
+	else if(user)
+		user.put_in_hand_or_drop(target_parent)
+	else
+		src.spill_ingredient_item(target_parent, forceful)
+
 /// Checks if all we are is the bottom layer, and deletes us (spitting out that final ingredient) if so
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/one_layer_left_check()
 	// just the base ingredient left. if there's no reagents on it let's just stop pretending we're a sandwich anymore
 	if(length(src.ingredients) == 1)
 		var/list/topmost_layer = src.get_topmost_layer()
-		if(!isnull(topmost_layer["reagents"]))
+		if(src.has_condiments(topmost_layer))
 			return FALSE // i dont care if you dont consider a single slice of bread with ketchup on it a "sandwich"
+			// though if we get the ability to coat items in reagents, we should just do that here and delete src
 		var/datum/sandwich_ingredient/target = topmost_layer["ingredients"][1] // safe to assume the first index will always work
 		src.unique_ingredients.Remove(target)
 		if(ismob(src.loc))
@@ -417,7 +427,7 @@ DON'T FORGET TO MENTION THESE IN THE PR DESCRIPTION
 		ingredient.bitten_into(src.percent_eaten_per_bite, consumer, do_reagents, B)
 	if(do_reagents)
 		for(var/list/layer in src.ingredients)
-			if(!layer["reagents"])
+			if(!src.has_condiments(layer))
 				continue
 			var/datum/reagents/layer_reagents = layer["reagents"]
 			var/transfer_amount = 0
@@ -452,45 +462,16 @@ DON'T FORGET TO MENTION THESE IN THE PR DESCRIPTION
 		..()
 
 /// Removes the designated layer from the sandwich, dropping any ingredients and reagents onto the floor
-/obj/item/reagent_containers/food/snacks/new_sandwich/proc/remove_layer(list/layer_to_remove)
+/obj/item/reagent_containers/food/snacks/new_sandwich/proc/remove_layer(list/layer_to_remove, forceful = FALSE)
 	var/do_render = FALSE
 	if(!src.ingredients.Find(layer_to_remove, length(src.ingredients)))
 		do_render = TRUE // whole sandwich has gotta visually shift down
 	for(var/datum/sandwich_ingredient/ingredient in layer_to_remove["ingredients"])
 		src.remove_ingredient(null, ingredient)
-	if(layer_to_remove["reagents"])
-		var/datum/reagents/condiments = layer_to_remove["reagents"]
-		condiments.reaction(get_turf(src))
-		condiments.clear_reagents()
+	src.spill_reagents(layer_to_remove, forceful)
 	src.ingredients.Remove(list(layer_to_remove))
 	if(do_render)
 		src.render()
-
-#define SANDWICH_BASE_REAGENT_CAPACITY 10 // Seems like a reasonable amount
-/// Ensures that src.reagents exists and, if applicable, is set to the reagent datum on the topmost layer
-/// Also properly moves an existing non-empty src.reagents datum to the current layer if the layer reagents is null
-/obj/item/reagent_containers/food/snacks/new_sandwich/proc/ensure_reagents()
-	var/list/topmost_layer = src.get_topmost_layer()
-	var/datum/reagents/layer_reagents = topmost_layer["reagents"]
-	if(src.reagents)
-		if(src.reagents == topmost_layer["reagents"])
-			return
-		if(src.reagents.total_volume && !layer_reagents)
-			topmost_layer["reagents"] = src.reagents
-			return
-		else if(layer_reagents)
-			CRASH("[src] reagent pool not properly emptied or deleted!")
-		if(layer_reagents)
-			qdel(src.reagents)
-			src.reagents = layer_reagents
-			return
-	if(layer_reagents)
-		src.reagents = layer_reagents
-	else
-		src.reagents = new
-		src.reagents.maximum_volume = SANDWICH_BASE_REAGENT_CAPACITY * src.width
-		src.reagents.my_atom = src
-#undef SANDWICH_BASE_REAGENT_CAPACITY
 
 /obj/item/reagent_containers/food/snacks/new_sandwich/proc/get_overlay_image(datum/target)
 	if(istype(target, /datum/sandwich_ingredient))
@@ -498,6 +479,128 @@ DON'T FORGET TO MENTION THESE IN THE PR DESCRIPTION
 		return ingredient.get_appearance()
 	// safe to assume target is a reagents datum
 	var/datum/reagents/target_reagents = target
+	if(!target_reagents.total_volume)
+		return null
 	var/image/to_return = image('icons/obj/items/burgers.dmi', null, "overlay_chem")
 	to_return.color = target_reagents.get_average_color().to_rgba()
 	return to_return
+
+/// Attempts to qdel all ingredients, their datums, and any condiment reagents
+/obj/item/reagent_containers/food/snacks/new_sandwich/disposing()
+	for(var/list/layer in src.ingredients)
+		qdel(layer["reagents"])
+		for(var/datum/sandwich_ingredient/ingredient in layer["ingredients"])
+			qdel(ingredient.parent)
+			qdel(ingredient)
+	. = ..()
+
+/// Spills all the ingredients and condiments onto the floor, then qdels src
+/// Call with forceful to throw ingredients in a 3x3 area around src
+/obj/item/reagent_containers/food/snacks/new_sandwich/proc/topple_sandwich(forceful = FALSE)
+	for(var/list/layer in src.ingredients)
+		src.spill_reagents(layer, forceful)
+		for(var/datum/sandwich_ingredient/ingredient in layer["ingredients"])
+			src.remove_ingredient(target = ingredient, forceful = forceful)
+	qdel(src)
+
+/// Attempts to spill the specified item onto the floor from the sandwich.
+/// Does NOT modify src.ingredients. Consider calling remove_ingredient(spill = TRUE)
+/obj/item/reagent_containers/food/snacks/new_sandwich/proc/spill_ingredient_item(obj/item/to_spill, forceful = FALSE)
+	if(to_spill.qdeled)
+		return
+	to_spill.set_loc(get_turf(src))
+	if(forceful)
+		var/atom/target = src.find_a_target()
+		to_spill.throw_at(target, 10, 2)
+
+/// Attempts to spill the specified layer's condiments reagent, deleting it in the process
+/// Do forceful if you want the reagents to apply to any tile or mob in a 3x3 area
+/obj/item/reagent_containers/food/snacks/new_sandwich/proc/spill_reagents(list/layer, forceful = FALSE)
+	if(has_condiments(layer))
+		var/datum/reagents/condiments = layer["reagents"]
+		var/atom/target = null
+		if(forceful)
+			target = src.find_a_target()
+		target ||= get_turf(src)
+		condiments.reaction(target)
+		condiments.clear_reagents()
+	layer["reagents"] = null
+	qdel(layer["reagents"])
+
+/// Attempts to find a suitable target (a turf or mob) within a 3x3 area of the sandwich
+/// If it fails after a few attempts, it just returns the turf src occupies
+/obj/item/reagent_containers/food/snacks/new_sandwich/proc/find_a_target()
+	var/atom/possible_target = null
+	var/atom/target = null
+	var/list/in_view = view(1, get_turf(src))
+	for(var/tries = 1, tries <= 3, tries++)
+		possible_target = pick(in_view)
+		if(!ismob(possible_target)) // it's funniest to splatter onto mobs or the floor
+			possible_target = get_turf(possible_target)
+		if(in_interact_range(possible_target, src))
+			target = possible_target
+			break
+	target ||= get_turf(src)
+	return target
+
+//todo move this define
+#define SANDWICH_BASE_REAGENT_CAPACITY 10 // Seems like a reasonable amount
+/obj/item/reagent_containers/food/snacks/new_sandwich/proc/new_reagents_datum()
+	src.reagents = new
+	src.reagents.maximum_volume = SANDWICH_BASE_REAGENT_CAPACITY * src.width
+	src.reagents.my_atom = src
+#undef SANDWICH_BASE_REAGENT_CAPACITY
+
+/// Returns TRUE if the layer has a non-empty reagents datum in "reagents"
+/obj/item/reagent_containers/food/snacks/new_sandwich/proc/has_condiments(list/layer)
+	var/datum/reagents/condiments = layer["reagents"]
+	if(!istype(condiments))
+		return FALSE
+	if(condiments.total_volume)
+		return TRUE
+
+// REVIEW NOTE: This does not have to be reviewed, as it can be added in a future PR. This has been included
+// to aid in testing, and if it is not reviewed it will be removed prior to merging
+/obj/spawner/sandwich
+	desc = "Tries to spawn a sandwich with the specified ingredients"
+	/// List of item types and reagent lists to generate ingredients
+	var/list/starting_ingredients = null
+
+/obj/spawner/sandwich/New()
+	. = ..()
+	if(!src.starting_ingredients)
+		CRASH()
+	var/list/ingredients_list = list()
+	var/is_first_item = TRUE
+	for(var/entry in src.starting_ingredients)
+		if(islist(entry))
+			if(is_first_item)
+				CRASH()
+			var/list/reagent_list = entry
+			var/datum/reagents/reagents = new
+			reagents.maximum_volume = 100 //sure whatever
+			for(var/reagent in reagent_list)
+				var/volume = reagent_list[reagent]
+				volume ||= 10
+				reagents.add_reagent(reagent, volume)
+			ingredients_list += reagents
+			continue
+		var/obj/item/ingredient = new entry
+		if(is_first_item)
+			ingredient.AddElement(/datum/element/sandwich_base)
+			ingredient.set_loc(get_turf(src))
+			is_first_item = FALSE
+		ingredient.AddElement(/datum/element/sandwich_ingredient)
+		var/datum/sandwich_ingredient/ingredient_datum = generate_sandwich_datum(ingredient)
+		ingredients_list += ingredient_datum
+	new /obj/item/reagent_containers/food/snacks/new_sandwich(null, ingredients_list)
+
+/obj/spawner/sandwich/blt
+	starting_ingredients = list(
+		/obj/item/reagent_containers/food/snacks/breadslice,
+		list("mustard" = 10),
+		/obj/item/reagent_containers/food/snacks/ingredient/meat/bacon,
+		/obj/item/reagent_containers/food/snacks/plant/lettuce,
+		/obj/item/reagent_containers/food/snacks/ingredient/tomatoslice,
+		/obj/item/reagent_containers/food/snacks/breadslice
+	)
