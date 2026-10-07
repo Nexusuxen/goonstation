@@ -1,3 +1,6 @@
+//TODO NAMESPACE
+var/alist/ingredient_details = alist()
+
 // Handles the creation of custom sandwich items when circumstances are right, adding parent to the
 // newly created sandwich as its base, and generating sandwich datums as appropriate.
 // This element is to be added to anything that can be considered the bottom-most layer of a sandwich
@@ -18,11 +21,22 @@
 /// Whether or not, upon clicking a sandwich item or atom with element/sandwich_base with us, we are to be added to it as an ingredient
 /datum/element/sandwich_ingredient
 
-/datum/element/sandwich_ingredient/Attach(obj/item/target)
+/datum/element/sandwich_ingredient/Attach(obj/item/target, overlay, icon_state, datum_type)
 	. = ..()
 	if(!istype(target))
 		return DCS::ERR::ELEMENT_INCOMPATIBLE
 	RegisterSignal(target, COMSIG_ADD_TO_SANDWICH, PROC_REF(add_to_sandwich))
+	if(icon_state)
+		overlay = image('icons/obj/items/burgers3.dmi', null, icon_state)
+	if(!datum_type)
+		if(istype(target, /obj/item/reagent_containers/food/snacks))
+			datum_type = /datum/sandwich_ingredient/snacks
+		else
+			datum_type = /datum/sandwich_ingredient
+	// this is a bit of memory overhead, but it means faster lookups when building and rendering sandwiches
+	ingredient_details["\ref[target]"] = list(
+		"overlay" = overlay,
+		"datum_type" = datum_type)
 
 /// Attempts to add target to a specified sandwich or eligible sandwich base
 /// Generates a sandwich datum for the target and, if add_to isn't a sandwich obj, generates a sandwich datum for it, too
@@ -36,16 +50,9 @@
 	var/datum/sandwich_ingredient/added_to_ingredient = generate_sandwich_datum(add_to)
 	sandwich = new(user, list(added_to_ingredient, target_ingredient))
 
-//TODO FIND BETTER PLACES FOR THESE
-// Review: Can we make a macro or something so people don't have to come here
-// to manually hardcode the association with an item type and a sandwich datum type?
-/// TODO
-var/global/list/sandwich_datum_type_lookup = list()
-
+// TODO NAMESPACE
 proc/generate_sandwich_datum(obj/item/target)
-	if(target.type in sandwich_datum_type_lookup)
-		. = new sandwich_datum_type_lookup[target.type](target)
-	else if (istype(target, /obj/item/reagent_containers/food/snacks))
-		. = new /datum/sandwich_ingredient/snacks(target)
-	else
-		CRASH()
+	var/list/details = ingredient_details["\ref[target]"]
+	var/type = details["datum_type"]
+	var/overlay = details["overlay"]
+	return new type(target, overlay)

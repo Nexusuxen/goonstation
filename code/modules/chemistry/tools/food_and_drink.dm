@@ -219,7 +219,7 @@ ABSTRACT_TYPE(/obj/item/reagent_containers/food/snacks)
 		create_time = TIME
 		if (src.amount != 1)
 			stack_trace("[identify_object(src)] is spawning with an amount other than 1. That's bad. Go delete the 'amount' line and replace it with `bites_left = \[whatever the amount var had before\].")
-		AddElement(/datum/element/sandwich_ingredient) // TEMPORARY MEASURE FOR TESTING
+		//AddElement(/datum/element/sandwich_ingredient) // TEMPORARY MEASURE FOR TESTING
 		// IF YOU SEE THIS YELL AT NEX UNLESS YOU'RE HERE PRE-PR
 
 	disposing()

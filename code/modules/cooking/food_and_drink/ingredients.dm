@@ -218,6 +218,7 @@ ABSTRACT_TYPE(/obj/item/reagent_containers/food/snacks/ingredient)
 
 	New()
 		..()
+		src.AddElement(/datum/element/sandwich_ingredient, src, icon_state = "overlay_bacon")
 		src.pixel_x += rand(-4,4)
 		src.pixel_y += rand(-4,4)
 
@@ -884,6 +885,10 @@ obj/item/reagent_containers/food/snacks/ingredient/pepperoni_log
 	initial_volume = 15
 	initial_reagents = list("juice_tomato"=4)
 	fill_amt = 0.3
+
+	New()
+		. = ..()
+		src.AddElement(/datum/element/sandwich_ingredient, src, icon_state = "overlay_tomato")
 
 /obj/item/reagent_containers/food/snacks/ingredient/cheeseslice
 	name = "slice of cheese"

@@ -31,20 +31,16 @@ TODO RENAME ALL THIS COMSIG SHIT TO NOT COMSIG BECAUSE COMSIG IS THE WRONG TERM.
 	/// If applied to an existing sandwich, nothing may be added atop it
 	var/is_sandwich_top = FALSE
 
-/datum/sandwich_ingredient/New(obj/item/source)
+/datum/sandwich_ingredient/New(obj/item/source, image/to_overlay)
 	. = ..()
 	src.parent = source
-	// our parent should set everything up for us
+	src.sandwich_overlay = to_overlay
 	SEND_SIGNAL(parent, COMSIG_SANDWICH_DATUM_CREATED, src)
-	// ...but if not, we default to some things
-	src.fallback()
+	// giving our parent an opportunity to set our image and do other stuff if need be
+	sandwich_overlay ||= image(src.parent.icon, null, src.parent.icon_state)
 	var/bites_left = src.get_bites_left()
 	if(bites_left)
 		src.fractional_bites_left = bites_left
-
-/datum/sandwich_ingredient/proc/fallback()
-	if(!src.sandwich_overlay)
-		src.sandwich_overlay = image(parent.icon, null, parent.icon_state)
 
 /datum/sandwich_ingredient/proc/get_appearance()
 	return src.sandwich_overlay
@@ -91,10 +87,10 @@ TODO RENAME ALL THIS COMSIG SHIT TO NOT COMSIG BECAUSE COMSIG IS THE WRONG TERM.
 /datum/sandwich_ingredient/snacks
 	var/obj/item/reagent_containers/food/snacks/snack_parent = null
 
-/datum/sandwich_ingredient/snacks/New(obj/item/source)
+/datum/sandwich_ingredient/snacks/New(obj/item/source, to_overlay)
 	src.snack_parent = source
 	src.reagents = source.reagents
-	. = ..(source)
+	. = ..(source, to_overlay)
 
 /datum/sandwich_ingredient/snacks/get_uneaten_bites_left()
 	return snack_parent.uneaten_bites_left

@@ -21,17 +21,19 @@ Sandwiches physically act as you'd expect. Gameplay features that seem to be wor
 none, all major features seemingly added :)
 
 == NEX TODOS ==
-- sandwich-specific sprites for the overlays
-- add sandwich ingredient element to appropriate food items
-- fix burgers.dmi (weird namings and aberrant sprites)
+functional todos
 - examine text to display ingredients
-- general performance pass
-- eliminate all todos that don't have entries here in this list
 - when a sandwich spawns, it should have the same x/y offsets as the base ingredient it came from
 - "you manage to salvage [x] from the sandwich!" message when an ingredient with <1 bites left is removed,
   and "too much of [x] has been eaten, there's nothing to salvage!" if it fails with <1 bites left
 - look at how reagents are transferred from ingredients to consumer on_bite(). looks like it may be a little overtuned??
   also make sure, if it's the final bite, that all reagents are transferred regardless of how much is left
+- eliminate all todos that don't have entries here in this list
+
+finalization (pre-PR) todos
+- add sandwich ingredient element to appropriate food items
+- fix burgers3.dmi (most things unnamed, missing bread sprites, etc.)
+- general performance pass
 
 shit 2 test more rigorously:
 - reagent mechanics
@@ -60,6 +62,7 @@ DONES
   nothing done. turns out matter eater only takes 1 bite :D
 - deletion handling. some deletes should just delete all ingredients and reagents too, others should
   cause items and reagents to spill out
+- sandwich-specific sprites for the overlays
 
 ASSORTED IMPORTANT NOTES THAT SHOULD BE DOCUMENTED
 - Every layer should *always* have an ingredient datum in it. The code works on this assumption.

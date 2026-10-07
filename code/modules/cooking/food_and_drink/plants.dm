@@ -793,7 +793,7 @@ ABSTRACT_TYPE(/obj/item/reagent_containers/food/snacks/plant)
 
 	New()
 		. = ..()
-		src.AddElement(/datum/element/sandwich_ingredient)
+		src.AddElement(/datum/element/sandwich_ingredient, src, icon_state = "overlay_lettuce")
 
 /obj/item/reagent_containers/food/snacks/plant/cucumber
 	name = "cucumber"
