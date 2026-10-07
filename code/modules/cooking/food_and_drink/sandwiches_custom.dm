@@ -594,6 +594,7 @@ DON'T FORGET TO MENTION THESE IN THE PR DESCRIPTION
 		var/datum/sandwich_ingredient/ingredient_datum = generate_sandwich_datum(ingredient)
 		ingredients_list += ingredient_datum
 	new /obj/item/reagent_containers/food/snacks/new_sandwich(null, ingredients_list)
+	qdel(src)
 
 /obj/spawner/sandwich/blt
 	starting_ingredients = list(
